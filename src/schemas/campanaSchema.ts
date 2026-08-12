@@ -1,0 +1,77 @@
+import { z } from 'zod';
+
+// ── Helpers de coerción para multipart/form-data ─────────
+
+/** Coerción segura: acepta boolean, string 'true'/'false', y lo normaliza a boolean */
+const booleanCoerce = z.preprocess((val) => {
+  if (typeof val === 'boolean') return val;
+  if (val === 'true' || val === '1') return true;
+  if (val === 'false' || val === '0' || val === undefined || val === null) return false;
+  return val;
+}, z.boolean());
+
+/** Parseo seguro: acepta JSON string o array nativo y lo normaliza a string[] */
+const rubrosCoerce = z.preprocess((val) => {
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'string') {
+    try {
+      const parsed: unknown = JSON.parse(val);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}, z.array(z.string().uuid('Cada rubro debe ser un UUID válido')));
+
+// ── Schemas ──────────────────────────────────────────────
+
+export const crearCampanaSchema = z.object({
+  asunto: z
+    .string({ message: 'El asunto es obligatorio' })
+    .min(1, 'El asunto no puede estar vacío')
+    .max(255, 'El asunto no puede exceder 255 caracteres'),
+
+  cuerpo_html: z
+    .string({ message: 'El cuerpo HTML es obligatorio' })
+    .min(1, 'El cuerpo HTML no puede estar vacío'),
+
+  link_inscripcion: z
+    .string()
+    .url('El link de inscripción debe ser una URL válida')
+    .optional()
+    .or(z.literal('')),
+
+  flyer_url: z
+    .string()
+    .optional(),
+
+  fecha_limite_envio: z
+    .string({ message: 'La fecha límite de envío es obligatoria' })
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'La fecha debe tener formato YYYY-MM-DD'),
+
+  prioridad: z
+    .enum(['alta', 'media', 'baja'], {
+      message: 'La prioridad debe ser: alta, media o baja',
+    })
+    .default('alta'),
+
+  para_todos_rubros: booleanCoerce.default(true),
+
+  rubros_seleccionados: rubrosCoerce.default([]),
+});
+
+export const cambiarEstadoSchema = z.object({
+  estado: z.enum(['borrador', 'aprobada', 'en_proceso', 'completada', 'cancelada'], {
+    message: 'Estado inválido. Valores permitidos: borrador, aprobada, en_proceso, completada, cancelada',
+  }),
+});
+
+/** Esquema para validar params con UUID */
+export const uuidParamSchema = z.object({
+  id: z.string().uuid('El ID debe ser un UUID válido'),
+});
+
+// ── Tipos inferidos desde Zod ────────────────────────────
+export type CrearCampanaBody = z.infer<typeof crearCampanaSchema>;
+export type CambiarEstadoBody = z.infer<typeof cambiarEstadoSchema>;
