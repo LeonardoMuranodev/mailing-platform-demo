@@ -1,0 +1,28 @@
+# Archivos generados por contenedores
+uploads/
+dist/
+
+# Dependencias — cada contenedor las instala en su imagen
+node_modules/
+client/node_modules/
+
+# Ambiente local
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore

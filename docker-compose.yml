@@ -1,0 +1,108 @@
+services:
+  # ─── 1. BACKEND API (Node.js / Express / TypeScript) ───────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: mails-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - PORT=3000
+      - NODE_ENV=development
+      # Overrides para servicios internos del compose
+      - SMTP_HOST=mailpit
+      - SMTP_PORT=1025
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      redis:
+        condition: service_started
+      mailpit:
+        condition: service_started
+    networks:
+      - mails-network
+
+  # ─── 2. FRONTEND CLIENT (React / Vite / TypeScript) ────────
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile.frontend
+      target: development
+    container_name: mails-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:3000/api
+    volumes:
+      - ./client/src:/app/src
+      - ./client/public:/app/public
+      - ./client/index.html:/app/index.html
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - mails-network
+
+  # ─── 3. REDIS (Cola de Trabajos — Envío Masivo) ────────────
+  redis:
+    image: redis:7-alpine
+    container_name: mails-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - mails-network
+
+  # ─── 4. MAILPIT (SMTP de Pruebas — Intercepta correos) ────
+  mailpit:
+    image: axllent/mailpit:v1.21
+    container_name: mails-mailpit
+    restart: unless-stopped
+    ports:
+      - "8025:8025"   # Dashboard Web para ver correos
+      - "1025:1025"   # Puerto SMTP ficticio
+    environment:
+      - MP_MAX_MESSAGES=500
+      - MP_DATABASE=/data/mailpit.db
+      - MP_SMTP_AUTH_ACCEPT_ANY=true
+      - MP_UI_AUTH_FILE=
+    volumes:
+      - mailpit_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8025/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - mails-network
+
+# ─── Volumes ──────────────────────────────────────────────────
+volumes:
+  redis_data:
+    driver: local
+  mailpit_data:
+    driver: local
+  uploads_data:
+    driver: local
+
+# ─── Networks ─────────────────────────────────────────────────
+networks:
+  mails-network:
+    driver: bridge

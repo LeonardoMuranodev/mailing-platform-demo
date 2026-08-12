@@ -1,0 +1,39 @@
+# ── Stage 1: Build ───────────────────────────────────────
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+# Copia manifests primero para cache de capas
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts
+
+# Copia el source y compila TypeScript
+COPY tsconfig.json ./
+COPY src/ ./src/
+RUN npm run build
+
+# ── Stage 2: Runtime ─────────────────────────────────────
+FROM node:22-alpine AS runtime
+
+WORKDIR /app
+
+# Instala solo dependencias de producción
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+
+# Copia el build compilado
+COPY --from=builder /app/dist ./dist
+
+# Crea carpeta de uploads con permisos adecuados
+RUN mkdir -p /app/uploads && chown -R node:node /app/uploads
+
+# Seguridad: no correr como root
+USER node
+
+EXPOSE 3000
+
+# Healthcheck: verifica que el server responda
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/campanas || exit 1
+
+CMD ["node", "dist/index.js"]
