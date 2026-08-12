@@ -1,111 +1,197 @@
-:root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+@import "tailwindcss";
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+/* ── Google Font ──────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+/* ── Design Tokens (Tailwind v4 @theme) ───────────────── */
+@theme {
+  --color-primary: #005CA9;
+  --color-primary-light: #0073D1;
+  --color-primary-dark: #004A87;
+
+  --color-secondary: #88C13E;
+  --color-secondary-light: #9FD456;
+  --color-secondary-dark: #6FA030;
+
+  --color-dark: #1E293B;
+  --color-muted: #64748B;
+  --color-border: #E2E8F0;
+  --color-surface: #FFFFFF;
+  --color-background: #F8FAFC;
+
+  --color-danger: #DC2626;
+  --color-danger-light: #FEE2E2;
+
+  --color-warning: #F59E0B;
+  --color-warning-light: #FEF3C7;
+
+  --color-success: #16A34A;
+  --color-success-light: #DCFCE7;
+
+  --font-family-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ── Base ──────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
 }
 
 body {
   margin: 0;
+  font-family: var(--font-family-sans);
+  background-color: var(--color-background);
+  color: var(--color-dark);
+  line-height: 1.6;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+/* ── Tiptap Editor ────────────────────────────────────── */
+.tiptap-editor .ProseMirror {
+  min-height: 200px;
+  padding: 1rem;
+  outline: none;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--color-dark);
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
+.tiptap-editor .ProseMirror p {
+  margin: 0.5em 0;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
+.tiptap-editor .ProseMirror h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0.75em 0 0.5em;
+  color: var(--color-primary);
+}
+
+.tiptap-editor .ProseMirror h2 {
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin: 0.75em 0 0.5em;
+  color: var(--color-dark);
+}
+
+.tiptap-editor .ProseMirror ul,
+.tiptap-editor .ProseMirror ol {
+  padding-left: 1.5rem;
+  margin: 0.5em 0;
+}
+
+.tiptap-editor .ProseMirror li {
+  margin: 0.25em 0;
+}
+
+.tiptap-editor .ProseMirror a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.tiptap-editor .ProseMirror a:hover {
+  color: var(--color-primary-light);
+}
+
+.tiptap-editor .ProseMirror:focus {
+  outline: none;
+}
+
+/* ── Vista Previa (Hoja de papel A4) ──────────────────── */
+.email-preview-paper {
+  max-width: 680px;
+  margin: 0 auto;
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.06),
+    0 4px 16px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.email-preview-paper .email-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-background);
+}
+
+.email-preview-paper .email-body {
+  padding: 1.5rem;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--color-dark);
+}
+
+.email-preview-paper .email-body h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin: 0.5em 0;
+}
+
+.email-preview-paper .email-body h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--color-dark);
+  margin: 0.5em 0;
+}
+
+.email-preview-paper .email-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  margin: 1rem 0;
+}
+
+.email-preview-paper .email-body a {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.email-preview-paper .email-body ul,
+.email-preview-paper .email-body ol {
+  padding-left: 1.5rem;
+}
+
+/* ── Scrollbar ────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted);
+}
+
+/* ── Animations ───────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* ── Focus visible ────────────────────────────────────── */
+*:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
   border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
 }
