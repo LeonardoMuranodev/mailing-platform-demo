@@ -12,7 +12,7 @@ import {
   Unlink,
 } from 'lucide-react';
 import { useCampanaStore } from '../stores/campanaStore';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 
 export default function TiptapEditor() {
   const htmlContent = useCampanaStore((state) => state.form.cuerpo_html);
@@ -40,26 +40,37 @@ export default function TiptapEditor() {
     },
   });
 
-  const setLink = useCallback(() => {
+  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
+
+  const openLinkModal = useCallback(() => {
+    if (!editor) return;
+    const previousUrl = editor.getAttributes('link').href;
+    setLinkUrl(previousUrl || '');
+    setIsLinkModalOpen(true);
+  }, [editor]);
+
+  const confirmLink = () => {
     if (!editor) return;
 
-    const previousUrl = editor.getAttributes('link').href;
-    const url = window.prompt('URL del enlace', previousUrl);
-
-    // cancelled
-    if (url === null) {
-      return;
-    }
-
-    // empty
-    if (url === '') {
+    let finalUrl = linkUrl.trim();
+    if (finalUrl === '') {
       editor.chain().focus().extendMarkRange('link').unsetLink().run();
+      setIsLinkModalOpen(false);
       return;
     }
 
-    // update link
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
-  }, [editor]);
+    if (!/^https?:\/\//i.test(finalUrl)) {
+      finalUrl = 'https://' + finalUrl;
+    }
+
+    editor.chain().focus().extendMarkRange('link').setLink({ href: finalUrl }).run();
+    setIsLinkModalOpen(false);
+  };
+
+  const closeLinkModal = () => {
+    setIsLinkModalOpen(false);
+  };
 
   if (!editor) {
     return null;
@@ -142,7 +153,7 @@ export default function TiptapEditor() {
           <ListOrdered size={18} />
         </ToolbarButton>
         <div className="w-px h-6 bg-slate-300 mx-1"></div>
-        <ToolbarButton onClick={setLink} isActive={editor.isActive('link')} title="Insertar Enlace">
+        <ToolbarButton onClick={openLinkModal} isActive={editor.isActive('link')} title="Insertar Enlace">
           <LinkIcon size={18} />
         </ToolbarButton>
         <ToolbarButton
@@ -157,6 +168,40 @@ export default function TiptapEditor() {
       <EditorContent editor={editor} />
       
       {error && <p className="text-danger text-sm px-3 pb-2">{error}</p>}
+
+      {isLinkModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-5 animate-fade-in">
+            <h3 className="text-lg font-semibold text-slate-800 mb-4">Insertar Enlace</h3>
+            <input
+              type="text"
+              value={linkUrl}
+              onChange={(e) => setLinkUrl(e.target.value)}
+              placeholder="Ej. google.com"
+              className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary mb-4"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') confirmLink();
+                if (e.key === 'Escape') closeLinkModal();
+              }}
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={closeLinkModal}
+                className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmLink}
+                className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark transition-colors"
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

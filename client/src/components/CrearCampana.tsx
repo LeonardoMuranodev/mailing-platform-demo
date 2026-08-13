@@ -28,8 +28,7 @@ export default function CrearCampana() {
 
   const handleSuccessRedirect = () => {
     reset();
-    // En el futuro, redirigir al listado de campañas
-    // navigate('/campanas');
+    navigate('/');
   };
 
   return (
@@ -110,7 +109,7 @@ export default function CrearCampana() {
             {/* Link de inscripción */}
             <div>
               <label htmlFor="link_inscripcion" className="block text-base font-semibold text-dark mb-1.5">
-                Link de inscripción (Opcional)
+                Link de inscripción <span className="text-danger">*</span>
               </label>
               <input
                 type="url"
@@ -150,7 +149,7 @@ export default function CrearCampana() {
           {/* Flyer */}
           <div>
             <label className="block text-base font-semibold text-dark mb-1.5">
-              Flyer adjunto (Opcional)
+              Flyer adjunto <span className="text-danger">*</span>
             </label>
             <FlyerUpload />
           </div>

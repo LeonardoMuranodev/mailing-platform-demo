@@ -1,6 +1,30 @@
-import type { ApiResponse, CampanaResponse } from '../types/campana';
+import type { ApiResponse, CampanaResponse, CampanaConStats, ColaEnvioItem } from '../types/campana';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
+
+/**
+ * Wrapper de fetch para manejar errores de red o caídas del backend de forma amigable.
+ */
+async function fetchApi<T>(url: string, options?: RequestInit): Promise<ApiResponse<T>> {
+  try {
+    const res = await fetch(url, options);
+    const contentType = res.headers.get('content-type');
+    
+    if (!contentType || !contentType.includes('application/json')) {
+      return { 
+        success: false, 
+        error: { code: 'SERVER_ERROR', message: 'El servidor respondió con un formato inválido. Por favor, intente nuevamente más tarde.' } 
+      };
+    }
+    
+    return (await res.json()) as ApiResponse<T>;
+  } catch (error) {
+    return { 
+      success: false, 
+      error: { code: 'NETWORK_ERROR', message: 'No se pudo conectar con el servidor. Verifique su conexión y vuelva a intentar.' } 
+    };
+  }
+}
 
 /**
  * Crea una campaña en estado 'borrador'.
@@ -9,14 +33,10 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 export async function crearCampana(
   formData: FormData,
 ): Promise<ApiResponse<CampanaResponse>> {
-  const res = await fetch(`${API_BASE}/api/campanas`, {
+  return fetchApi<CampanaResponse>(`${API_BASE}/api/campanas`, {
     method: 'POST',
     body: formData,
-    // No setear Content-Type — el browser lo agrega con el boundary de multipart
   });
-
-  const json = (await res.json()) as ApiResponse<CampanaResponse>;
-  return json;
 }
 
 /**
@@ -26,12 +46,59 @@ export async function cambiarEstadoCampana(
   id: string,
   estado: string,
 ): Promise<ApiResponse<CampanaResponse>> {
-  const res = await fetch(`${API_BASE}/api/campanas/${id}/estado`, {
+  return fetchApi<CampanaResponse>(`${API_BASE}/api/campanas/${id}/estado`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ estado }),
   });
+}
 
-  const json = (await res.json()) as ApiResponse<CampanaResponse>;
-  return json;
+/**
+ * Lista campañas con filtros opcionales.
+ */
+export async function listarCampanas(filtros?: {
+  asunto?: string;
+  estado?: string;
+  fecha_desde?: string;
+  fecha_hasta?: string;
+}): Promise<ApiResponse<CampanaResponse[]>> {
+  const query = new URLSearchParams();
+  if (filtros?.asunto) query.append('asunto', filtros.asunto);
+  if (filtros?.estado) query.append('estado', filtros.estado);
+  if (filtros?.fecha_desde) query.append('fecha_desde', filtros.fecha_desde);
+  if (filtros?.fecha_hasta) query.append('fecha_hasta', filtros.fecha_hasta);
+
+  return fetchApi<CampanaResponse[]>(`${API_BASE}/api/campanas?${query.toString()}`);
+}
+
+/**
+ * Obtiene el detalle de una campaña con estadísticas.
+ */
+export async function obtenerCampanaDetalle(
+  id: string,
+): Promise<ApiResponse<CampanaConStats>> {
+  return fetchApi<CampanaConStats>(`${API_BASE}/api/campanas/${id}/detalle`);
+}
+
+/**
+ * Obtiene la cola de envíos de una campaña con filtros opcionales.
+ */
+export async function obtenerColaCampana(
+  campanaId: string,
+  filtros?: {
+    estado?: string;
+    email?: string;
+    cuenta_smtp_id?: string;
+    fecha_desde?: string;
+    fecha_hasta?: string;
+  },
+): Promise<ApiResponse<ColaEnvioItem[]>> {
+  const query = new URLSearchParams();
+  if (filtros?.estado) query.append('estado', filtros.estado);
+  if (filtros?.email) query.append('email', filtros.email);
+  if (filtros?.cuenta_smtp_id) query.append('cuenta_smtp_id', filtros.cuenta_smtp_id);
+  if (filtros?.fecha_desde) query.append('fecha_desde', filtros.fecha_desde);
+  if (filtros?.fecha_hasta) query.append('fecha_hasta', filtros.fecha_hasta);
+
+  return fetchApi<ColaEnvioItem[]>(`${API_BASE}/api/queue/${campanaId}?${query.toString()}`);
 }

@@ -26,6 +26,28 @@ export interface CampanaResponse {
   actualizado_en: string;
 }
 
+/** Campaña con estadísticas de cola agregadas */
+export interface CampanaConStats extends CampanaResponse {
+  stats: {
+    total: number;
+    pendientes: number;
+    enviados: number;
+    fallidos: number;
+  };
+}
+
+/** Item de la cola de envíos (vista del frontend) */
+export interface ColaEnvioItem {
+  id: number;
+  contacto_email: string;
+  estado: 'pendiente' | 'procesando' | 'enviado' | 'fallido';
+  respuesta_smtp: string | null;
+  intentos: number;
+  fecha_envio: string | null;
+  cuenta_smtp_email: string | null;
+  creado_en: string;
+}
+
 /** Envelope estándar de la API */
 export interface ApiResponse<T> {
   success: boolean;

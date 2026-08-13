@@ -14,6 +14,12 @@ campanaRouter.post(
   campanaController.crear,
 );
 
+// GET /api/campanas — Listar campañas
+campanaRouter.get('/', campanaController.listar);
+
+// GET /api/campanas/:id/detalle — Obtener campaña con estadísticas
+campanaRouter.get('/:id/detalle', campanaController.detalle);
+
 // GET /api/campanas/:id — Obtener campaña por UUID
 campanaRouter.get('/:id', campanaController.obtenerPorId);
 

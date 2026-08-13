@@ -40,6 +40,7 @@ services:
       - "5173:5173"
     environment:
       - VITE_API_URL=http://localhost:3000/api
+      - BACKEND_URL=http://backend:3000
     volumes:
       - ./client/src:/app/src
       - ./client/public:/app/public
@@ -81,6 +82,7 @@ services:
       - MP_MAX_MESSAGES=500
       - MP_DATABASE=/data/mailpit.db
       - MP_SMTP_AUTH_ACCEPT_ANY=true
+      - MP_SMTP_AUTH_ALLOW_INSECURE=true
       - MP_UI_AUTH_FILE=
     volumes:
       - mailpit_data:/data

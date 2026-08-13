@@ -3,6 +3,8 @@ import {
   crearCampana,
   cambiarEstadoCampana,
   obtenerCampanaPorId,
+  listarCampanas,
+  obtenerCampanaConEstadisticas,
 } from '../services/campanaService.js';
 import { sendSuccess, sendError } from '../utils/responseHandler.js';
 import type { CrearCampanaBody, CambiarEstadoBody } from '../schemas/campanaSchema.js';
@@ -15,10 +17,14 @@ async function crear(req: Request, _res: Response, next: NextFunction): Promise<
   try {
     const body = req.body as CrearCampanaBody;
 
-    // Si multer subió un archivo, sobreescribir flyer_url
     const flyer_url = req.file
       ? `/uploads/${req.file.filename}`
       : body.flyer_url;
+
+    if (!flyer_url) {
+      sendError(_res, 'VALIDATION_ERROR', 'El flyer es obligatorio', 400, [{ field: 'flyer', message: 'El flyer es obligatorio' }]);
+      return;
+    }
 
     const campana = await crearCampana({ ...body, flyer_url });
     sendSuccess(_res, campana, 201);
@@ -68,8 +74,48 @@ async function cambiarEstado(req: Request, res: Response, next: NextFunction): P
   }
 }
 
+/**
+ * GET /api/campanas
+ */
+async function listar(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const filtros = {
+      asunto: req.query.asunto as string | undefined,
+      estado: req.query.estado as any,
+      fecha_desde: req.query.fecha_desde as string | undefined,
+      fecha_hasta: req.query.fecha_hasta as string | undefined,
+    };
+    
+    const campanas = await listarCampanas(filtros);
+    sendSuccess(res, campanas);
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /api/campanas/:id/detalle
+ */
+async function detalle(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const id = req.params.id as string;
+    const campana = await obtenerCampanaConEstadisticas(id);
+
+    if (!campana) {
+      sendError(res, 'NOT_FOUND', 'Campaña no encontrada', 404);
+      return;
+    }
+
+    sendSuccess(res, campana);
+  } catch (err) {
+    next(err);
+  }
+}
+
 export const campanaController = {
   crear,
   obtenerPorId,
   cambiarEstado,
+  listar,
+  detalle,
 };

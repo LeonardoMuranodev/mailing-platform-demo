@@ -11,3 +11,6 @@ export class ImapService {
 }
 
 export * as campanaService from './campanaService.js';
+export * as queueService from './queueService.js';
+export * as smtpAccountService from './smtpAccountService.js';
+

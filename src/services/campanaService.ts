@@ -86,3 +86,101 @@ export async function obtenerCampanaPorId(
   const result = await dbPool.query<Campana>(query, [id]);
   return result.rows[0] ?? null;
 }
+
+/** Filtros opcionales para listar campañas */
+export interface ListarCampanasFiltros {
+  asunto?: string;
+  estado?: EstadoCampana;
+  fecha_desde?: string;
+  fecha_hasta?: string;
+}
+
+/**
+ * Lista campañas con filtros opcionales.
+ */
+export async function listarCampanas(
+  filtros: ListarCampanasFiltros = {},
+): Promise<Campana[]> {
+  const conditions: string[] = [];
+  const values: unknown[] = [];
+  let paramIdx = 1;
+
+  if (filtros.asunto) {
+    conditions.push(`asunto ILIKE $${paramIdx}`);
+    values.push(`%${filtros.asunto}%`);
+    paramIdx++;
+  }
+
+  if (filtros.estado) {
+    conditions.push(`estado = $${paramIdx}`);
+    values.push(filtros.estado);
+    paramIdx++;
+  }
+
+  if (filtros.fecha_desde) {
+    conditions.push(`fecha_limite_envio >= $${paramIdx}`);
+    values.push(filtros.fecha_desde);
+    paramIdx++;
+  }
+
+  if (filtros.fecha_hasta) {
+    conditions.push(`fecha_limite_envio <= $${paramIdx}`);
+    values.push(filtros.fecha_hasta);
+    paramIdx++;
+  }
+
+  const whereClause = conditions.length > 0
+    ? `WHERE ${conditions.join(' AND ')}`
+    : '';
+
+  const query = `SELECT * FROM campanas ${whereClause} ORDER BY creado_en DESC;`;
+  const result = await dbPool.query<Campana>(query, values);
+  return result.rows;
+}
+
+/** Campaña con estadísticas de cola de envíos */
+export interface CampanaConStats extends Campana {
+  stats: {
+    total: number;
+    pendientes: number;
+    enviados: number;
+    fallidos: number;
+  };
+}
+
+/**
+ * Obtiene una campaña con estadísticas agregadas de su cola de envíos.
+ */
+export async function obtenerCampanaConEstadisticas(
+  id: string,
+): Promise<CampanaConStats | null> {
+  const campana = await obtenerCampanaPorId(id);
+  if (!campana) return null;
+
+  const statsQuery = `
+    SELECT
+      COUNT(*)::int AS total,
+      COUNT(*) FILTER (WHERE estado = 'pendiente')::int AS pendientes,
+      COUNT(*) FILTER (WHERE estado = 'enviado')::int AS enviados,
+      COUNT(*) FILTER (WHERE estado = 'fallido')::int AS fallidos
+    FROM cola_envios
+    WHERE campana_id = $1;
+  `;
+
+  const statsResult = await dbPool.query<{
+    total: number;
+    pendientes: number;
+    enviados: number;
+    fallidos: number;
+  }>(statsQuery, [id]);
+
+  const stats = statsResult.rows[0] ?? {
+    total: 0,
+    pendientes: 0,
+    enviados: 0,
+    fallidos: 0,
+  };
+
+  return { ...campana, stats };
+}
+
