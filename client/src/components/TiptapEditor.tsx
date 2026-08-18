@@ -35,7 +35,7 @@ export default function TiptapEditor() {
     },
     editorProps: {
       attributes: {
-        class: 'tiptap-editor border-t border-slate-200 min-h-[200px] focus:outline-none',
+        class: 'border-t border-border min-h-[200px] focus:outline-none',
       },
     },
   });
@@ -95,7 +95,7 @@ export default function TiptapEditor() {
       disabled={disabled}
       title={title}
       className={`p-2 rounded-md transition-colors flex items-center justify-center
-        ${isActive ? 'bg-primary/10 text-primary' : 'text-slate-600 hover:bg-slate-100'}
+        ${isActive ? 'bg-primary/10 text-primary' : 'text-muted hover:bg-background'}
         ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
       `}
     >
@@ -104,8 +104,8 @@ export default function TiptapEditor() {
   );
 
   return (
-    <div className={`border rounded-lg overflow-hidden bg-white ${error ? 'border-danger' : 'border-slate-300 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary'}`}>
-      <div className="flex flex-wrap items-center gap-1 p-2 bg-slate-50 border-b border-slate-200">
+    <div className={`border rounded-lg overflow-hidden bg-surface transition-colors ${error ? 'border-danger' : 'border-border focus-within:border-primary focus-within:ring-1 focus-within:ring-primary'}`}>
+      <div className="flex flex-wrap items-center gap-1 p-2 bg-background border-b border-border">
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBold().run()}
           disabled={!editor.can().chain().focus().toggleBold().run()}
@@ -122,7 +122,7 @@ export default function TiptapEditor() {
         >
           <Italic size={18} />
         </ToolbarButton>
-        <div className="w-px h-6 bg-slate-300 mx-1"></div>
+        <div className="w-px h-6 bg-border mx-1"></div>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
           isActive={editor.isActive('heading', { level: 1 })}
@@ -137,7 +137,7 @@ export default function TiptapEditor() {
         >
           <Heading2 size={18} />
         </ToolbarButton>
-        <div className="w-px h-6 bg-slate-300 mx-1"></div>
+        <div className="w-px h-6 bg-border mx-1"></div>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBulletList().run()}
           isActive={editor.isActive('bulletList')}
@@ -152,7 +152,7 @@ export default function TiptapEditor() {
         >
           <ListOrdered size={18} />
         </ToolbarButton>
-        <div className="w-px h-6 bg-slate-300 mx-1"></div>
+        <div className="w-px h-6 bg-border mx-1"></div>
         <ToolbarButton onClick={openLinkModal} isActive={editor.isActive('link')} title="Insertar Enlace">
           <LinkIcon size={18} />
         </ToolbarButton>
@@ -165,20 +165,22 @@ export default function TiptapEditor() {
         </ToolbarButton>
       </div>
 
-      <EditorContent editor={editor} />
+      <div className="tiptap-editor">
+        <EditorContent editor={editor} />
+      </div>
       
       {error && <p className="text-danger text-sm px-3 pb-2">{error}</p>}
 
       {isLinkModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-5 animate-fade-in">
-            <h3 className="text-lg font-semibold text-slate-800 mb-4">Insertar Enlace</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-sm p-5 animate-fade-in border border-border">
+            <h3 className="text-lg font-semibold text-dark mb-4">Insertar Enlace</h3>
             <input
               type="text"
               value={linkUrl}
               onChange={(e) => setLinkUrl(e.target.value)}
               placeholder="Ej. google.com"
-              className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary mb-4"
+              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary mb-4"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') confirmLink();
                 if (e.key === 'Escape') closeLinkModal();
@@ -188,7 +190,7 @@ export default function TiptapEditor() {
             <div className="flex justify-end gap-2">
               <button
                 onClick={closeLinkModal}
-                className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors"
+                className="px-4 py-2 text-sm font-medium text-muted bg-background rounded-md hover:bg-border transition-colors"
               >
                 Cancelar
               </button>

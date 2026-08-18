@@ -1,0 +1,84 @@
+import { dbPool } from '../config/db.js';
+
+export interface CampanasStat {
+  estado: string;
+  count: number;
+}
+
+export interface ColaStat {
+  estado: string;
+  count: number;
+}
+
+export interface RubroStat {
+  rubro: string;
+  cantidad_envios: number;
+}
+
+export interface HistoricoStat {
+  fecha: string;
+  envios: number;
+}
+
+export interface GlobalStatsResult {
+  campanas: CampanasStat[];
+  cola: ColaStat[];
+  rubros: RubroStat[];
+  historico: HistoricoStat[];
+}
+
+export async function obtenerEstadisticasGlobales(): Promise<GlobalStatsResult> {
+  // 1. Total de campañas y desglose por estado
+  const campanasQuery = await dbPool.query(`
+    SELECT estado, COUNT(*) as count 
+    FROM campanas 
+    GROUP BY estado
+  `);
+  
+  // 2. Total global de correos en cola_envios por estado
+  const colaQuery = await dbPool.query(`
+    SELECT estado, COUNT(*) as count 
+    FROM cola_envios 
+    GROUP BY estado
+  `);
+
+  // 3. Distribución por rubros (top rubros)
+  // Agrupamos por el rubro_id del contacto.
+  const rubrosQuery = await dbPool.query(`
+    SELECT c.rubro_id as rubro, COUNT(ce.id) as cantidad_envios
+    FROM cola_envios ce
+    JOIN contactos c ON ce.contacto_id = c.id
+    WHERE c.rubro_id IS NOT NULL
+    GROUP BY c.rubro_id
+    ORDER BY cantidad_envios DESC
+    LIMIT 10
+  `);
+  
+  // 4. Histórico Temporal (últimos 30 días)
+  const historicoQuery = await dbPool.query(`
+    SELECT DATE(fecha_envio) as fecha, COUNT(*) as envios
+    FROM cola_envios
+    WHERE fecha_envio IS NOT NULL AND fecha_envio >= CURRENT_DATE - INTERVAL '30 days'
+    GROUP BY DATE(fecha_envio)
+    ORDER BY DATE(fecha_envio) ASC
+  `);
+
+  return {
+    campanas: campanasQuery.rows.map(row => ({
+      estado: row.estado,
+      count: parseInt(row.count, 10)
+    })),
+    cola: colaQuery.rows.map(row => ({
+      estado: row.estado,
+      count: parseInt(row.count, 10)
+    })),
+    rubros: rubrosQuery.rows.map(row => ({
+      rubro: row.rubro,
+      cantidad_envios: parseInt(row.cantidad_envios, 10)
+    })),
+    historico: historicoQuery.rows.map(row => ({
+      fecha: row.fecha,
+      envios: parseInt(row.envios, 10)
+    }))
+  };
+}

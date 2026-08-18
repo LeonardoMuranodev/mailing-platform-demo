@@ -2,7 +2,9 @@ import { create } from 'zustand';
 import type { CampanaFormData } from '../types/campana';
 import { CAMPANA_FORM_INITIAL } from '../types/campana';
 import { crearCampana, cambiarEstadoCampana } from '../services/api';
-import { validarFormulario } from '../schemas/campanaSchema';
+import { validarFormulario, validarBorrador } from '../schemas/campanaSchema';
+
+const STORAGE_KEY = 'draft_campana_data';
 
 interface CampanaStore {
   // ── Estado ─────────────────────────────────────
@@ -86,6 +88,7 @@ export const useCampanaStore = create<CampanaStore>((set, get) => ({
       isSubmitting: false,
       submitResult: null,
     });
+    localStorage.removeItem(STORAGE_KEY);
   },
 
   clearErrors: () => set({ errors: {} }),
@@ -95,8 +98,8 @@ export const useCampanaStore = create<CampanaStore>((set, get) => ({
   guardarBorrador: async () => {
     const { form, flyer } = get();
 
-    // Validar con Zod
-    const validationErrors = validarFormulario(form);
+    // Validar con Zod de forma laxa
+    const validationErrors = validarBorrador(form);
     if (validationErrors) {
       set({ errors: validationErrors });
       return;
@@ -109,6 +112,7 @@ export const useCampanaStore = create<CampanaStore>((set, get) => ({
       const res = await crearCampana(fd);
 
       if (res.success && res.data) {
+        localStorage.removeItem(STORAGE_KEY);
         set({
           submitResult: {
             success: true,
@@ -163,6 +167,7 @@ export const useCampanaStore = create<CampanaStore>((set, get) => ({
       const approveRes = await cambiarEstadoCampana(createRes.data.id, 'aprobada');
 
       if (approveRes.success) {
+        localStorage.removeItem(STORAGE_KEY);
         set({
           submitResult: {
             success: true,

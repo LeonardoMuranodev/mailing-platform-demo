@@ -1,4 +1,5 @@
 import type { ApiResponse, CampanaResponse, CampanaConStats, ColaEnvioItem } from '../types/campana';
+import type { GlobalStatsResult } from '../types/stats';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 
@@ -59,12 +60,14 @@ export async function cambiarEstadoCampana(
 export async function listarCampanas(filtros?: {
   asunto?: string;
   estado?: string;
+  rubro?: string;
   fecha_desde?: string;
   fecha_hasta?: string;
 }): Promise<ApiResponse<CampanaResponse[]>> {
   const query = new URLSearchParams();
   if (filtros?.asunto) query.append('asunto', filtros.asunto);
   if (filtros?.estado) query.append('estado', filtros.estado);
+  if (filtros?.rubro) query.append('rubro', filtros.rubro);
   if (filtros?.fecha_desde) query.append('fecha_desde', filtros.fecha_desde);
   if (filtros?.fecha_hasta) query.append('fecha_hasta', filtros.fecha_hasta);
 
@@ -101,4 +104,11 @@ export async function obtenerColaCampana(
   if (filtros?.fecha_hasta) query.append('fecha_hasta', filtros.fecha_hasta);
 
   return fetchApi<ColaEnvioItem[]>(`${API_BASE}/api/queue/${campanaId}?${query.toString()}`);
+}
+
+/**
+ * Obtiene las estadísticas globales del sistema de mailing.
+ */
+export async function obtenerEstadisticasGlobales(): Promise<ApiResponse<GlobalStatsResult>> {
+  return fetchApi<GlobalStatsResult>(`${API_BASE}/api/stats/global`);
 }

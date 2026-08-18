@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Plus, Search, Filter } from 'lucide-react';
+import { Plus, Search, Filter, RotateCcw } from 'lucide-react';
 import { listarCampanas } from '../services/api';
 import type { CampanaResponse } from '../types/campana';
 import { formatDate } from '../utils/formatDate';
-import { RUBROS_LABELS } from '../data/rubros';
+import { RUBROS_LABELS, RUBROS_LIST } from '../data/rubros';
+import logo3f from '../assets/logo-3f.png';
 
 const ESTADO_BADGE_CLASSES: Record<string, string> = {
   borrador: 'bg-slate-100 text-slate-600 border border-slate-200',
@@ -30,13 +31,14 @@ export default function ListaCampanas() {
   // Filtros
   const [asunto, setAsunto] = useState('');
   const [estado, setEstado] = useState('');
+  const [rubro, setRubro] = useState('');
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
 
   const fetchCampanas = async () => {
     setLoading(true);
     try {
-      const res = await listarCampanas({ asunto, estado, fecha_desde: fechaDesde, fecha_hasta: fechaHasta });
+      const res = await listarCampanas({ asunto, estado, rubro, fecha_desde: fechaDesde, fecha_hasta: fechaHasta });
       if (res.success && res.data) {
         setCampanas(res.data);
       }
@@ -56,17 +58,35 @@ export default function ListaCampanas() {
     fetchCampanas();
   };
 
+  const handleResetFilters = () => {
+    setAsunto('');
+    setEstado('');
+    setRubro('');
+    setFechaDesde('');
+    setFechaHasta('');
+    // Al setear en vacío, se debería hacer el fetch, pero react state es asíncrono
+    // Pasamos los params en blanco directo al listarCampanas o usamos el useEffect.
+    // Lo más sencillo es un fetch manual con filtros limpios:
+    setLoading(true);
+    listarCampanas({}).then(res => {
+      if (res.success && res.data) setCampanas(res.data);
+      setLoading(false);
+    });
+  };
+
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
-            <Mail className="text-primary" />
-            Campañas de Correo
-          </h1>
-          <p className="text-slate-500 mt-1">
-            Gestioná y monitoreá el estado de los envíos masivos.
-          </p>
+        <div className="flex items-center gap-4">
+          <img src={logo3f} alt="Logo 3F" className="w-12 h-12 object-cover rounded-xl shadow-sm" />
+          <div>
+            <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
+              Dirección de Producción: Campañas de Correo
+            </h1>
+            <p className="text-muted mt-1">
+              Gestioná y monitoreá el estado de los envíos masivos.
+            </p>
+          </div>
         </div>
         <button
           onClick={() => navigate('/nueva')}
@@ -78,27 +98,27 @@ export default function ListaCampanas() {
       </div>
 
       {/* Barra de Filtros */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6">
-        <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+      <div className="bg-surface p-4 rounded-xl shadow-sm border border-border mb-6 transition-colors">
+        <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-4 items-end">
           <div className="md:col-span-2">
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Buscar Asunto</label>
+            <label className="block text-sm font-semibold text-muted mb-1.5">Buscar Asunto</label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={18} />
               <input
                 type="text"
                 value={asunto}
                 onChange={(e) => setAsunto(e.target.value)}
                 placeholder="Ej: Taller para Pymes..."
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors text-sm"
+                className="w-full pl-10 pr-3.5 py-2.5 text-sm bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors h-[42px]"
               />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Estado</label>
+            <label className="block text-sm font-semibold text-muted mb-1.5">Estado</label>
             <select
               value={estado}
               onChange={(e) => setEstado(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors text-sm"
+              className="w-full pl-3.5 pr-6 py-2.5 text-sm bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors h-[42px]"
             >
               <option value="">Todos los estados</option>
               {Object.entries(ESTADO_LABELS).map(([val, label]) => (
@@ -107,37 +127,54 @@ export default function ListaCampanas() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Desde</label>
+            <label className="block text-sm font-semibold text-muted mb-1.5">Rubro</label>
+            <select
+              value={rubro}
+              onChange={(e) => setRubro(e.target.value)}
+              className="w-full pl-3.5 pr-8 py-2.5 text-sm bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors h-[42px]"
+            >
+              <option value="">Todos los rubros</option>
+              {RUBROS_LIST.map((r) => (
+                <option key={r} value={r}>{RUBROS_LABELS[r] || r}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-muted mb-1.5">Desde</label>
             <input
               type="date"
               value={fechaDesde}
               onChange={(e) => setFechaDesde(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors text-sm"
+              className="w-full px-3.5 py-2.5 text-sm bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors h-[42px]"
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Hasta</label>
+            <label className="block text-sm font-semibold text-muted mb-1.5">Hasta</label>
             <input
               type="date"
               value={fechaHasta}
               onChange={(e) => setFechaHasta(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors text-sm"
+              className="w-full px-3.5 py-2.5 text-sm bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors h-[42px]"
             />
           </div>
-          <div>
-            <button type="submit" className="w-full flex items-center justify-center gap-2 bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 hover:border-slate-300 px-4 py-2 rounded-lg transition-colors font-medium text-sm">
+          <div className="flex flex-col sm:flex-row gap-3 md:col-span-6 lg:col-span-2">
+            <button type="submit" className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 bg-secondary text-white font-medium rounded-lg hover:bg-secondary-dark transition-colors shadow-sm text-sm h-[40px] whitespace-nowrap">
               <Filter size={18} />
-              Filtrar
+              Aplicar Filtros
+            </button>
+            <button type="button" onClick={handleResetFilters} className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 bg-danger text-white font-medium rounded-lg hover:bg-danger-dark transition-colors shadow-sm text-sm h-[40px] whitespace-nowrap">
+              <RotateCcw size={18} />
+              Restablecer Filtros
             </button>
           </div>
         </form>
       </div>
 
       {/* Tabla de Campañas */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-surface rounded-xl shadow-sm border border-border overflow-hidden transition-colors">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-600">
-            <thead className="bg-slate-50 text-slate-700 text-xs uppercase font-semibold border-b border-slate-200">
+          <table className="w-full text-left text-sm text-muted">
+            <thead className="bg-background text-dark text-xs uppercase font-semibold border-b border-border">
               <tr>
                 <th className="px-6 py-4">Asunto</th>
                 <th className="px-6 py-4">Destinatarios</th>
@@ -146,10 +183,10 @@ export default function ListaCampanas() {
                 <th className="px-6 py-4 text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-border">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={5} className="px-6 py-12 text-center text-muted">
                     <div className="animate-pulse flex flex-col items-center">
                       <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-3"></div>
                       Cargando campañas...
@@ -158,7 +195,7 @@ export default function ListaCampanas() {
                 </tr>
               ) : campanas.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={5} className="px-6 py-12 text-center text-muted">
                     No se encontraron campañas.
                   </td>
                 </tr>
@@ -171,7 +208,7 @@ export default function ListaCampanas() {
                       : 'Ninguno';
 
                   return (
-                    <tr key={campana.id} className="hover:bg-slate-50/50 transition-colors">
+                    <tr key={campana.id} className="hover:bg-background/50 transition-colors">
                       <td className="px-6 py-4 font-medium text-dark max-w-xs truncate" title={campana.asunto}>
                         {campana.asunto}
                       </td>

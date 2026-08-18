@@ -1,9 +1,16 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Tag, Phone, Mail as MailIcon } from 'lucide-react';
+import { ArrowLeft, Calendar, Tag } from 'lucide-react';
 import { useCampanaStore } from '../stores/campanaStore';
 import { formatDate } from '../utils/formatDate';
 import { RUBROS_LABELS } from '../data/rubros';
-import headerImg from '../assets/header_direccion_produccion.png';
+
+/** URL del header subido a Supabase */
+const HEADER_URL =
+  'https://mhzdgavtkwafhvbntrsy.supabase.co/storage/v1/object/public/assets-muni/direccion%20de%20produccion.png';
+
+/** Iconos de contacto (Flaticon) */
+const WHATSAPP_ICON = 'https://cdn-icons-png.flaticon.com/512/733/733585.png';
+const MAIL_ICON = 'https://cdn-icons-png.flaticon.com/512/732/732200.png';
 
 export default function VistaPrevia() {
   const navigate = useNavigate();
@@ -17,17 +24,17 @@ export default function VistaPrevia() {
         .join(', ') || 'Ninguno seleccionado';
 
   return (
-    <div className="min-h-screen bg-slate-100 py-8 px-4 sm:px-6">
+    <div className="min-h-screen py-8 px-4 sm:px-6">
       {/* Top Bar */}
-      <div className="max-w-[680px] mx-auto mb-6 flex justify-between items-center">
+      <div className="max-w-[650px] mx-auto mb-6 flex justify-between items-center">
         <button
           onClick={() => navigate('/nueva')}
-          className="flex items-center gap-2 text-slate-600 hover:text-primary font-medium transition-colors bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm"
+          className="flex items-center gap-2 text-muted hover:text-primary font-medium transition-colors bg-surface px-4 py-2 rounded-lg border border-border shadow-sm"
         >
           <ArrowLeft size={18} />
           Volver al formulario
         </button>
-        <span className="text-sm text-slate-500 font-medium px-3 py-1 bg-slate-200 rounded-full">
+        <span className="text-sm text-muted font-medium px-3 py-1 bg-background rounded-full border border-border">
           Modo de Vista Previa
         </span>
       </div>
@@ -35,12 +42,11 @@ export default function VistaPrevia() {
       {/* ═══ EMAIL TEMPLATE ═══ */}
       <div className="email-preview-paper animate-fade-in">
 
-        {/* ── Header: Dirección de Producción banner ── */}
+        {/* ── Header: Banner de Dirección de Producción (Supabase) ── */}
         <div className="email-template-header">
           <img
-            src={headerImg}
-            alt="Dirección de Producción — Municipalidad de Tres de Febrero"
-            className="w-full h-auto block"
+            src={HEADER_URL}
+            alt="Dirección de Producción - 3F"
           />
         </div>
 
@@ -56,66 +62,71 @@ export default function VistaPrevia() {
               El contenido del correo aparecerá aquí...
             </p>
           )}
-
-          {/* ── Botón "¡Inscribite!" (solo si hay link) ── */}
-          {form.link_inscripcion && (
-            <div className="email-cta-wrapper">
-              <a
-                href={form.link_inscripcion}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="email-cta-button"
-              >
-                ¡Inscribite!
-              </a>
-            </div>
-          )}
-
-          {/* ── Flyer (solo si se cargó) ── */}
-          {flyerPreview && (
-            <div className="email-flyer-wrapper">
-              <img
-                src={flyerPreview}
-                alt="Flyer de la campaña"
-                className="w-full h-auto block"
-              />
-            </div>
-          )}
         </div>
+
+        {/* ── Botón "¡Inscribite!" (solo si hay link) ── */}
+        {form.link_inscripcion && (
+          <div className="email-cta-wrapper">
+            <a
+              href={form.link_inscripcion}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="email-cta-button"
+            >
+              ¡Inscribite!
+            </a>
+          </div>
+        )}
+
+        {/* ── Flyer (solo si se cargó) — fondo #f0f4f8 ── */}
+        {flyerPreview && (
+          <div className="email-flyer-wrapper">
+            <img
+              src={flyerPreview}
+              alt="Flyer del Evento"
+            />
+          </div>
+        )}
 
         {/* ── Footer: Comunicate con la Dirección de Producción ── */}
         <div className="email-template-footer">
-          <p className="email-footer-title">
-            Comunicate con la Dirección de Producción
-          </p>
-          <div className="email-footer-contacts">
+          <div className="email-footer-text">
+            Comunicate: con la Dirección de Producción
+          </div>
+          <div className="email-footer-icons">
             <a
-              href="https://wa.me/5491100000000"
+              href="https://wa.me/5491140659649"
               target="_blank"
               rel="noopener noreferrer"
-              className="email-footer-icon"
               title="WhatsApp"
             >
-              <Phone size={22} />
+              <img
+                className="email-footer-icon-img"
+                src={WHATSAPP_ICON}
+                alt="WhatsApp"
+              />
             </a>
             <a
-              href="mailto:produccion@tresdefebrero.gov.ar"
-              className="email-footer-icon"
-              title="Email"
+              href="mailto:dpim3f@gmail.com"
+              title="Mail"
             >
-              <MailIcon size={22} />
+              <img
+                className="email-footer-icon-img"
+                src={MAIL_ICON}
+                alt="Mail"
+              />
             </a>
           </div>
         </div>
       </div>
 
       {/* ═══ METADATA CARDS (debajo de la simulación) ═══ */}
-      <div className="max-w-[680px] mx-auto mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="max-w-[650px] mx-auto mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Rubros */}
-        <div className="bg-white rounded-lg border border-slate-200 px-4 py-3 flex items-start gap-3 shadow-sm">
+        <div className="bg-surface rounded-lg border border-border px-4 py-3 flex items-start gap-3 shadow-sm transition-colors">
           <Tag size={18} className="text-primary mt-0.5 shrink-0" />
           <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-0.5">
+            <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-0.5">
               Destinatarios
             </p>
             <p className="text-sm text-dark font-medium leading-snug">
@@ -125,10 +136,10 @@ export default function VistaPrevia() {
         </div>
 
         {/* Fecha límite */}
-        <div className="bg-white rounded-lg border border-slate-200 px-4 py-3 flex items-start gap-3 shadow-sm">
+        <div className="bg-surface rounded-lg border border-border px-4 py-3 flex items-start gap-3 shadow-sm transition-colors">
           <Calendar size={18} className="text-primary mt-0.5 shrink-0" />
           <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-0.5">
+            <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-0.5">
               Fecha límite
             </p>
             <p className="text-sm text-dark font-medium">

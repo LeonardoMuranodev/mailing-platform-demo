@@ -61,21 +61,21 @@ export default function FlyerUpload() {
           onClick={() => fileInputRef.current?.click()}
           onDragOver={handleDragOver}
           onDrop={handleDrop}
-          className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors group flex flex-col items-center justify-center bg-white"
+          className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors group flex flex-col items-center justify-center bg-surface"
         >
-          <div className="p-3 bg-slate-100 rounded-full group-hover:bg-primary/10 transition-colors mb-4">
-            <UploadCloud className="text-slate-500 group-hover:text-primary transition-colors" size={32} />
+          <div className="p-3 bg-background rounded-full group-hover:bg-primary/10 transition-colors mb-4">
+            <UploadCloud className="text-muted group-hover:text-primary transition-colors" size={32} />
           </div>
-          <p className="text-slate-700 font-medium mb-1">
+          <p className="text-dark font-medium mb-1">
             Hacé clic o arrastrá tu flyer aquí
           </p>
-          <p className="text-slate-500 text-sm">
+          <p className="text-muted text-sm">
             PNG, JPG, WEBP hasta 5MB
           </p>
         </div>
       ) : (
-        <div className="relative border border-slate-200 rounded-lg p-2 bg-white flex flex-col sm:flex-row items-center gap-4">
-          <div className="relative w-full sm:w-48 h-32 bg-slate-100 rounded flex-shrink-0 overflow-hidden group">
+        <div className="relative border border-border rounded-lg p-2 bg-surface flex flex-col sm:flex-row items-center gap-4 transition-colors">
+          <div className="relative w-full sm:w-48 h-32 bg-background rounded flex-shrink-0 overflow-hidden group">
             <img
               src={flyerPreview}
               alt="Preview del flyer"
@@ -92,11 +92,11 @@ export default function FlyerUpload() {
             </div>
           </div>
           <div className="flex-grow flex flex-col gap-1 w-full text-center sm:text-left">
-            <div className="flex items-center justify-center sm:justify-start gap-2 text-slate-700 font-medium">
+            <div className="flex items-center justify-center sm:justify-start gap-2 text-dark font-medium">
               <FileImage size={18} className="text-primary" />
               <span className="truncate max-w-[200px]">{flyer?.name}</span>
             </div>
-            <p className="text-slate-500 text-sm">
+            <p className="text-muted text-sm">
               {flyer ? (flyer.size / 1024 / 1024).toFixed(2) : 0} MB
             </p>
           </div>

@@ -74,8 +74,8 @@ export default function DetalleCampana() {
 
   if (loading && !campana) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="animate-pulse flex flex-col items-center text-slate-500">
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse flex flex-col items-center text-muted">
           <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-4"></div>
           Cargando detalles de la campaña...
         </div>
@@ -85,7 +85,7 @@ export default function DetalleCampana() {
 
   if (!campana) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex flex-col items-center justify-center">
         <AlertTriangle size={48} className="text-amber-500 mb-4" />
         <h2 className="text-xl font-bold text-dark mb-2">Campaña no encontrada</h2>
         <button onClick={() => navigate('/')} className="text-primary hover:underline">
@@ -101,7 +101,7 @@ export default function DetalleCampana() {
       <div className="mb-6">
         <button
           onClick={() => navigate('/')}
-          className="flex items-center gap-2 text-slate-500 hover:text-dark font-medium transition-colors mb-4"
+          className="flex items-center gap-2 text-muted hover:text-dark font-medium transition-colors mb-4"
         >
           <ArrowLeft size={18} />
           Volver a Campañas
@@ -109,7 +109,7 @@ export default function DetalleCampana() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-dark">{campana.asunto}</h1>
-            <p className="text-sm text-slate-500 mt-1 flex items-center gap-2">
+            <p className="text-sm text-muted mt-1 flex items-center gap-2">
               <CalendarIcon size={14} /> Creada el {formatDate(campana.creado_en)}
             </p>
           </div>
@@ -128,12 +128,12 @@ export default function DetalleCampana() {
       </div>
 
       {/* Tabs */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="flex border-b border-slate-200">
+      <div className="bg-surface rounded-xl shadow-sm border border-border overflow-hidden transition-colors">
+        <div className="flex border-b border-border">
           <button
             onClick={() => setActiveTab('cola')}
             className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-colors ${
-              activeTab === 'cola' ? 'border-b-2 border-primary text-primary' : 'text-slate-500 hover:text-dark'
+              activeTab === 'cola' ? 'border-b-2 border-primary text-primary' : 'text-muted hover:text-dark'
             }`}
           >
             <Send size={18} />
@@ -142,7 +142,7 @@ export default function DetalleCampana() {
           <button
             onClick={() => setActiveTab('stats')}
             className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-colors ${
-              activeTab === 'stats' ? 'border-b-2 border-primary text-primary' : 'text-slate-500 hover:text-dark'
+              activeTab === 'stats' ? 'border-b-2 border-primary text-primary' : 'text-muted hover:text-dark'
             }`}
           >
             <BarChart2 size={18} />
@@ -156,19 +156,19 @@ export default function DetalleCampana() {
               {/* Filtros Cola */}
               <form onSubmit={handleSearchCola} className="flex flex-col sm:flex-row gap-3 mb-6">
                 <div className="relative flex-grow">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={18} />
                   <input
                     type="text"
                     value={emailFiltro}
                     onChange={(e) => setEmailFiltro(e.target.value)}
                     placeholder="Buscar por email destinatario..."
-                    className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                    className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
                   />
                 </div>
                 <select
                   value={estadoFiltro}
                   onChange={(e) => setEstadoFiltro(e.target.value)}
-                  className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm sm:w-48"
+                  className="px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm sm:w-48"
                 >
                   <option value="">Todos los estados</option>
                   <option value="pendiente">Pendiente</option>
@@ -176,16 +176,16 @@ export default function DetalleCampana() {
                   <option value="enviado">Enviado</option>
                   <option value="fallido">Fallido</option>
                 </select>
-                <button type="submit" className="bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 px-4 py-2 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-colors">
+                <button type="submit" className="bg-background text-muted border border-border hover:bg-border hover:text-dark px-4 py-2 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-colors">
                   <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
                   Actualizar
                 </button>
               </form>
 
               {/* Tabla Cola */}
-              <div className="border border-slate-200 rounded-lg overflow-x-auto">
-                <table className="w-full text-left text-sm text-slate-600">
-                  <thead className="bg-slate-50 text-slate-700 text-xs uppercase font-semibold border-b border-slate-200">
+              <div className="border border-border rounded-lg overflow-x-auto">
+                <table className="w-full text-left text-sm text-muted">
+                  <thead className="bg-background text-dark text-xs uppercase font-semibold border-b border-border">
                     <tr>
                       <th className="px-4 py-3">Email Destinatario</th>
                       <th className="px-4 py-3">Estado</th>
@@ -194,10 +194,10 @@ export default function DetalleCampana() {
                       <th className="px-4 py-3">Respuesta</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-border">
                     {cola.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                        <td colSpan={5} className="px-4 py-8 text-center text-muted">
                           {campana.stats.total === 0 
                             ? 'La cola de envíos está vacía.'
                             : 'No se encontraron resultados para los filtros aplicados.'}
@@ -205,7 +205,7 @@ export default function DetalleCampana() {
                       </tr>
                     ) : (
                       cola.map((item) => (
-                        <tr key={item.id} className="hover:bg-slate-50/50">
+                        <tr key={item.id} className="hover:bg-background/50">
                           <td className="px-4 py-3 font-medium text-dark">{item.contacto_email}</td>
                           <td className="px-4 py-3">
                             <span className={`px-2 py-0.5 rounded text-xs font-semibold ${COLA_BADGE_CLASSES[item.estado] || ''}`}>
@@ -215,7 +215,7 @@ export default function DetalleCampana() {
                           <td className="px-4 py-3">
                             {item.fecha_envio ? new Date(item.fecha_envio).toLocaleString('es-AR') : '-'}
                           </td>
-                          <td className="px-4 py-3 text-xs text-slate-500">
+                          <td className="px-4 py-3 text-xs text-muted">
                             {item.cuenta_smtp_email || '-'}
                           </td>
                           <td className="px-4 py-3">
@@ -236,11 +236,11 @@ export default function DetalleCampana() {
             </div>
           ) : (
             <div className="animate-fade-in flex flex-col items-center justify-center py-16">
-              <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-                <BarChart2 size={32} className="text-slate-400" />
+              <div className="w-20 h-20 bg-background rounded-full flex items-center justify-center mb-4">
+                <BarChart2 size={32} className="text-muted" />
               </div>
-              <h3 className="text-xl font-bold text-slate-700 mb-2">Estadísticas Detalladas</h3>
-              <p className="text-slate-500 text-center max-w-md">
+              <h3 className="text-xl font-bold text-dark mb-2">Estadísticas Detalladas</h3>
+              <p className="text-muted text-center max-w-md">
                 Próximamente podrás visualizar gráficos de dona con la tasa de éxito, timeline de envíos y análisis de rebotes.
               </p>
               <span className="mt-6 px-3 py-1 bg-primary/10 text-primary text-xs font-bold uppercase rounded-full tracking-wider">
@@ -257,9 +257,9 @@ export default function DetalleCampana() {
 // Subcomponentes
 function StatCard({ title, value, icon }: { title: string; value: number; icon: React.ReactNode }) {
   return (
-    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+    <div className="bg-surface p-4 rounded-xl shadow-sm border border-border transition-colors">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-sm font-semibold text-slate-500">{title}</p>
+        <p className="text-sm font-semibold text-muted">{title}</p>
         {icon}
       </div>
       <p className="text-2xl font-bold text-dark">{value.toLocaleString()}</p>
