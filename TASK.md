@@ -24,6 +24,8 @@ En la vista general de campañas:
 
  - Agregar Footer: "Desarrollado por el equipo de Tecno 3F"
 
+ Modo Oscuro: item de fechas estan en negro
+
 General: 
     - Hecho: El estilo de la aplicacion tiene que ser con los colores de la municipalidad:
     - Hecho: Agregar Modo Oscuro
@@ -31,5 +33,7 @@ General:
 Nueva vista: Agregar pantalla de Estadisticas generales globales
 
 Nueva vista: Vista para controlar las cuentas de correo, poder activarlas, desactivarlas, editarlas, eliminarlas y ver sus estadisticas generales
+
+Exportar CSV con las campañas hechas, con estadisticas y demas
 
 BACKEND:
