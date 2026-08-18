@@ -77,8 +77,10 @@ export default function ListaCampanas() {
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
-        <div className="flex items-center gap-4">
-          <img src={logo3f} alt="Logo 3F" className="w-12 h-12 object-cover rounded-xl shadow-sm" />
+        <div className="flex items-start gap-4">
+          <div className="w-11 h-11 overflow-hidden rounded-[14px] shadow-sm shrink-0 mt-0.5">
+            <img src={logo3f} alt="Logo 3F" className="w-full h-full object-cover scale-[1.15]" />
+          </div>
           <div>
             <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
               Dirección de Producción: Campañas de Correo

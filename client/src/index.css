@@ -58,6 +58,10 @@ html.dark {
   --color-success-light: #0D3320;
 }
 
+html.dark input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
 /* ── Base ──────────────────────────────────────────────── */
 *,
 *::before,

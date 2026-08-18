@@ -18,7 +18,7 @@ function App() {
   ];
 
   return (
-    <div className="min-h-screen bg-background text-dark transition-colors duration-300">
+    <div className="min-h-screen flex flex-col bg-background text-dark transition-colors duration-300">
       {/* ── Navbar ─────────────────────────────────────── */}
       <header className="sticky top-0 z-40 bg-surface/80 backdrop-blur-md border-b border-border transition-colors duration-300">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-3 sm:h-16 gap-4 sm:gap-0">
@@ -58,7 +58,7 @@ function App() {
       </header>
 
       {/* ── Routes ────────────────────────────────────── */}
-      <main>
+      <main className="flex-1">
         <Routes>
           <Route path="/" element={<ListaCampanas />} />
           <Route path="/nueva" element={<CrearCampana />} />
@@ -67,6 +67,13 @@ function App() {
           <Route path="/estadisticas" element={<EstadisticasGenerales />} />
         </Routes>
       </main>
+
+      {/* ── Footer ────────────────────────────────────── */}
+      <footer className="border-t border-border mt-auto py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center text-muted text-sm font-medium">
+          Desarrollado por el equipo de Tecno 3F
+        </div>
+      </footer>
     </div>
   );
 }
