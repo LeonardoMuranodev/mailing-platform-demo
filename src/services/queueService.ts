@@ -46,13 +46,11 @@ export async function poblarColaEnvios(campanaId: string): Promise<PoblarColaRes
     contactosQuery = `SELECT id FROM contactos WHERE estado = 'funcional'`;
     contactosParams = [];
   } else {
-    // Solo contactos cuyo rubro coincida con los seleccionados
     contactosQuery = `
       SELECT c.id
       FROM contactos c
-      INNER JOIN rubros r ON c.rubro_id = r.id
       WHERE c.estado = 'funcional'
-        AND r.nombre = ANY($1)
+        AND c.rubro_id = ANY($1)
     `;
     contactosParams = [rubrosSeleccionados];
   }

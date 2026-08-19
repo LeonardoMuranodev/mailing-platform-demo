@@ -23,8 +23,12 @@ export function validateSchema(
     }
 
     // Sobreescribimos con los datos parseados y transformados
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (req as unknown as Record<string, unknown>)[target] = result.data;
+    Object.defineProperty(req, target, {
+      value: result.data,
+      writable: true,
+      enumerable: true,
+      configurable: true
+    });
     next();
   };
 }

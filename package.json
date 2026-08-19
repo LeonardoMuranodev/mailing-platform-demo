@@ -13,6 +13,7 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
+    "@types/csv-parse": "^1.1.12",
     "@types/express": "^5.0.6",
     "@types/multer": "^2.2.0",
     "@types/node": "^26.2.0",
@@ -23,8 +24,10 @@
     "typescript": "~5.7.3"
   },
   "dependencies": {
+    "csv-parse": "^7.0.2",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "isomorphic-dompurify": "^3.19.0",
     "multer": "^2.2.0",
     "pg": "^8.23.0",
     "zod": "^4.4.3"

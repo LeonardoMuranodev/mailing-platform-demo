@@ -4,10 +4,12 @@ import { z } from 'zod';
 export const crearCuentaSmtpSchema = z.object({
   email: z
     .string({ message: 'El email es obligatorio' })
+    .trim()
     .email('Debe ser un email válido'),
 
   host: z
     .string()
+    .trim()
     .min(1, 'El host no puede estar vacío')
     .default('smtp.gmail.com'),
 
@@ -19,10 +21,12 @@ export const crearCuentaSmtpSchema = z.object({
 
   usuario: z
     .string({ message: 'El usuario es obligatorio' })
+    .trim()
     .min(1, 'El usuario no puede estar vacío'),
 
   password_encrypted: z
     .string({ message: 'La contraseña es obligatoria' })
+    .trim()
     .min(1, 'La contraseña no puede estar vacía'),
 
   limite_diario: z
@@ -34,15 +38,15 @@ export const crearCuentaSmtpSchema = z.object({
 
 // ── Schema: Actualizar cuenta SMTP (parcial) ─────────────────
 export const actualizarCuentaSmtpSchema = z.object({
-  email: z.string().email('Debe ser un email válido').optional(),
+  email: z.string().trim().email('Debe ser un email válido').optional(),
 
-  host: z.string().min(1).optional(),
+  host: z.string().trim().min(1).optional(),
 
   puerto: z.number().int().positive().optional(),
 
-  usuario: z.string().min(1).optional(),
+  usuario: z.string().trim().min(1).optional(),
 
-  password_encrypted: z.string().min(1).optional(),
+  password_encrypted: z.string().trim().min(1).optional(),
 
   estado: z
     .enum(['activo', 'agotado', 'bloqueado', 'inactivo'], {

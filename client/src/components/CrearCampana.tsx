@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, CheckCircle2, Save, X, Eye, ArrowLeft } from 'lucide-react';
+import { Mail, CheckCircle2, Save, Eye, ArrowLeft } from 'lucide-react';
 import { useCampanaStore } from '../stores/campanaStore';
 import TiptapEditor from './TiptapEditor';
 import FlyerUpload from './FlyerUpload';
 import { RUBROS_LIST, RUBROS_LABELS } from '../data/rubros';
+import AlertMessage from './ui/AlertMessage';
 
 export default function CrearCampana() {
   const navigate = useNavigate();
@@ -78,33 +79,21 @@ export default function CrearCampana() {
       </div>
 
       {submitResult && (
-        <div
-          className={`mb-6 p-4 rounded-lg flex items-start gap-3 animate-fade-in ${
-            submitResult.success
-              ? 'bg-success-light text-success-dark border border-success/20'
-              : 'bg-danger-light text-danger border border-danger/20'
-          }`}
-        >
-          {submitResult.success ? (
-            <CheckCircle2 className="shrink-0 mt-0.5" />
-          ) : (
-            <X className="shrink-0 mt-0.5" />
-          )}
-          <div className="flex-grow">
-            <h3 className="font-semibold">{submitResult.success ? '¡Éxito!' : 'Error'}</h3>
-            <p className="text-sm mt-1 opacity-90">{submitResult.message}</p>
-          </div>
-          {submitResult.success && (
-            <button
-              onClick={handleSuccessRedirect}
-              className="text-sm font-medium underline px-2 py-1"
-            >
-              Crear otra
-            </button>
-          )}
-          <button onClick={clearResult} className="opacity-60 hover:opacity-100">
-            <X size={20} />
-          </button>
+        <div className="mb-6">
+          <AlertMessage 
+            type={submitResult.success ? 'success' : 'error'} 
+            message={submitResult.message}
+            onClose={clearResult}
+          >
+            {submitResult.success && (
+              <button
+                onClick={handleSuccessRedirect}
+                className="text-sm font-medium underline px-2 py-1 -ml-2"
+              >
+                Crear otra
+              </button>
+            )}
+          </AlertMessage>
         </div>
       )}
 

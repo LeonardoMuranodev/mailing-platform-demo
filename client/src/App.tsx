@@ -6,6 +6,7 @@ import CrearCampana from './components/CrearCampana';
 import VistaPrevia from './components/VistaPrevia';
 import EstadisticasGenerales from './components/EstadisticasGenerales';
 import CuentasSmtp from './components/CuentasSmtp';
+import DirectorioContactos from './components/DirectorioContactos';
 import ThemeToggle from './components/ThemeToggle';
 
 function App() {
@@ -67,6 +68,7 @@ function App() {
           <Route path="/preview" element={<VistaPrevia />} />
           <Route path="/estadisticas" element={<EstadisticasGenerales />} />
           <Route path="/cuentas" element={<CuentasSmtp />} />
+          <Route path="/contactos" element={<DirectorioContactos />} />
         </Routes>
       </main>
 

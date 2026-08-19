@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Mail, Settings, Plus, Edit2, Trash2, Eye, EyeOff, AlertCircle, Server } from 'lucide-react';
+import { Mail, Settings, Plus, Edit2, Trash2, Eye, EyeOff, Server } from 'lucide-react';
 import {
   obtenerCuentasSmtp,
   crearCuentaSmtp,
@@ -8,6 +8,7 @@ import {
   toggleEstadoSmtp,
 } from '../services/api';
 import type { CuentaSmtp } from '../types/smtp';
+import AlertMessage from './ui/AlertMessage';
 
 export default function CuentasSmtp() {
   const [cuentas, setCuentas] = useState<CuentaSmtp[]>([]);
@@ -258,19 +259,13 @@ export default function CuentasSmtp() {
               <button onClick={() => setIsModalOpen(false)} className="text-muted hover:text-dark">✕</button>
             </div>
             
-            <form onSubmit={handleGuardar} className="p-6 space-y-4">
-              {errorMsg && (
-                <div className="bg-danger/10 border border-danger/20 text-danger-dark dark:text-danger-light p-3 rounded-lg text-sm flex gap-2">
-                  <AlertCircle size={18} className="shrink-0" />
-                  {errorMsg}
-                </div>
-              )}
+            <form onSubmit={handleGuardar} className="p-6 space-y-4" noValidate>
+              <AlertMessage type="error" message={errorMsg} />
 
               <div>
                 <label className="block text-sm font-medium text-dark mb-1">Correo Electrónico (Gmail)</label>
                 <input 
-                  type="email" 
-                  required
+                  type="text" 
                   value={form.email}
                   onChange={e => setForm({...form, email: e.target.value})}
                   className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -283,7 +278,6 @@ export default function CuentasSmtp() {
                 <div className="relative">
                   <input 
                     type={showPassword ? "text" : "password"} 
-                    required={!editingId}
                     value={form.password_encrypted}
                     onChange={e => setForm({...form, password_encrypted: e.target.value})}
                     className="w-full px-3 py-2 pr-10 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -303,9 +297,7 @@ export default function CuentasSmtp() {
               <div>
                 <label className="block text-sm font-medium text-dark mb-1">Límite Diario de Envíos</label>
                 <input 
-                  type="number" 
-                  min="1"
-                  required
+                  type="text" 
                   value={form.limite_diario}
                   onChange={e => setForm({...form, limite_diario: parseInt(e.target.value) || 0})}
                   className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50"

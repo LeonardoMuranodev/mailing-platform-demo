@@ -150,3 +150,74 @@ export async function eliminarCuentaSmtp(id: string): Promise<ApiResponse<Cuenta
     method: 'DELETE',
   });
 }
+
+// ── Directorio de Contactos ──────────────────────────────────────────────────
+
+import type {
+  ContactoConRubro,
+  CrearContactoInput,
+  ActualizarContactoInput,
+  ContactosResponse
+} from '../types/contacto';
+
+export async function obtenerContactos(filtros?: {
+  page?: number;
+  limit?: number;
+  busqueda?: string;
+  estado?: string;
+  rubro_id?: string;
+}): Promise<ApiResponse<ContactosResponse>> {
+  const query = new URLSearchParams();
+  if (filtros?.page) query.append('page', filtros.page.toString());
+  if (filtros?.limit) query.append('limit', filtros.limit.toString());
+  if (filtros?.busqueda) query.append('busqueda', filtros.busqueda);
+  if (filtros?.estado) query.append('estado', filtros.estado);
+  if (filtros?.rubro_id) query.append('rubro_id', filtros.rubro_id);
+
+  return fetchApi<ContactosResponse>(`${API_BASE}/api/contactos?${query.toString()}`);
+}
+
+export async function crearContacto(data: CrearContactoInput): Promise<ApiResponse<ContactoConRubro>> {
+  return fetchApi<ContactoConRubro>(`${API_BASE}/api/contactos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function actualizarContacto(id: string, data: ActualizarContactoInput): Promise<ApiResponse<ContactoConRubro>> {
+  return fetchApi<ContactoConRubro>(`${API_BASE}/api/contactos/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function toggleEstadoContacto(id: string, estado: 'funcional' | 'inactivo' | 'rebotado'): Promise<ApiResponse<ContactoConRubro>> {
+  return fetchApi<ContactoConRubro>(`${API_BASE}/api/contactos/${id}/toggle`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ estado }),
+  });
+}
+
+export async function eliminarContacto(id: string): Promise<ApiResponse<ContactoConRubro>> {
+  return fetchApi<ContactoConRubro>(`${API_BASE}/api/contactos/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function eliminarContactosBulk(ids: string[]): Promise<ApiResponse<{ count: number }>> {
+  return fetchApi<{ count: number }>(`${API_BASE}/api/contactos/bulk-delete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids }),
+  });
+}
+
+export async function importarContactosCsv(formData: FormData): Promise<ApiResponse<{ procesados: number; insertados_o_actualizados: number }>> {
+  return fetchApi<{ procesados: number; insertados_o_actualizados: number }>(`${API_BASE}/api/contactos/importar-csv`, {
+    method: 'POST',
+    body: formData,
+  });
+}

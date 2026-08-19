@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import DOMPurify from 'isomorphic-dompurify';
 
 // ── Helpers de coerción para multipart/form-data ─────────
 
@@ -22,30 +23,36 @@ const rubrosCoerce = z.preprocess((val) => {
     }
   }
   return [];
-}, z.array(z.string().uuid('Cada rubro debe ser un UUID válido')));
+}, z.array(z.string({ message: 'Cada rubro debe ser texto' })));
 
 // ── Schemas ──────────────────────────────────────────────
 
 export const crearCampanaSchema = z.object({
   asunto: z
     .string({ message: 'El asunto es obligatorio' })
+    .trim()
     .min(1, 'El asunto no puede estar vacío')
     .max(255, 'El asunto no puede exceder 255 caracteres'),
 
   cuerpo_html: z
     .string({ message: 'El cuerpo HTML es obligatorio' })
-    .min(1, 'El cuerpo HTML no puede estar vacío'),
+    .trim()
+    .min(1, 'El cuerpo HTML no puede estar vacío')
+    .transform((html) => DOMPurify.sanitize(html)),
 
   link_inscripcion: z
     .string({ message: 'El link de inscripción es obligatorio' })
+    .trim()
     .url('El link de inscripción debe ser una URL válida'),
 
   flyer_url: z
     .string()
+    .trim()
     .optional(),
 
   fecha_limite_envio: z
     .string({ message: 'La fecha límite de envío es obligatoria' })
+    .trim()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'La fecha debe tener formato YYYY-MM-DD'),
 
   prioridad: z
