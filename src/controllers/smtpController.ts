@@ -4,6 +4,7 @@ import {
   listarCuentasSmtp,
   actualizarCuentaSmtp,
   eliminarCuentaSmtp,
+  toggleEstadoSmtp,
 } from '../services/smtpAccountService.js';
 import { sendSuccess, sendError } from '../utils/responseHandler.js';
 import type { CrearCuentaSmtpBody, ActualizarCuentaSmtpBody } from '../schemas/smtpSchema.js';
@@ -76,9 +77,36 @@ async function eliminar(req: Request, res: Response, next: NextFunction): Promis
   }
 }
 
+/**
+ * PATCH /api/smtp/:id/toggle
+ */
+async function toggleEstado(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const id = req.params.id as string;
+    const { estado } = req.body as { estado: string };
+
+    if (!estado || !['activo', 'inactivo'].includes(estado)) {
+      sendError(res, 'BAD_REQUEST', 'Estado inválido. Debe ser activo o inactivo', 400);
+      return;
+    }
+
+    const cuenta = await toggleEstadoSmtp(id, estado);
+
+    if (!cuenta) {
+      sendError(res, 'NOT_FOUND', 'Cuenta SMTP no encontrada', 404);
+      return;
+    }
+
+    sendSuccess(res, cuenta);
+  } catch (err) {
+    next(err);
+  }
+}
+
 export const smtpController = {
   crear,
   listar,
   actualizar,
   eliminar,
+  toggleEstado,
 };

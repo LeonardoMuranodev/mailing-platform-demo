@@ -24,3 +24,6 @@ smtpRouter.patch(
 
 // DELETE /api/smtp/:id — Eliminar cuenta SMTP
 smtpRouter.delete('/:id', smtpController.eliminar);
+
+// PATCH /api/smtp/:id/toggle — Activar/desactivar cuenta
+smtpRouter.patch('/:id/toggle', smtpController.toggleEstado);

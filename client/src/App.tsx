@@ -1,10 +1,11 @@
-import { Routes, Route, useNavigate, useLocation, Link } from 'react-router-dom';
+import { Routes, Route, useLocation, Link } from 'react-router-dom';
 import { Mail, BarChart3, Users, Settings } from 'lucide-react';
 import ListaCampanas from './components/ListaCampanas';
 import DetalleCampana from './components/DetalleCampana';
 import CrearCampana from './components/CrearCampana';
 import VistaPrevia from './components/VistaPrevia';
 import EstadisticasGenerales from './components/EstadisticasGenerales';
+import CuentasSmtp from './components/CuentasSmtp';
 import ThemeToggle from './components/ThemeToggle';
 
 function App() {
@@ -65,6 +66,7 @@ function App() {
           <Route path="/campanas/:id" element={<DetalleCampana />} />
           <Route path="/preview" element={<VistaPrevia />} />
           <Route path="/estadisticas" element={<EstadisticasGenerales />} />
+          <Route path="/cuentas" element={<CuentasSmtp />} />
         </Routes>
       </main>
 

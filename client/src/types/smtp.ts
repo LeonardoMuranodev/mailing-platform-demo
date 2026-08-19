@@ -1,7 +1,5 @@
-/** Estados posibles de una cuenta SMTP en el pool */
 export type EstadoCuentaSmtp = 'activo' | 'agotado' | 'bloqueado' | 'inactivo';
 
-/** Reflejo 1:1 de la fila en la tabla `cuentas_smtp` */
 export interface CuentaSmtp {
   id: string;
   email: string;
@@ -12,12 +10,12 @@ export interface CuentaSmtp {
   estado: EstadoCuentaSmtp;
   enviados_hoy: number;
   limite_diario: number;
-  ultimo_uso: string | null;          // TIMESTAMPTZ serializado como ISO string
+  historial_despachado?: number;
+  ultimo_uso: string | null;
   creado_en: string;
   actualizado_en: string;
 }
 
-/** Payload para registrar una nueva cuenta SMTP */
 export interface CrearCuentaSmtpInput {
   email: string;
   host?: string;
@@ -27,7 +25,6 @@ export interface CrearCuentaSmtpInput {
   limite_diario?: number;
 }
 
-/** Payload parcial para actualizar una cuenta SMTP */
 export interface ActualizarCuentaSmtpInput {
   email?: string;
   host?: string;

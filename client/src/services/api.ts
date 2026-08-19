@@ -112,3 +112,41 @@ export async function obtenerColaCampana(
 export async function obtenerEstadisticasGlobales(): Promise<ApiResponse<GlobalStatsResult>> {
   return fetchApi<GlobalStatsResult>(`${API_BASE}/api/stats/global`);
 }
+
+// ── Cuentas SMTP ─────────────────────────────────────────────────────────────
+
+import type { CuentaSmtp, CrearCuentaSmtpInput, ActualizarCuentaSmtpInput } from '../types/smtp';
+
+export async function obtenerCuentasSmtp(): Promise<ApiResponse<CuentaSmtp[]>> {
+  return fetchApi<CuentaSmtp[]>(`${API_BASE}/api/smtp`);
+}
+
+export async function crearCuentaSmtp(data: CrearCuentaSmtpInput): Promise<ApiResponse<CuentaSmtp>> {
+  return fetchApi<CuentaSmtp>(`${API_BASE}/api/smtp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function actualizarCuentaSmtp(id: string, data: ActualizarCuentaSmtpInput): Promise<ApiResponse<CuentaSmtp>> {
+  return fetchApi<CuentaSmtp>(`${API_BASE}/api/smtp/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function toggleEstadoSmtp(id: string, estado: 'activo' | 'inactivo'): Promise<ApiResponse<CuentaSmtp>> {
+  return fetchApi<CuentaSmtp>(`${API_BASE}/api/smtp/${id}/toggle`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ estado }),
+  });
+}
+
+export async function eliminarCuentaSmtp(id: string): Promise<ApiResponse<CuentaSmtp>> {
+  return fetchApi<CuentaSmtp>(`${API_BASE}/api/smtp/${id}`, {
+    method: 'DELETE',
+  });
+}

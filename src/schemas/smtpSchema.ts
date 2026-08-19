@@ -15,7 +15,7 @@ export const crearCuentaSmtpSchema = z.object({
     .number({ message: 'El puerto debe ser un número' })
     .int()
     .positive('El puerto debe ser positivo')
-    .default(587),
+    .default(465),
 
   usuario: z
     .string({ message: 'El usuario es obligatorio' })
@@ -45,8 +45,8 @@ export const actualizarCuentaSmtpSchema = z.object({
   password_encrypted: z.string().min(1).optional(),
 
   estado: z
-    .enum(['activo', 'agotado', 'bloqueado'], {
-      message: 'Estado inválido. Valores: activo, agotado, bloqueado',
+    .enum(['activo', 'agotado', 'bloqueado', 'inactivo'], {
+      message: 'Estado inválido. Valores: activo, agotado, bloqueado, inactivo',
     })
     .optional(),
 

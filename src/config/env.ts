@@ -30,4 +30,5 @@ export const config = {
     name: process.env.DB_NAME || 'postgres',
     ssl: process.env.DB_SSL !== 'false',
   },
+  encryptionKey: process.env.ENCRYPTION_KEY || '',
 };
