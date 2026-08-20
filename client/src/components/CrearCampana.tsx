@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, CheckCircle2, Save, Eye, ArrowLeft } from 'lucide-react';
+import { Mail, CheckCircle2, Save, Eye, ArrowLeft, Plus, List, FileText } from 'lucide-react';
 import { useCampanaStore } from '../stores/campanaStore';
 import TiptapEditor from './TiptapEditor';
 import FlyerUpload from './FlyerUpload';
@@ -22,10 +22,14 @@ export default function CrearCampana() {
     reset,
   } = useCampanaStore();
 
-  // Limpiar mensajes de resultado al montar
+  // Limpiar mensajes y resetear el form si venimos de un envío exitoso
   useEffect(() => {
-    clearResult();
-  }, [clearResult]);
+    if (useCampanaStore.getState().submitResult?.success) {
+      reset();
+    } else {
+      clearResult();
+    }
+  }, [clearResult, reset]);
 
   // Cargar borrador de localStorage
   useEffect(() => {
@@ -46,15 +50,33 @@ export default function CrearCampana() {
 
   // Guardar en localStorage cada vez que cambie 'form'
   useEffect(() => {
-    // Si estamos en submit exitoso (isSubmitting === true no lo evita, pero cuando clear el storage se encarga el store)
-    // Para simplificar, guardamos el form en cada cambio
     localStorage.setItem('draft_campana_data', JSON.stringify(form));
   }, [form]);
 
-  const handleSuccessRedirect = () => {
+  const handleCrearOtra = () => {
+    reset();
+    navigate('/nueva');
+  };
+
+  const handleVerDetalle = () => {
+    if (submitResult?.id) {
+      const id = submitResult.id;
+      reset();
+      navigate(`/campanas/${id}`);
+    }
+  };
+
+  const handleVerVistaPrevia = () => {
+    navigate('/preview');
+  };
+
+  const handleIrACampanas = () => {
     reset();
     navigate('/');
   };
+
+  // Bloquear formulario si ya se envió exitosamente
+  const isSubmittedSuccessfully = submitResult?.success === true;
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6">
@@ -78,22 +100,76 @@ export default function CrearCampana() {
         </p>
       </div>
 
-      {submitResult && (
+      {/* Error message (solo errores, no éxito) */}
+      {submitResult && !submitResult.success && (
         <div className="mb-6">
-          <AlertMessage 
-            type={submitResult.success ? 'success' : 'error'} 
+          <AlertMessage
+            type="error"
             message={submitResult.message}
             onClose={clearResult}
-          >
-            {submitResult.success && (
-              <button
-                onClick={handleSuccessRedirect}
-                className="text-sm font-medium underline px-2 py-1 -ml-2"
-              >
-                Crear otra
-              </button>
-            )}
-          </AlertMessage>
+          />
+        </div>
+      )}
+
+      {/* ═══ MODAL DE ÉXITO ═══ */}
+      {submitResult?.success && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-surface w-full max-w-md rounded-xl border border-border shadow-2xl overflow-hidden animate-fade-in">
+            <div className="p-6 sm:p-8 text-center">
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/30 mb-4">
+                <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+              </div>
+              <h2 className="text-xl font-bold text-dark mb-2">
+                {submitResult.mode === 'aprobada'
+                  ? '¡Campaña Aprobada!'
+                  : '¡Borrador Guardado!'}
+              </h2>
+              <p className="text-muted text-sm mb-6">
+                {submitResult.message}
+              </p>
+
+              <div className="flex flex-col gap-3">
+                {/* Opción condicional según modo */}
+                {submitResult.mode === 'aprobada' && submitResult.id && (
+                  <button
+                    onClick={handleVerDetalle}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors"
+                  >
+                    <FileText size={18} />
+                    Ver Detalle de la Campaña
+                  </button>
+                )}
+
+                {submitResult.mode === 'borrador' && (
+                  <button
+                    onClick={handleVerVistaPrevia}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors"
+                  >
+                    <Eye size={18} />
+                    Ver Vista Previa
+                  </button>
+                )}
+
+                {/* Crear otra campaña */}
+                <button
+                  onClick={handleCrearOtra}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-secondary text-white font-medium rounded-lg hover:bg-secondary-dark transition-colors"
+                >
+                  <Plus size={18} />
+                  Crear Otra Campaña
+                </button>
+
+                {/* Ir a campañas */}
+                <button
+                  onClick={handleIrACampanas}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-background border border-border text-dark font-medium rounded-lg hover:bg-surface transition-colors"
+                >
+                  <List size={18} />
+                  Ir a Campañas
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -110,11 +186,12 @@ export default function CrearCampana() {
               id="asunto"
               value={form.asunto}
               onChange={(e) => setField('asunto', e.target.value)}
+              disabled={isSubmittedSuccessfully}
               className={`w-full px-4 py-2.5 bg-background border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
                 errors.asunto
                   ? 'border-danger focus:ring-danger/20 focus:border-danger'
                   : 'border-border focus:ring-primary/20 focus:border-primary'
-              }`}
+              } disabled:opacity-60 disabled:cursor-not-allowed`}
               placeholder="Ej: Invitación al evento del mes..."
             />
             {errors.asunto && <p className="text-danger text-sm mt-1.5">{errors.asunto}</p>}
@@ -139,11 +216,12 @@ export default function CrearCampana() {
                 id="link_inscripcion"
                 value={form.link_inscripcion}
                 onChange={(e) => setField('link_inscripcion', e.target.value)}
+                disabled={isSubmittedSuccessfully}
                 className={`w-full px-4 py-2.5 bg-background border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
                   errors.link_inscripcion
                     ? 'border-danger focus:ring-danger/20 focus:border-danger'
                     : 'border-border focus:ring-primary/20 focus:border-primary'
-                }`}
+                } disabled:opacity-60 disabled:cursor-not-allowed`}
                 placeholder="https://form.ejemplo.com"
               />
               {errors.link_inscripcion && <p className="text-danger text-sm mt-1.5">{errors.link_inscripcion}</p>}
@@ -159,11 +237,12 @@ export default function CrearCampana() {
                 id="fecha_limite_envio"
                 value={form.fecha_limite_envio}
                 onChange={(e) => setField('fecha_limite_envio', e.target.value)}
+                disabled={isSubmittedSuccessfully}
                 className={`w-full px-4 py-2.5 bg-background border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
                   errors.fecha_limite_envio
                     ? 'border-danger focus:ring-danger/20 focus:border-danger'
                     : 'border-border focus:ring-primary/20 focus:border-primary'
-                }`}
+                } disabled:opacity-60 disabled:cursor-not-allowed`}
               />
               {errors.fecha_limite_envio && <p className="text-danger text-sm mt-1.5">{errors.fecha_limite_envio}</p>}
             </div>
@@ -187,7 +266,8 @@ export default function CrearCampana() {
                 id="prioridad"
                 value={form.prioridad}
                 onChange={(e) => setField('prioridad', e.target.value as 'alta' | 'media' | 'baja')}
-                className="w-full px-4 py-2.5 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                disabled={isSubmittedSuccessfully}
+                className="w-full px-4 py-2.5 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <option value="alta">Alta</option>
                 <option value="media">Media</option>
@@ -205,6 +285,7 @@ export default function CrearCampana() {
                       className="sr-only"
                       checked={form.para_todos_rubros}
                       onChange={(e) => setField('para_todos_rubros', e.target.checked)}
+                      disabled={isSubmittedSuccessfully}
                     />
                     <div className={`block w-14 h-8 rounded-full transition-colors ${form.para_todos_rubros ? 'bg-primary' : 'bg-border'}`}></div>
                     <div className={`absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${form.para_todos_rubros ? 'transform translate-x-6' : ''}`}></div>
@@ -233,6 +314,7 @@ export default function CrearCampana() {
                       type="checkbox"
                       checked={form.rubros_seleccionados.includes(rubro)}
                       onChange={() => toggleRubro(rubro)}
+                      disabled={isSubmittedSuccessfully}
                       className="w-4 h-4 text-primary rounded border-border focus:ring-primary"
                     />
                     <span className="text-dark select-none">
@@ -251,8 +333,12 @@ export default function CrearCampana() {
           <div className="flex w-full sm:w-auto gap-4">
             <button
               type="button"
-              onClick={() => navigate('/preview')}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-surface border border-border text-muted font-medium rounded-lg hover:bg-background hover:text-dark focus:outline-none focus:ring-2 focus:ring-border transition-colors"
+              onClick={() => {
+                navigate('/preview');
+                window.scrollTo(0, 0);
+              }}
+              disabled={isSubmittedSuccessfully}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-surface border border-border text-muted font-medium rounded-lg hover:bg-background hover:text-dark focus:outline-none focus:ring-2 focus:ring-border transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <Eye size={20} />
               Ver Vista Previa
@@ -263,19 +349,27 @@ export default function CrearCampana() {
             <button
               type="button"
               onClick={guardarBorrador}
-              disabled={isSubmitting}
+              disabled={isSubmitting || isSubmittedSuccessfully}
               className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-70 disabled:cursor-not-allowed transition-colors shadow-sm"
             >
-              <Save size={20} />
+              {isSubmitting ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              ) : (
+                <Save size={20} />
+              )}
               Guardar Borrador
             </button>
             <button
               type="button"
               onClick={aprobarCampana}
-              disabled={isSubmitting}
+              disabled={isSubmitting || isSubmittedSuccessfully}
               className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-secondary text-white font-medium rounded-lg hover:bg-secondary-dark focus:outline-none focus:ring-2 focus:ring-secondary/50 disabled:opacity-70 disabled:cursor-not-allowed transition-colors shadow-sm"
             >
-              <CheckCircle2 size={20} />
+              {isSubmitting ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              ) : (
+                <CheckCircle2 size={20} />
+              )}
               Aprobar y Enviar Campaña
             </button>
           </div>

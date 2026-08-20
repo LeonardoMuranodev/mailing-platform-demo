@@ -41,9 +41,11 @@ export const crearCampanaSchema = z.object({
     .transform((html) => DOMPurify.sanitize(html)),
 
   link_inscripcion: z
-    .string({ message: 'El link de inscripción es obligatorio' })
+    .string()
     .trim()
-    .url('El link de inscripción debe ser una URL válida'),
+    .url('El link de inscripción debe ser una URL válida')
+    .optional()
+    .or(z.literal('')),
 
   flyer_url: z
     .string()

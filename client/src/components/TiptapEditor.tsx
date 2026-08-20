@@ -12,7 +12,7 @@ import {
   Unlink,
 } from 'lucide-react';
 import { useCampanaStore } from '../stores/campanaStore';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 
 export default function TiptapEditor() {
   const htmlContent = useCampanaStore((state) => state.form.cuerpo_html);
@@ -39,6 +39,13 @@ export default function TiptapEditor() {
       },
     },
   });
+
+  // Sincronizar el contenido del editor si cambia externamente (ej: al hacer reset)
+  useEffect(() => {
+    if (editor && htmlContent !== editor.getHTML()) {
+      editor.commands.setContent(htmlContent);
+    }
+  }, [htmlContent, editor]);
 
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, Tag } from 'lucide-react';
 import { useCampanaStore } from '../stores/campanaStore';
@@ -15,6 +16,11 @@ const MAIL_ICON = 'https://cdn-icons-png.flaticon.com/512/732/732200.png';
 export default function VistaPrevia() {
   const navigate = useNavigate();
   const { form, flyerPreview, htmlPreview } = useCampanaStore();
+
+  // Scroll al tope al montar
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   // Resolver labels de rubros seleccionados
   const rubrosDisplay = form.para_todos_rubros

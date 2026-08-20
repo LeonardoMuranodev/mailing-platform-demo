@@ -21,21 +21,21 @@ Nueva vista: Directorio de Contactos
     El boton de eliminar varios no debe salir arriba, esta mal
 
 En la vista de cuentas/ (SMTP)
-    - Da un error al usuario generico: Error de validación en los datos enviados
+    - Hecho: Da un error al usuario generico: Error de validación en los datos enviados
     Deberia ser email invalido, o si es valido contraseña de aplicacion invalida, al querer conectar las cuentas
-    - Deberia comprobar la cuenta, si se pudo conectar o no al servidor SMTP, sino no deberia dejar. Es decir al envair el formulario si el formato de los datos es valido:
+    - Hecho: Deberia comprobar la cuenta, si se pudo conectar o no al servidor SMTP, sino no deberia dejar. Es decir al envair el formulario si el formato de los datos es valido:
      - Si la contraseña es invalida --> Mostrar pop Up de que la contraseña es invalida
      - Si el host es invalido --> Mostrar pop Up de que el host es invalido
      - Si la contraseña es valida --> recein ahi aparece como cuenta usable
-    Nose si hay manera de comprobar que una contraseña funciona sin mandar mail, sino, podemos hacer mandadno un mail de prueba desde esa mail, o sea hacer una conexion de prueba. SI es aasi avisamos que se enviara un mail de prueba
+    Hecha: Nose si hay manera de comprobar que una contraseña funciona sin mandar mail, sino, podemos hacer mandadno un mail de prueba desde esa mail, o sea hacer una conexion de prueba. SI es aasi avisamos que se enviara un mail de prueba
 
 
 En la vista de nueva/ (form de nueva campaña)
- - En todos los inputs, sale el error abajo si no se pone nada, pero eso no pasa en el de Link de Inscripcion. Si te sale el error general de Error: Error de "validación en los datos enviados". El cual no es intuitivo para el usuario. Aca deberia decir si no se completo el Link, o si es un link invalido y demas.
- - El boton de crear otra al crear una campaña no te lleva a nueva/, sino a la vista general de las campañas. Lo mejor seria que te lleve a nueva/ para poder crear otra. Y la idea del "crear otra" es que te limpie el formulario y puedas crear otra campaña
- - Al tocar Vista Previa, empieza muy abajo la misma, hay que hacer un scroll hacia arriba para ver el boton de Volver al Form y el detalle que dice Modo vista Previa .
- - Al tocar en Guardar Borrador dijimos que solo es necesario poner el Asunto, lo demas no, sin embargo es todo obligatorio
- - Puedo spamear los botones de Guardar Borrador o Aprobar la campaña al crearla. Deberia ser impossible hacerlo, bloqueando el boton al tocarlo. Deberiamos comunicar al usuario con un pop up diciendo:
+ - Hecha: En todos los inputs, sale el error abajo si no se pone nada, pero eso no pasa en el de Link de Inscripcion. Si te sale el error general de Error: Error de "validación en los datos enviados". El cual no es intuitivo para el usuario. Aca deberia decir si no se completo el Link, o si es un link invalido y demas.
+ - Hecha: El boton de crear otra al crear una campaña no te lleva a nueva/, sino a la vista general de las campañas. Lo mejor seria que te lleve a nueva/ para poder crear otra. Y la idea del "crear otra" es que te limpie el formulario y puedas crear otra campaña
+ - Hecha: Al tocar Vista Previa, empieza muy abajo la misma, hay que hacer un scroll hacia arriba para ver el boton de Volver al Form y el detalle que dice Modo vista Previa .
+ - Hecha: Al tocar en Guardar Borrador dijimos que solo es necesario poner el Asunto, lo demas no, sin embargo es todo obligatorio
+ - Hecha: Puedo spamear los botones de Guardar Borrador o Aprobar la campaña al crearla. Deberia ser imposible hacerlo, bloqueando el boton al tocarlo. Deberiamos comunicar al usuario con un pop up diciendo:
   Ya fue creada como borrador / aprobada
   Si fue como borrador que haya un boton pueda ver la vista previa
   Si fue aprobada que haya un boton para que vea el detalle de la campaña

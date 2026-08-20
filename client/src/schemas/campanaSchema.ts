@@ -12,10 +12,9 @@ export const crearCampanaSchema = z.object({
     .min(1, 'Debés escribir el contenido del correo'),
 
   link_inscripcion: z
-    .string()
-    .url('Ingresá una URL válida (ej: https://ejemplo.com)')
-    .or(z.literal(''))
-    .optional(),
+    .string({ message: 'El link de inscripción es obligatorio' })
+    .min(1, 'El link de inscripción es obligatorio')
+    .url('Ingresá una URL válida (ej: https://ejemplo.com)'),
 
   fecha_limite_envio: z
     .string({ message: 'La fecha límite es obligatoria' })
@@ -38,7 +37,14 @@ export const borradorCampanaSchema = z.object({
     .max(255, 'El asunto no puede exceder 255 caracteres'),
 
   cuerpo_html: z.string().optional().default(''),
-  link_inscripcion: z.string().optional().default(''),
+  link_inscripcion: z
+    .string()
+    .refine(
+      (val) => val === '' || z.string().url().safeParse(val).success,
+      'El link de inscripción no es una URL válida',
+    )
+    .optional()
+    .default(''),
   fecha_limite_envio: z.string().optional().default(''),
   prioridad: z.enum(['alta', 'media', 'baja']).optional().default('alta'),
   para_todos_rubros: z.boolean().optional().default(true),

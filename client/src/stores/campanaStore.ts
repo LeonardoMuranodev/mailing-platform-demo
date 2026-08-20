@@ -14,7 +14,7 @@ interface CampanaStore {
   htmlPreview: string;
   errors: Record<string, string>;
   isSubmitting: boolean;
-  submitResult: { success: boolean; message: string; id?: string } | null;
+  submitResult: { success: boolean; message: string; id?: string; mode?: 'borrador' | 'aprobada' } | null;
 
   // ── Acciones ───────────────────────────────────
   setField: <K extends keyof CampanaFormData>(field: K, value: CampanaFormData[K]) => void;
@@ -118,6 +118,7 @@ export const useCampanaStore = create<CampanaStore>((set, get) => ({
             success: true,
             message: 'Campaña guardada como borrador exitosamente.',
             id: res.data.id,
+            mode: 'borrador',
           },
         });
       } else {
@@ -173,6 +174,7 @@ export const useCampanaStore = create<CampanaStore>((set, get) => ({
             success: true,
             message: 'Campaña aprobada y lista para envío.',
             id: createRes.data.id,
+            mode: 'aprobada',
           },
         });
       } else {
