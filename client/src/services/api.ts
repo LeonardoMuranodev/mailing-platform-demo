@@ -113,6 +113,13 @@ export async function obtenerEstadisticasGlobales(): Promise<ApiResponse<GlobalS
   return fetchApi<GlobalStatsResult>(`${API_BASE}/api/stats/global`);
 }
 
+/**
+ * Obtiene la lista de campañas con sus estadísticas para exportar.
+ */
+export async function exportarEstadisticasCampanas(): Promise<ApiResponse<any[]>> {
+  return fetchApi<any[]>(`${API_BASE}/api/stats/export-campanas`);
+}
+
 // ── Cuentas SMTP ─────────────────────────────────────────────────────────────
 
 import type { CuentaSmtp, CrearCuentaSmtpInput, ActualizarCuentaSmtpInput } from '../types/smtp';

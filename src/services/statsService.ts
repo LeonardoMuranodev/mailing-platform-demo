@@ -82,3 +82,32 @@ export async function obtenerEstadisticasGlobales(): Promise<GlobalStatsResult> 
     }))
   };
 }
+
+export interface CampanaExportRow {
+  id: string;
+  asunto: string;
+  estado: string;
+  fecha_limite_envio: string | null;
+  creado_en: string;
+  total_envios: number;
+  enviados: number;
+  fallidos: number;
+  pendientes: number;
+}
+
+export async function obtenerCampanasParaExportar(): Promise<CampanaExportRow[]> {
+  const query = await dbPool.query(`
+    SELECT 
+      c.id, c.asunto, c.estado, c.fecha_limite_envio, c.creado_en,
+      COUNT(ce.id)::int as total_envios,
+      COUNT(ce.id) FILTER (WHERE ce.estado = 'enviado')::int as enviados,
+      COUNT(ce.id) FILTER (WHERE ce.estado = 'fallido')::int as fallidos,
+      COUNT(ce.id) FILTER (WHERE ce.estado = 'pendiente' OR ce.estado = 'procesando')::int as pendientes
+    FROM campanas c
+    LEFT JOIN cola_envios ce ON c.id = ce.campana_id
+    GROUP BY c.id
+    ORDER BY c.creado_en DESC;
+  `);
+  
+  return query.rows;
+}

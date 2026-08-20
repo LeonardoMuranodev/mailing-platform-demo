@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Send, Clock, CheckCircle2, Mail, RefreshCw } from 'lucide-react';
-import { obtenerEstadisticasGlobales } from '../services/api';
+import { Send, Clock, CheckCircle2, Mail, RefreshCw, Download } from 'lucide-react';
+import { obtenerEstadisticasGlobales, exportarEstadisticasCampanas } from '../services/api';
 import type { GlobalStatsResult } from '../types/stats';
 import { RUBROS_LABELS } from '../data/rubros';
 
@@ -21,6 +21,52 @@ export default function EstadisticasGenerales() {
       console.error('Error fetching global stats', e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleExportCsv = async () => {
+    try {
+      const res = await exportarEstadisticasCampanas();
+      if (!res.success || !res.data) {
+        alert('Error al obtener datos para exportar');
+        return;
+      }
+      
+      const campanas = res.data;
+      if (campanas.length === 0) {
+        alert('No hay campañas para exportar');
+        return;
+      }
+      
+      const header = ['ID', 'Asunto', 'Estado', 'Fecha Limite Envio', 'Creado En', 'Total Envios', 'Enviados', 'Fallidos', 'Pendientes'];
+      const rows = campanas.map((c: any) => [
+        c.id,
+        c.asunto,
+        c.estado,
+        c.fecha_limite_envio ? new Date(c.fecha_limite_envio).toLocaleDateString() : '',
+        new Date(c.creado_en).toLocaleDateString(),
+        c.total_envios || 0,
+        c.enviados || 0,
+        c.fallidos || 0,
+        c.pendientes || 0
+      ]);
+      
+      const csvContent = [
+        header.join(','),
+        ...rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      ].join('\n');
+      
+      const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'estadisticas_campanas.csv');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error exporting CSV', error);
+      alert('Ocurrió un error al exportar el CSV');
     }
   };
 
@@ -64,14 +110,24 @@ export default function EstadisticasGenerales() {
             Última sincronización: {lastSync.toLocaleTimeString()}
           </p>
         </div>
-        <button
-          onClick={fetchStats}
-          disabled={loading}
-          className="flex items-center gap-2 bg-surface border border-border text-dark px-4 py-2 rounded-lg hover:bg-background transition-colors font-medium shadow-sm"
-        >
-          <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-          Actualizar datos
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={handleExportCsv}
+            disabled={loading}
+            className="flex items-center gap-2 bg-surface border border-border text-dark px-4 py-2 rounded-lg hover:bg-background transition-colors font-medium shadow-sm"
+          >
+            <Download size={18} />
+            Exportar CSV
+          </button>
+          <button
+            onClick={fetchStats}
+            disabled={loading}
+            className="flex items-center gap-2 bg-surface border border-border text-dark px-4 py-2 rounded-lg hover:bg-background transition-colors font-medium shadow-sm"
+          >
+            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+            Actualizar datos
+          </button>
+        </div>
       </div>
 
       {/* KPIs Grid */}
