@@ -16,6 +16,9 @@ Nueva vista: Directorio de Contactos
     El boton debe decir "Exportar contactos" no "Exportar Vistas"
     - En el estado aparece Funcional Inactivo, Activo, pero en el FORM al agregar un nuevo contacto no sale Activo. Activo es un estado innecesario hay que borrarlo conmo estado en la base de datos. Y no me gusta que puedan cambiar el estado tocando directamente en la plabara donde dice FUnciona o Activo etc. Puede ser que toquen eso y no se den cuenta, para eso esta el boton de Editar contacto
     duda: que pasa si no pongo rubro, como lo toma, en que categoria entra. Si la empresa es nueva, la agrega a la BD?
+    Que no se puedan borrar todos
+    El confirma cuando selecciono varios para borrar tiene que ser un modal, igual al que sale cuando solo quiero eliminar uno
+    El boton de eliminar varios no debe salir arriba, esta mal
 
 En la vista de cuentas/ (SMTP)
     - Da un error al usuario generico: Error de validación en los datos enviados
@@ -41,6 +44,7 @@ En la vista de nueva/ (form de nueva campaña)
 
 
 Vista de campanas/<campana-id> :
-- EN algun lado debe decir fecha limite de envio y rubros (osea los que se completaron a la hora de hacer el FORM)
-- Falta implementar la seccion estadisticas
-- Opcion de Exportar CSV pero solo con las estadisticas de ese evento,  y demas datos de ese evento
+- Hecho: En algun lado debe decir fecha limite de envio y rubros (osea los que se completaron a la hora de hacer el FORM)
+- Hecho: Falta implementar la seccion estadisticas
+- Hecho: Opcion de Exportar CSV pero solo con las estadisticas de ese evento,  y demas datos de ese evento
+- En cola de envios no se entiende bien lo que seria Respuesta. Mas adelante hay que verlo

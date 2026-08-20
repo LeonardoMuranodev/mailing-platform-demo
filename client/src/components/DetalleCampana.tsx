@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Send, AlertTriangle, CheckCircle2, Clock, Mail, Search, RefreshCw, BarChart2 } from 'lucide-react';
+import { ArrowLeft, Send, AlertTriangle, CheckCircle2, Clock, Mail, Search, RefreshCw, BarChart2, Download } from 'lucide-react';
 import { obtenerCampanaDetalle, obtenerColaCampana } from '../services/api';
 import type { CampanaConStats, ColaEnvioItem } from '../types/campana';
 import { formatDate } from '../utils/formatDate';
+import { RUBROS_LABELS } from '../data/rubros';
 
 const ESTADO_BADGE_CLASSES: Record<string, string> = {
   borrador: 'bg-slate-100 text-slate-600 border-slate-200',
@@ -72,6 +73,45 @@ export default function DetalleCampana() {
     fetchData();
   };
 
+  const exportarCSV = () => {
+    if (!campana) return;
+    
+    const headers = ['Email', 'Estado', 'Fecha Envio', 'Cuenta SMTP', 'Respuesta SMTP'];
+    const rows = cola.map(item => [
+      item.contacto_email,
+      item.estado,
+      item.fecha_envio ? new Date(item.fecha_envio).toLocaleString('es-AR') : '',
+      item.cuenta_smtp_email || '',
+      item.respuesta_smtp || ''
+    ]);
+
+    const rubrosStr = campana.para_todos_rubros 
+      ? 'Todos los rubros' 
+      : campana.rubros_seleccionados.map((r: string) => RUBROS_LABELS[r as keyof typeof RUBROS_LABELS] || r).join(' - ');
+
+    const csvContent = [
+      ['Asunto:', `"${campana.asunto}"`],
+      ['Fecha Limite:', formatDate(campana.fecha_limite_envio)],
+      ['Rubros:', `"${rubrosStr}"`],
+      ['Total Contactos:', campana.stats.total.toString()],
+      ['Enviados:', campana.stats.enviados.toString()],
+      ['Fallidos:', campana.stats.fallidos.toString()],
+      ['Pendientes:', campana.stats.pendientes.toString()],
+      [],
+      headers,
+      ...rows.map(row => row.map(cell => `"${cell}"`))
+    ].map(e => e.join(',')).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `reporte_${campana.id}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (loading && !campana) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -109,13 +149,23 @@ export default function DetalleCampana() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-dark">{campana.asunto}</h1>
-            <p className="text-sm text-muted mt-1 flex items-center gap-2">
-              <CalendarIcon size={14} /> Creada el {formatDate(campana.creado_en)}
+            <p className="text-sm text-muted mt-1 flex flex-col sm:flex-row sm:items-center gap-2">
+              <span className="flex items-center gap-1"><CalendarIcon size={14} /> Creada: {formatDate(campana.creado_en)}</span>
+              <span className="hidden sm:inline">•</span>
+              <span className="flex items-center gap-1"><Clock size={14} /> Límite: {formatDate(campana.fecha_limite_envio)}</span>
+            </p>
+            <p className="text-sm text-muted mt-1">
+              <strong>Rubros:</strong> {campana.para_todos_rubros ? 'Todos los rubros' : campana.rubros_seleccionados.map((r: string) => RUBROS_LABELS[r as keyof typeof RUBROS_LABELS] || r).join(', ')}
             </p>
           </div>
-          <span className={`px-3 py-1.5 text-sm font-semibold border rounded-full ${ESTADO_BADGE_CLASSES[campana.estado] || 'bg-slate-100'}`}>
-            {ESTADO_LABELS[campana.estado] || campana.estado}
-          </span>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <button onClick={exportarCSV} className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border text-dark rounded-lg hover:bg-border transition-colors text-sm font-medium">
+              <Download size={16} /> Exportar CSV
+            </button>
+            <span className={`px-3 py-1.5 text-sm font-semibold border rounded-full ${ESTADO_BADGE_CLASSES[campana.estado] || 'bg-slate-100'}`}>
+              {ESTADO_LABELS[campana.estado] || campana.estado}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -235,17 +285,43 @@ export default function DetalleCampana() {
               </div>
             </div>
           ) : (
-            <div className="animate-fade-in flex flex-col items-center justify-center py-16">
-              <div className="w-20 h-20 bg-background rounded-full flex items-center justify-center mb-4">
-                <BarChart2 size={32} className="text-muted" />
+            <div className="animate-fade-in p-2 max-w-3xl mx-auto">
+              <h3 className="text-xl font-bold text-dark mb-6 flex items-center gap-2">
+                <BarChart2 className="text-primary" />
+                Métricas de Envío
+              </h3>
+              
+              <div className="space-y-6">
+                <div>
+                  <div className="flex justify-between text-sm font-medium mb-1">
+                    <span className="text-dark flex items-center gap-1"><CheckCircle2 size={16} className="text-green-500" /> Tasa de Éxito (Enviados)</span>
+                    <span className="text-green-600 font-bold">{campana.stats.total > 0 ? ((campana.stats.enviados / campana.stats.total) * 100).toFixed(1) : 0}%</span>
+                  </div>
+                  <div className="w-full bg-surface border border-border rounded-full h-3 overflow-hidden">
+                    <div className="bg-green-500 h-3 rounded-full transition-all duration-500" style={{ width: `${campana.stats.total > 0 ? (campana.stats.enviados / campana.stats.total) * 100 : 0}%` }}></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-sm font-medium mb-1">
+                    <span className="text-dark flex items-center gap-1"><AlertTriangle size={16} className="text-red-500" /> Tasa de Fallos (Rebotes)</span>
+                    <span className="text-red-600 font-bold">{campana.stats.total > 0 ? ((campana.stats.fallidos / campana.stats.total) * 100).toFixed(1) : 0}%</span>
+                  </div>
+                  <div className="w-full bg-surface border border-border rounded-full h-3 overflow-hidden">
+                    <div className="bg-red-500 h-3 rounded-full transition-all duration-500" style={{ width: `${campana.stats.total > 0 ? (campana.stats.fallidos / campana.stats.total) * 100 : 0}%` }}></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-sm font-medium mb-1">
+                    <span className="text-dark flex items-center gap-1"><Clock size={16} className="text-amber-500" /> Pendientes de Envío</span>
+                    <span className="text-amber-600 font-bold">{campana.stats.total > 0 ? ((campana.stats.pendientes / campana.stats.total) * 100).toFixed(1) : 0}%</span>
+                  </div>
+                  <div className="w-full bg-surface border border-border rounded-full h-3 overflow-hidden">
+                    <div className="bg-amber-500 h-3 rounded-full transition-all duration-500" style={{ width: `${campana.stats.total > 0 ? (campana.stats.pendientes / campana.stats.total) * 100 : 0}%` }}></div>
+                  </div>
+                </div>
               </div>
-              <h3 className="text-xl font-bold text-dark mb-2">Estadísticas Detalladas</h3>
-              <p className="text-muted text-center max-w-md">
-                Próximamente podrás visualizar gráficos de dona con la tasa de éxito, timeline de envíos y análisis de rebotes.
-              </p>
-              <span className="mt-6 px-3 py-1 bg-primary/10 text-primary text-xs font-bold uppercase rounded-full tracking-wider">
-                En Desarrollo
-              </span>
             </div>
           )}
         </div>
