@@ -95,6 +95,14 @@ export default function CuentasSmtp() {
     setErrorMsg('');
     setSaving(true);
     
+    const displayError = (res: any, defaultMsg: string) => {
+      if (res.error?.details && res.error.details.length > 0) {
+        setErrorMsg(res.error.details.map((d: any) => d.message).join('. '));
+      } else {
+        setErrorMsg(res.error?.message || defaultMsg);
+      }
+    };
+
     try {
       if (editingId) {
         const payload: any = {
@@ -109,7 +117,7 @@ export default function CuentasSmtp() {
           setCuentas(prev => prev.map(c => c.id === editingId ? res.data! : c));
           setIsModalOpen(false);
         } else {
-          setErrorMsg(res.error?.message || 'Error al actualizar');
+          displayError(res, 'Error al actualizar');
         }
       } else {
         const res = await crearCuentaSmtp({
@@ -122,11 +130,11 @@ export default function CuentasSmtp() {
           setCuentas([res.data, ...cuentas]);
           setIsModalOpen(false);
         } else {
-          setErrorMsg(res.error?.message || 'Error al crear');
+          displayError(res, 'Error al crear');
         }
       }
     } catch (e) {
-      setErrorMsg('Error de red');
+      setErrorMsg('Error de red al conectar con el servidor.');
     } finally {
       setSaving(false);
     }

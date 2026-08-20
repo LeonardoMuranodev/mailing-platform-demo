@@ -39,18 +39,30 @@ export function errorHandler(
     }
   }
 
-  // ── Errores de negocio conocidos ─────────────────────
+  // ── Errores de negocio y fallback ─────────────────────
   if (err instanceof Error) {
     const isProduction = process.env.NODE_ENV === 'production';
 
-    console.error('[ErrorHandler]', err.message, isProduction ? '' : err.stack);
+    // Allow certain specific business errors to pass through even in production
+    const isBusinessError = err.message.includes('Contraseña de aplicación') || 
+                            err.message.includes('host SMTP') ||
+                            err.message.includes('servidor SMTP');
+                            
+    const message = (isProduction && !isBusinessError) ? 'Error interno del servidor' : err.message;
+    const statusCode = isBusinessError ? 400 : 500;
+
+    if (isBusinessError) {
+      console.warn(`[BusinessError] ${err.message}`);
+    } else {
+      console.error('[ErrorHandler]', err.message, isProduction ? '' : err.stack);
+    }
 
     sendError(
       res,
-      'INTERNAL_ERROR',
-      isProduction ? 'Error interno del servidor' : err.message,
-      500,
-      isProduction ? undefined : { stack: err.stack },
+      isBusinessError ? 'BUSINESS_ERROR' : 'INTERNAL_ERROR',
+      message,
+      statusCode,
+      (isProduction || isBusinessError) ? undefined : { stack: err.stack },
     );
     return;
   }

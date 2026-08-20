@@ -17,6 +17,7 @@
     "@types/express": "^5.0.6",
     "@types/multer": "^2.2.0",
     "@types/node": "^26.2.0",
+    "@types/nodemailer": "^8.0.1",
     "@types/pg": "^8.21.0",
     "nodemon": "^3.1.14",
     "ts-node": "^10.9.2",
@@ -29,6 +30,7 @@
     "express": "^5.2.1",
     "isomorphic-dompurify": "^3.19.0",
     "multer": "^2.2.0",
+    "nodemailer": "^9.0.5",
     "pg": "^8.23.0",
     "zod": "^4.4.3"
   }
