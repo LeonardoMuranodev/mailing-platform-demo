@@ -11,14 +11,10 @@ Vista de Estadisticas Generales:
 Nueva vista: Directorio de Contactos
     
     - Error de padding en la lista desplegable de rubros y Estado, el icono de la fecha deberia estar mas a la izquierda. Tambien el contenedor general no tiene padding derecho
-    - Al completar para agregar nuevo contacto, se bugea y no aparee ningun contacto, pero si restablezco con el boton de filtrar o restablecer ahi si aprecen todos y el nuevo tambien
-    - Opcion y logica para seleccionar varios contactos, osea para poder hacer un delete de varios contactos a la vez.
-    El boton debe decir "Exportar contactos" no "Exportar Vistas"
-    - En el estado aparece Funcional Inactivo, Activo, pero en el FORM al agregar un nuevo contacto no sale Activo. Activo es un estado innecesario hay que borrarlo conmo estado en la base de datos. Y no me gusta que puedan cambiar el estado tocando directamente en la plabara donde dice FUnciona o Activo etc. Puede ser que toquen eso y no se den cuenta, para eso esta el boton de Editar contacto
     duda: que pasa si no pongo rubro, como lo toma, en que categoria entra. Si la empresa es nueva, la agrega a la BD?
-    Que no se puedan borrar todos
+    Que no se puedan borrar todos, el checkbox que esta a la izquierda de donde dice "Empresa / Razon Social" no deberia existir es muy peligroso
     El confirma cuando selecciono varios para borrar tiene que ser un modal, igual al que sale cuando solo quiero eliminar uno
-    El boton de eliminar varios no debe salir arriba, esta mal
+    El boton de eliminar varios no debe salir arriba, esta mal, no deberia salir arriba modificando el ancho del titulo, no es la pero practica jamas realizada!
 
 En la vista de cuentas/ (SMTP)
     - Hecho: Da un error al usuario generico: Error de validación en los datos enviados
@@ -48,3 +44,10 @@ Vista de campanas/<campana-id> :
 - Hecho: Falta implementar la seccion estadisticas
 - Hecho: Opcion de Exportar CSV pero solo con las estadisticas de ese evento,  y demas datos de ese evento
 - En cola de envios no se entiende bien lo que seria Respuesta. Mas adelante hay que verlo
+
+Nueva Seccion: soporte/
+- No lo tengo definido, pero que la encargadas puedan darme tips, mejoraas o reportar errores del sistema. Un formulario que tenga algunos tipos predefinidos. Asi mas adelante cuando implementemos el tema de los roles, yo como Desarrollador puedo ver las tareas pendientes o lo que ellas escribieron para implementar por prioridad.
+Que tenga como minimo: Tipo (mejora, sugerencia, error), Descripcion (textArea),Adjuntar no obligatorio (imagen, pdf, etc.).
+TIene que guardarse en el sistema, pero ademas mandarme un mail y / o telegram, el cual debe configurarse tambien desde el rol de desaroollador. Al mandar el form, un modal de confirmacion de que envio el reporte (ok!) al desarrollador.
+
+Nuevo BACKEND: Sistema de Logueo basado en roles:

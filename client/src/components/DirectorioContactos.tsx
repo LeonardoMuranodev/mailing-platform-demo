@@ -27,6 +27,7 @@ export default function DirectorioContactos() {
   // Bulk Selection
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
 
   // Modals state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -213,7 +214,6 @@ export default function DirectorioContactos() {
 
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
-    if (!window.confirm(`¿Estás seguro de eliminar ${selectedIds.length} contactos seleccionados?`)) return;
     
     setBulkDeleting(true);
     try {
@@ -228,16 +228,11 @@ export default function DirectorioContactos() {
       alert('Error de red al eliminar contactos');
     } finally {
       setBulkDeleting(false);
+      setBulkDeleteConfirm(false);
     }
   };
 
-  const toggleSelectAll = () => {
-    if (selectedIds.length === contactos.length && contactos.length > 0) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(contactos.map(c => c.id));
-    }
-  };
+  // toggleSelectAll removido — el checkbox general era peligroso
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -271,7 +266,7 @@ export default function DirectorioContactos() {
   const totalPages = Math.ceil(total / limit);
 
   return (
-    <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 animate-fade-in">
+    <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 pr-4 sm:pr-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
         <div>
@@ -284,16 +279,6 @@ export default function DirectorioContactos() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          {selectedIds.length > 0 && (
-            <button
-              onClick={handleBulkDelete}
-              disabled={bulkDeleting}
-              className="flex items-center gap-2 px-4 py-2 bg-danger text-white rounded-lg hover:bg-danger-dark transition-colors font-medium shadow-sm disabled:opacity-50"
-            >
-              <Trash2 size={18} />
-              {bulkDeleting ? 'Eliminando...' : `Eliminar Seleccionados (${selectedIds.length})`}
-            </button>
-          )}
           <button
             onClick={() => setIsImportModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2 bg-surface border border-border text-dark rounded-lg hover:bg-background transition-colors font-medium shadow-sm"
@@ -370,7 +355,7 @@ export default function DirectorioContactos() {
             <select
               value={rubroId}
               onChange={(e) => setRubroId(e.target.value)}
-              className="w-full pl-3 pr-8 py-2.5 text-sm bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors h-[42px]"
+              className="w-full pl-3 pr-10 py-2.5 text-sm bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors h-[42px]"
             >
               <option value="">Todos los rubros</option>
               {RUBROS_LIST.map((r) => (
@@ -383,7 +368,7 @@ export default function DirectorioContactos() {
             <select
               value={estado}
               onChange={(e) => setEstado(e.target.value)}
-              className="w-full pl-3 pr-8 py-2.5 text-sm bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors h-[42px]"
+              className="w-full pl-3 pr-10 py-2.5 text-sm bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors h-[42px]"
             >
               <option value="">Todos los estados</option>
               <option value="funcional">Funcional</option>
@@ -413,14 +398,7 @@ export default function DirectorioContactos() {
           <table className="w-full text-left text-sm text-muted">
             <thead className="bg-background text-dark text-xs uppercase font-semibold border-b border-border">
               <tr>
-                <th className="px-6 py-4 w-12">
-                  <input
-                    type="checkbox"
-                    className="rounded border-border text-primary focus:ring-primary h-4 w-4"
-                    checked={contactos.length > 0 && selectedIds.length === contactos.length}
-                    onChange={toggleSelectAll}
-                  />
-                </th>
+                <th className="px-6 py-4 w-12"></th>
                 <th className="px-6 py-4">Empresa / Razón Social</th>
                 <th className="px-6 py-4">Email</th>
                 <th className="px-6 py-4">CUIT</th>
@@ -529,6 +507,31 @@ export default function DirectorioContactos() {
                 className="px-3 py-1.5 border border-border rounded-md text-sm font-medium text-dark disabled:opacity-50 hover:bg-surface transition-colors"
               >
                 Siguiente
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Barra de eliminación masiva (fija en la parte inferior de la tabla) */}
+        {selectedIds.length > 0 && (
+          <div className="px-6 py-3 border-t border-border bg-danger/5 flex items-center justify-between">
+            <span className="text-sm font-medium text-dark">
+              {selectedIds.length} contacto{selectedIds.length > 1 ? 's' : ''} seleccionado{selectedIds.length > 1 ? 's' : ''}
+            </span>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setSelectedIds([])}
+                className="px-4 py-2 text-sm font-medium text-dark bg-background border border-border rounded-lg hover:bg-surface transition-colors"
+              >
+                Deseleccionar
+              </button>
+              <button
+                onClick={() => setBulkDeleteConfirm(true)}
+                disabled={bulkDeleting}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-danger text-white rounded-lg hover:bg-danger-dark transition-colors disabled:opacity-50"
+              >
+                <Trash2 size={16} />
+                Eliminar Seleccionados
               </button>
             </div>
           </div>
@@ -721,6 +724,39 @@ export default function DirectorioContactos() {
                 className="px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg hover:bg-danger-dark transition-colors w-full"
               >
                 Sí, Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmación de Eliminación Masiva */}
+      {bulkDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in p-4">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-sm p-6 animate-fade-in border border-border text-center">
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-danger/10 mb-4">
+              <Trash2 className="h-6 w-6 text-danger" />
+            </div>
+            <h3 className="text-lg font-semibold text-dark mb-2">
+              ¿Eliminar {selectedIds.length} contacto{selectedIds.length > 1 ? 's' : ''}?
+            </h3>
+            <p className="text-sm text-muted mb-6">
+              Esta acción no se puede deshacer. Se borrarán los datos de {selectedIds.length} contacto{selectedIds.length > 1 ? 's' : ''} del directorio.
+            </p>
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={() => setBulkDeleteConfirm(false)}
+                className="px-4 py-2 text-sm font-medium text-dark bg-background border border-border rounded-lg hover:bg-surface transition-colors w-full"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+                className="px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg hover:bg-danger-dark transition-colors w-full disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {bulkDeleting && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
+                Sí, Eliminar Todos
               </button>
             </div>
           </div>
