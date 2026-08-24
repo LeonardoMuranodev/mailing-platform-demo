@@ -5,6 +5,7 @@ import { queueRouter } from './queueRoutes.js';
 import { smtpRouter } from './smtpRoutes.js';
 import { statsRouter } from './statsRoutes.js';
 import { contactoRouter } from './contactoRoutes.js';
+import { usuariosRouter } from './usuariosRoutes.js';
 import { requireAuth } from '../middlewares/requireAuth.js';
 import { requireRole } from '../middlewares/requireRole.js';
 
@@ -19,7 +20,8 @@ export function registerRoutes(app: Application): void {
   app.use('/api/smtp', smtpRouter);
   app.use('/api/stats', statsRouter);
   app.use('/api/contactos', contactoRouter);
+  app.use('/api/usuarios', usuariosRouter);
   
-  console.log('[Routes] ✅ REST endpoints registered: /api/auth, /api/campanas, /api/queue, /api/smtp, /api/stats, /api/contactos');
+  console.log('[Routes] ✅ REST endpoints registered: /api/auth, /api/campanas, /api/queue, /api/smtp, /api/stats, /api/contactos, /api/usuarios');
 }
 

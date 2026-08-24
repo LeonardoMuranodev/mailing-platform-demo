@@ -72,7 +72,7 @@ export default function Login() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-[400px]">
         <div className="bg-surface py-8 px-4 shadow-sm border border-border sm:rounded-2xl sm:px-10 transition-colors">
-          <form className="space-y-6" onSubmit={handleLogin}>
+          <form className="space-y-6" onSubmit={handleLogin} noValidate>
             {error && (
               <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg border border-red-200">
                 {error}

@@ -244,3 +244,32 @@ export async function importarContactosCsv(formData: FormData): Promise<ApiRespo
     body: formData,
   });
 }
+
+// ── USUARIOS ───────────────────────────────────────────────
+
+export async function obtenerUsuarios(): Promise<ApiResponse<any>> {
+  return fetchApi(`${API_BASE}/api/usuarios`);
+}
+
+export async function crearUsuario(data: any): Promise<ApiResponse<any>> {
+  return fetchApi(`${API_BASE}/api/usuarios`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function actualizarUsuario(id: string, data: any): Promise<ApiResponse<any>> {
+  return fetchApi(`${API_BASE}/api/usuarios/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function eliminarUsuario(id: string): Promise<ApiResponse<any>> {
+  return fetchApi(`${API_BASE}/api/usuarios/${id}`, {
+    method: 'DELETE',
+  });
+}
+

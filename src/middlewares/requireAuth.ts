@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { verificarToken } from '../services/authService.js';
+import { dbPool } from '../config/db.js';
 import { sendError } from '../utils/responseHandler.js';
 import type { JwtPayload } from '../types/usuario.js';
 
@@ -12,7 +13,7 @@ declare global {
   }
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -24,7 +25,19 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 
   try {
     const payload = verificarToken(token);
-    req.user = payload;
+    
+    // Verificar que el usuario siga existiendo y actualizar su rol
+    const { rows } = await dbPool.query('SELECT id, rol FROM usuarios WHERE id = $1', [payload.userId]);
+    
+    if (rows.length === 0) {
+      sendError(res, 'UNAUTHORIZED', 'Usuario ya no existe en el sistema', 401);
+      return;
+    }
+
+    req.user = {
+      ...payload,
+      rol: rows[0].rol
+    };
     next();
   } catch (error) {
     sendError(res, 'UNAUTHORIZED', 'Token inválido o expirado', 401);
