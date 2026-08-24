@@ -32,7 +32,15 @@ export const config = {
   },
   encryptionKey: process.env.ENCRYPTION_KEY || '',
   jwt: {
-    secret: process.env.JWT_SECRET || 'dev-secret-change-me',
-    expiresIn: '12h'
+    secret: process.env.JWT_SECRET || 'secret_para_desarrollo_cambiar_en_produccion',
+    expiresIn: process.env.JWT_EXPIRES_IN || '24h',
+  },
+  notifier: {
+    smtpHost: process.env.SMTP_NOTIFIER_HOST || '',
+    smtpPort: parseInt(process.env.SMTP_NOTIFIER_PORT || '587', 10),
+    smtpUser: process.env.SMTP_NOTIFIER_USER || '',
+    smtpPass: process.env.SMTP_NOTIFIER_PASS || '',
+    telegramChatId: process.env.TELEGRAM_CHAT_ID || '',
+    telegramToken: process.env.TELEGRAM_TOKEN || '',
   }
 };

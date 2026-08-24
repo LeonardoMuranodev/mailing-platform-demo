@@ -1,6 +1,8 @@
 import bcrypt from 'bcrypt';
 import { dbPool } from '../config/db.js';
 import type { Rol } from '../types/usuario.js';
+import fs from 'node:fs';
+import path from 'node:path';
 
 export async function seedUsuarios(): Promise<void> {
   try {
@@ -14,6 +16,14 @@ export async function seedUsuarios(): Promise<void> {
       const rol: Rol = 'desarrollador';
       
       const saltRounds = 10;
+      const migration3 = fs.readFileSync(path.join(process.cwd(), 'src/migrations/003_usuarios.sql'), 'utf-8');
+      await dbPool.query(migration3);
+      
+      const migration4 = fs.readFileSync(path.join(process.cwd(), 'src/migrations/004_soporte.sql'), 'utf-8');
+      await dbPool.query(migration4);
+
+      console.log('✅ Tablas creadas correctamente');
+
       const hash = await bcrypt.hash(password, saltRounds);
 
       await dbPool.query(

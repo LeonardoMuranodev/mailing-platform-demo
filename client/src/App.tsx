@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Routes, Route, useLocation, Link, Navigate } from 'react-router-dom';
-import { Mail, BarChart3, Users, Settings, LogOut, UserCircle2, AlertTriangle } from 'lucide-react';
+import { Mail, BarChart3, Users, Settings, LogOut, UserCircle2, AlertTriangle, LifeBuoy } from 'lucide-react';
 import { useAuthStore } from './stores/authStore';
 import Login from './components/Login';
 import ListaCampanas from './components/ListaCampanas';
@@ -11,6 +11,7 @@ import EstadisticasGenerales from './components/EstadisticasGenerales';
 import CuentasSmtp from './components/CuentasSmtp';
 import DirectorioContactos from './components/DirectorioContactos';
 import GestionUsuarios from './components/GestionUsuarios';
+import Soporte from './components/Soporte';
 import ThemeToggle from './components/ThemeToggle';
 import NotFound from './components/NotFound';
 
@@ -32,6 +33,7 @@ function App() {
     { path: '/estadisticas', label: 'Estadísticas', icon: <BarChart3 size={18} /> },
     { path: '/contactos', label: 'Contactos', icon: <Users size={18} /> },
     { path: '/cuentas', label: 'Cuentas SMTP', icon: <Settings size={18} /> },
+    { path: '/soporte', label: 'Soporte', icon: <LifeBuoy size={18} /> },
   ];
 
   if (user?.rol === 'desarrollador') {
@@ -113,6 +115,7 @@ function App() {
             path="/usuarios" 
             element={user?.rol === 'desarrollador' ? <GestionUsuarios /> : <Navigate to="/" replace />} 
           />
+          <Route path="/soporte" element={<Soporte />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

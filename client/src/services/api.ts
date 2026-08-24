@@ -273,3 +273,22 @@ export async function eliminarUsuario(id: string): Promise<ApiResponse<any>> {
   });
 }
 
+// ── SOPORTE ───────────────────────────────────────────────
+
+export async function obtenerReportesSoporte(): Promise<ApiResponse<any>> {
+  return fetchApi(`${API_BASE}/api/soporte`);
+}
+
+export async function crearReporteSoporte(formData: FormData): Promise<ApiResponse<any>> {
+  return fetchApi(`${API_BASE}/api/soporte`, {
+    method: 'POST',
+    body: formData,
+  });
+}
+
+export async function marcarReporteResuelto(id: string): Promise<ApiResponse<any>> {
+  return fetchApi(`${API_BASE}/api/soporte/${id}/resuelto`, {
+    method: 'PATCH',
+  });
+}
+
