@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Mail, Settings, Plus, Edit2, Trash2, Eye, EyeOff, Server } from 'lucide-react';
+import { Mail, Settings, Plus, Edit2, Trash2, Eye, EyeOff, Server, ToggleLeft, ToggleRight } from 'lucide-react';
 import {
   obtenerCuentasSmtp,
   crearCuentaSmtp,
@@ -9,10 +9,11 @@ import {
 } from '../services/api';
 import type { CuentaSmtp } from '../types/smtp';
 import AlertMessage from './ui/AlertMessage';
-
+import { usePermisos } from '../hooks/usePermisos';
 export default function CuentasSmtp() {
   const [cuentas, setCuentas] = useState<CuentaSmtp[]>([]);
   const [loading, setLoading] = useState(true);
+  const { puedeCrear, puedeEditar, puedeEliminar } = usePermisos();
 
   // Modal de Crear/Editar
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -47,14 +48,12 @@ export default function CuentasSmtp() {
     fetchCuentas();
   }, []);
 
-  const handleToggleEstado = async (cuenta: CuentaSmtp) => {
-    const nuevoEstado = cuenta.estado === 'activo' ? 'inactivo' : 'activo';
-    // Optimistic UI update
-    setCuentas(prev => prev.map(c => c.id === cuenta.id ? { ...c, estado: nuevoEstado } : c));
-    const res = await toggleEstadoSmtp(cuenta.id, nuevoEstado);
+  const handleToggleEstado = async (id: string, estadoActual: string) => {
+    const nuevoEstado = estadoActual === 'activo' ? 'inactivo' : 'activo';
+    setCuentas(prev => prev.map(c => c.id === id ? { ...c, estado: nuevoEstado } : c));
+    const res = await toggleEstadoSmtp(id, nuevoEstado);
     if (!res.success) {
-      // Revert if failed
-      setCuentas(prev => prev.map(c => c.id === cuenta.id ? { ...c, estado: cuenta.estado } : c));
+      setCuentas(prev => prev.map(c => c.id === id ? { ...c, estado: estadoActual } : c));
       alert('Error al cambiar el estado de la cuenta');
     }
   };
@@ -82,7 +81,7 @@ export default function CuentasSmtp() {
     setEditingId(cuenta.id);
     setForm({
       email: cuenta.email,
-      password_encrypted: '', // Dejar vacío para no mostrar ********
+      password_encrypted: '',
       limite_diario: cuenta.limite_diario,
     });
     setErrorMsg('');
@@ -156,13 +155,15 @@ export default function CuentasSmtp() {
             <span className="font-semibold text-dark">{usoTotal.toLocaleString()} / {capTotal.toLocaleString()}</span> correos disponibles hoy
           </p>
         </div>
-        <button
-          onClick={openCrearModal}
-          className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark transition-colors font-medium shadow-sm"
-        >
-          <Plus size={18} />
-          Conectar Cuenta Gmail
-        </button>
+        {puedeCrear && (
+          <button
+            onClick={openCrearModal}
+            className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark transition-colors font-medium shadow-sm"
+          >
+            <Plus size={18} />
+            Conectar Cuenta Gmail
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -205,15 +206,6 @@ export default function CuentasSmtp() {
                       </div>
                     </div>
                   </div>
-                  
-                  {/* Toggle Activo/Inactivo */}
-                  <button 
-                    onClick={() => handleToggleEstado(cuenta)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background
-                      ${isActivo ? 'bg-success' : 'bg-gray-400 dark:bg-gray-600'}`}
-                  >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isActivo ? 'translate-x-6' : 'translate-x-1'}`} />
-                  </button>
                 </div>
 
                 <div className="mt-6">
@@ -236,20 +228,41 @@ export default function CuentasSmtp() {
                     Histórico: <span className="font-medium text-dark">{cuenta.historial_despachado?.toLocaleString() || 0} envíos</span>
                   </div>
                   <div className="flex gap-2">
-                    <button 
-                      onClick={() => openEditarModal(cuenta)}
-                      className="p-1.5 text-muted hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
-                      title="Editar cuenta"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                    <button 
-                      onClick={() => setDeleteConfirmId(cuenta.id)}
-                      className="p-1.5 text-muted hover:text-danger hover:bg-danger/10 rounded-md transition-colors"
-                      title="Eliminar cuenta"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    {(puedeEditar || puedeEliminar) && (
+                      <div className="flex items-center gap-2">
+                        {puedeEditar && (
+                          <>
+                            <button
+                              onClick={() => handleToggleEstado(cuenta.id, cuenta.estado)}
+                              className={`p-1.5 rounded-md transition-colors ${
+                                cuenta.estado === 'activo'
+                                  ? 'text-green-600 hover:bg-green-50'
+                                  : 'text-slate-400 hover:bg-slate-100'
+                              }`}
+                              title={cuenta.estado === 'activo' ? 'Desactivar' : 'Activar'}
+                            >
+                              {cuenta.estado === 'activo' ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+                            </button>
+                            <button 
+                              onClick={() => openEditarModal(cuenta)}
+                              className="p-1.5 text-muted hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
+                              title="Editar cuenta"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                          </>
+                        )}
+                        {puedeEliminar && (
+                          <button 
+                            onClick={() => setDeleteConfirmId(cuenta.id)}
+                            className="p-1.5 text-muted hover:text-danger hover:bg-danger/10 rounded-md transition-colors"
+                            title="Eliminar cuenta"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

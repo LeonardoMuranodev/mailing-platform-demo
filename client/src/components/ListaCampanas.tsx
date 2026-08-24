@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Filter, RotateCcw } from 'lucide-react';
 import { listarCampanas } from '../services/api';
 import type { CampanaResponse } from '../types/campana';
+import { usePermisos } from '../hooks/usePermisos';
 import { formatDate } from '../utils/formatDate';
 import { RUBROS_LABELS, RUBROS_LIST } from '../data/rubros';
 import logo3f from '../assets/logo-3f.png';
@@ -25,6 +26,7 @@ const ESTADO_LABELS: Record<string, string> = {
 
 export default function ListaCampanas() {
   const navigate = useNavigate();
+  const { puedeCrear } = usePermisos();
   const [campanas, setCampanas] = useState<CampanaResponse[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -90,13 +92,15 @@ export default function ListaCampanas() {
             </p>
           </div>
         </div>
-        <button
-          onClick={() => navigate('/nueva')}
-          className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg hover:bg-primary-dark transition-colors font-medium shadow-sm"
-        >
-          <Plus size={20} />
-          Nueva Campaña
-        </button>
+        {puedeCrear && (
+          <button
+            onClick={() => navigate('/nueva')}
+            className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg hover:bg-primary-dark transition-colors font-medium shadow-sm"
+          >
+            <Plus size={20} />
+            Nueva Campaña
+          </button>
+        )}
       </div>
 
       {/* Barra de Filtros */}

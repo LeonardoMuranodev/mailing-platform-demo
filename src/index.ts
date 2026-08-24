@@ -28,9 +28,12 @@ const imap = new ImapService();
 smtp.sendMail('test@example.com', 'Welcome', 'Initialization test email');
 imap.fetchMails();
 
+import { seedUsuarios } from './scripts/seedUsuarios.js';
+
 // ── Start ───────────────────────────────────────────────
 app.listen(config.port, async () => {
   console.log(`🚀 Server listening on http://localhost:${config.port}`);
   await testDbConnection();
+  await seedUsuarios();
 });
 

@@ -10,12 +10,14 @@ import {
 } from '../services/api';
 import type { ContactoConRubro, CrearContactoInput } from '../types/contacto';
 import { RUBROS_LABELS, RUBROS_LIST } from '../data/rubros';
+import { usePermisos } from '../hooks/usePermisos';
 import AlertMessage from './ui/AlertMessage';
 
 export default function DirectorioContactos() {
   const [contactos, setContactos] = useState<ContactoConRubro[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const { puedeCrear, puedeEditar, puedeEliminar } = usePermisos();
 
   // Pagination & Filters
   const [page, setPage] = useState(1);
@@ -64,7 +66,6 @@ export default function DirectorioContactos() {
         setContactos(res.data.data || []);
         setTotal(res.data.total || 0);
       } else {
-        // En caso de que falle de forma silenciosa
         setContactos([]);
         setTotal(0);
       }
@@ -100,20 +101,14 @@ export default function DirectorioContactos() {
         setLoading(false);
       });
     } else {
-      setPage(1); // Esto disparará el effect pero con los filtros anteriores, así que lo manejamos mejor
+      setPage(1);
     }
   };
 
-  // Metrics (approximations from current page if not full, normally you'd want backend to return this but we can just use simple logic or hide them if we only have paginated)
-  // But wait, the user requested "Total Empresas, Activas, Rebotadas" metrics at the top. Since it's paginated, we don't have the global count of active/bounced.
-  // We will just show the "Total Empresas" which we get from `total`.
   const activasLocales = contactos.filter(c => c.estado === 'funcional').length;
   const rebotadasLocales = contactos.filter(c => c.estado.includes('rebotado')).length;
 
   const handleExportCsv = () => {
-    // Exportamos la vista actual (o podríamos pedir todo al backend)
-    // Para simplificar y cumplir, exportamos lo que tenemos en la tabla actual o podríamos tener un endpoint.
-    // Generamos CSV nativamente:
     const header = ['Empresa', 'Email', 'CUIT', 'Rubro', 'Estado', 'Creado'];
     const rows = contactos.map(c => [
       c.empresa_nombre || '',
@@ -166,7 +161,7 @@ export default function DirectorioContactos() {
     
     try {
       const payload = { ...form };
-      if (!payload.rubro_id) payload.rubro_id = null; // Zod espera null o UUID
+      if (!payload.rubro_id) payload.rubro_id = null;
       
       if (editingId) {
         const res = await actualizarContacto(editingId, payload);
@@ -201,8 +196,6 @@ export default function DirectorioContactos() {
     }
   };
 
-  // handleToggleEstado removido a pedido del usuario
-
   const confirmEliminar = async () => {
     if (!deleteConfirmId) return;
     const res = await eliminarContacto(deleteConfirmId);
@@ -231,8 +224,6 @@ export default function DirectorioContactos() {
       setBulkDeleteConfirm(false);
     }
   };
-
-  // toggleSelectAll removido — el checkbox general era peligroso
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -267,7 +258,6 @@ export default function DirectorioContactos() {
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 pr-4 sm:pr-6 animate-fade-in">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
@@ -279,13 +269,24 @@ export default function DirectorioContactos() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => setIsImportModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-surface border border-border text-dark rounded-lg hover:bg-background transition-colors font-medium shadow-sm"
-          >
-            <Upload size={18} />
-            Importar CSV
-          </button>
+          {puedeCrear && (
+            <>
+              <button
+                onClick={() => setIsImportModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-surface border border-border text-dark rounded-lg hover:bg-background transition-colors font-medium shadow-sm"
+              >
+                <Upload size={18} />
+                Importar CSV
+              </button>
+              <button
+                onClick={openCrearModal}
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-light transition-colors font-medium shadow-sm"
+              >
+                <Plus size={18} />
+                Crear Contacto
+              </button>
+            </>
+          )}
           <button
             onClick={handleExportCsv}
             className="flex items-center gap-2 px-4 py-2 bg-surface border border-border text-dark rounded-lg hover:bg-background transition-colors font-medium shadow-sm"
@@ -293,17 +294,9 @@ export default function DirectorioContactos() {
             <Download size={18} />
             Exportar Contactos
           </button>
-          <button
-            onClick={openCrearModal}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-light transition-colors font-medium shadow-sm"
-          >
-            <Plus size={18} />
-            Crear Contacto
-          </button>
         </div>
       </div>
 
-      {/* Metrics (Basic local preview) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-surface border border-border rounded-xl p-4 shadow-sm flex items-center justify-between">
           <div>
@@ -334,7 +327,6 @@ export default function DirectorioContactos() {
         </div>
       </div>
 
-      {/* Barra de Filtros */}
       <div className="bg-surface p-4 rounded-xl shadow-sm border border-border mb-6 transition-colors">
         <form onSubmit={handleSearch} className="flex flex-col lg:flex-row gap-4 items-end w-full">
           <div className="flex-1 w-full">
@@ -392,25 +384,24 @@ export default function DirectorioContactos() {
         </form>
       </div>
 
-      {/* Tabla de Contactos */}
       <div className="bg-surface rounded-xl shadow-sm border border-border overflow-hidden transition-colors">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-muted">
             <thead className="bg-background text-dark text-xs uppercase font-semibold border-b border-border">
               <tr>
-                <th className="px-6 py-4 w-12"></th>
+                {puedeEliminar && <th className="px-6 py-4 w-12"></th>}
                 <th className="px-6 py-4">Empresa / Razón Social</th>
                 <th className="px-6 py-4">Email</th>
                 <th className="px-6 py-4">CUIT</th>
                 <th className="px-6 py-4">Rubro</th>
                 <th className="px-6 py-4">Estado</th>
-                <th className="px-6 py-4 text-right">Acciones</th>
+                {(puedeEditar || puedeEliminar) && <th className="px-6 py-4 text-right">Acciones</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-muted">
+                  <td colSpan={7} className="px-6 py-12 text-center text-muted">
                     <div className="animate-pulse flex flex-col items-center">
                       <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-3"></div>
                       Cargando contactos...
@@ -419,7 +410,7 @@ export default function DirectorioContactos() {
                 </tr>
               ) : contactos.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-muted">
+                  <td colSpan={7} className="px-6 py-12 text-center text-muted">
                     No se encontraron contactos.
                   </td>
                 </tr>
@@ -433,14 +424,16 @@ export default function DirectorioContactos() {
 
                   return (
                     <tr key={c.id} className={`hover:bg-background/50 transition-colors ${selectedIds.includes(c.id) ? 'bg-primary/5' : ''}`}>
-                      <td className="px-6 py-4">
-                        <input
-                          type="checkbox"
-                          className="rounded border-border text-primary focus:ring-primary h-4 w-4"
-                          checked={selectedIds.includes(c.id)}
-                          onChange={() => toggleSelect(c.id)}
-                        />
-                      </td>
+                      {puedeEliminar && (
+                        <td className="px-6 py-4">
+                          <input
+                            type="checkbox"
+                            className="rounded border-border text-primary focus:ring-primary h-4 w-4"
+                            checked={selectedIds.includes(c.id)}
+                            onChange={() => toggleSelect(c.id)}
+                          />
+                        </td>
+                      )}
                       <td className="px-6 py-4 font-medium text-dark max-w-[200px] truncate" title={c.empresa_nombre || '-'}>
                         {c.empresa_nombre || '-'}
                       </td>
@@ -462,24 +455,30 @@ export default function DirectorioContactos() {
                           {c.estado ? c.estado.charAt(0).toUpperCase() + c.estado.slice(1) : '-'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2">
-                          <button 
-                            onClick={() => openEditarModal(c)}
-                            className="p-1.5 text-muted hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
-                            title="Editar contacto"
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                          <button 
-                            onClick={() => setDeleteConfirmId(c.id)}
-                            className="p-1.5 text-muted hover:text-danger hover:bg-danger/10 rounded-md transition-colors"
-                            title="Eliminar contacto"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
+                      {(puedeEditar || puedeEliminar) && (
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex justify-end gap-2">
+                            {puedeEditar && (
+                              <button 
+                                onClick={() => openEditarModal(c)}
+                                className="p-1.5 text-muted hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
+                                title="Editar contacto"
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                            )}
+                            {puedeEliminar && (
+                              <button 
+                                onClick={() => setDeleteConfirmId(c.id)}
+                                className="p-1.5 text-muted hover:text-danger hover:bg-danger/10 rounded-md transition-colors"
+                                title="Eliminar contacto"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   );
                 })
@@ -487,7 +486,6 @@ export default function DirectorioContactos() {
             </tbody>
           </table>
         </div>
-        {/* Paginador */}
         {totalPages > 1 && (
           <div className="px-6 py-4 border-t border-border flex items-center justify-between bg-background">
             <span className="text-sm text-muted">
@@ -512,8 +510,7 @@ export default function DirectorioContactos() {
           </div>
         )}
 
-        {/* Barra de eliminación masiva (fija en la parte inferior de la tabla) */}
-        {selectedIds.length > 0 && (
+        {puedeEliminar && selectedIds.length > 0 && (
           <div className="px-6 py-3 border-t border-border bg-danger/5 flex items-center justify-between">
             <span className="text-sm font-medium text-dark">
               {selectedIds.length} contacto{selectedIds.length > 1 ? 's' : ''} seleccionado{selectedIds.length > 1 ? 's' : ''}
@@ -538,7 +535,6 @@ export default function DirectorioContactos() {
         )}
       </div>
 
-      {/* Modal Crear/Editar */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-surface w-full max-w-lg rounded-xl border border-border shadow-2xl overflow-hidden animate-fade-in">
@@ -639,7 +635,6 @@ export default function DirectorioContactos() {
         </div>
       )}
 
-      {/* Modal de Importación CSV */}
       {isImportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-surface w-full max-w-md rounded-xl border border-border shadow-2xl overflow-hidden animate-fade-in">

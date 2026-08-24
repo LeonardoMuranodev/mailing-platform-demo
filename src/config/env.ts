@@ -31,4 +31,8 @@ export const config = {
     ssl: process.env.DB_SSL !== 'false',
   },
   encryptionKey: process.env.ENCRYPTION_KEY || '',
+  jwt: {
+    secret: process.env.JWT_SECRET || 'dev-secret-change-me',
+    expiresIn: '12h'
+  }
 };

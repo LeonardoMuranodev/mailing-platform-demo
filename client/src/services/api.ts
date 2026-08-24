@@ -6,9 +6,25 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 /**
  * Wrapper de fetch para manejar errores de red o caídas del backend de forma amigable.
  */
-async function fetchApi<T>(url: string, options?: RequestInit): Promise<ApiResponse<T>> {
+async function fetchApi<T>(url: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
   try {
-    const res = await fetch(url, options);
+    const token = localStorage.getItem('auth_token');
+    const headers = new Headers(options.headers || {});
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+
+    const res = await fetch(url, { ...options, headers });
+    
+    if (res.status === 401) {
+      localStorage.removeItem('auth_token');
+      window.location.reload();
+      return {
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Sesión expirada o inválida. Por favor, inicie sesión nuevamente.' }
+      };
+    }
+
     const contentType = res.headers.get('content-type');
     
     if (!contentType || !contentType.includes('application/json')) {

@@ -1,5 +1,8 @@
+import { useEffect } from 'react';
 import { Routes, Route, useLocation, Link } from 'react-router-dom';
-import { Mail, BarChart3, Users, Settings } from 'lucide-react';
+import { Mail, BarChart3, Users, Settings, LogOut, UserCircle2 } from 'lucide-react';
+import { useAuthStore } from './stores/authStore';
+import Login from './components/Login';
 import ListaCampanas from './components/ListaCampanas';
 import DetalleCampana from './components/DetalleCampana';
 import CrearCampana from './components/CrearCampana';
@@ -11,6 +14,15 @@ import ThemeToggle from './components/ThemeToggle';
 
 function App() {
   const location = useLocation();
+  const { isAuthenticated, user, checkAuth, logout } = useAuthStore();
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  if (!isAuthenticated) {
+    return <Login />;
+  }
 
   const navLinks = [
     { path: '/', label: 'Campañas', icon: <Mail size={18} /> },
@@ -53,8 +65,27 @@ function App() {
           </nav>
 
           {/* Actions */}
-          <div className="shrink-0 hidden sm:block">
+          <div className="shrink-0 flex items-center gap-4 hidden sm:flex">
             <ThemeToggle />
+            
+            {user && (
+              <div className="flex items-center gap-3 pl-4 border-l border-border">
+                <div className="flex items-center gap-2">
+                  <UserCircle2 size={20} className="text-muted" />
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold leading-tight">{user.nombre}</span>
+                    <span className="text-[10px] uppercase font-bold text-primary tracking-wider">{user.rol}</span>
+                  </div>
+                </div>
+                <button 
+                  onClick={logout}
+                  className="p-1.5 text-muted hover:text-danger rounded-md hover:bg-danger/10 transition-colors"
+                  title="Cerrar Sesión"
+                >
+                  <LogOut size={18} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
