@@ -24,7 +24,11 @@ Aquí tienes el roadmap estructurado como checklist para que puedas ir marcando 
 * [ ] **Responsive Design:** Asegurar que las tablas y modales sean usables en resoluciones móviles/tablets.
 * [ ] **Actualización de Meta/Title:** Cambiar title y favicon de la página en `index.html`.
 
-#### Fase 4: DevOps y Despliegue (Go-Live)
+#### Fase 4: Cache (redis)
+
+Implementar redis para cachear las consultas a la base de datos. Las mas importantes
+
+#### Fase 5: DevOps y Despliegue (Go-Live)
 
 * [ ] **Testing:** Escribir y ejecutar pruebas para los flujos críticos (Login, Poblar Cola, Rotación SMTP).
 * [ ] **Optimización de Recursos:** Revisar el tamaño de la imagen Docker final y limpiar logs innecesarios.
