@@ -1,18 +1,64 @@
-FRONTEND:
+Aquí tienes el roadmap estructurado como checklist para que puedas ir marcando tu progreso. Debajo, te detallo la lógica técnica de los puntos clave que discutimos para refrescar la memoria.
 
-General:
-- Cambiar title de la pagina y logo tambien
-- Cambiar logo general por el de 3 de febero sin fondo que me paso Matias
-- El ancho total de la pantalla me parece bastante grande, deberiamos achicarlo un poco, por lo menos en la notebook que tengo, tengo que recorrer bastante con los ojos. Tampoco excederse en el achique
+### 📋 Roadmap de Producción: 3F Mailer
 
-Nueva vista: Directorio de Contactos
-    - Error de padding en la lista desplegable de rubros y Estado, el icono de la fecha deberia estar mas a la izquierda.
+#### Fase 1: El Motor (Core Business & Entregabilidad)
 
-Nueva Seccion: soporte/
-- No lo tengo definido, pero que la encargadas puedan darme tips, mejoraas o reportar errores del sistema. Un formulario que tenga algunos tipos predefinidos. Asi mas adelante cuando implementemos el tema de los roles, yo como Desarrollador puedo ver las tareas pendientes o lo que ellas escribieron para implementar por prioridad.
-Que tenga como minimo: Tipo (mejora, sugerencia, error), Descripcion (textArea),Adjuntar no obligatorio (imagen, pdf, etc.).
-TIene que guardarse en el sistema, pero ademas mandarme un mail y / o telegram, el cual debe configurarse tambien desde el rol de desaroollador. Al mandar el form, un modal de confirmacion de que envio el reporte (ok!) al desarrollador.
+* [ ] **Lógica de envío y rotación SMTP (Round-Robin):** Testear exhaustivamente la asignación de cuentas, respeto de límites diarios y actualización de estados (`enviado` / `fallido`).
+* [ ] **Link de desuscripción y manejo de rebotes:** *(⚠️ Acción requerida: Consultar con las encargadas si este requisito es estrictamente necesario legal/operativamente para las campañas del municipio, o si se omitirá en esta versión)*.
+* [ ] **Verificación DNS (SPF / DKIM / DMARC):** Validar la salud del dominio emisor para evitar caer en spam.
+* [ ] **Aviso de campaña terminada:** Reutilizar flujo de n8n para notificar (Email/Telegram) cuando la `cola_envios` quede sin registros pendientes.
 
-paginacion en contactos y campañas
+#### Fase 2: Seguridad y Estabilidad (Hardening)
 
-Mejorar responsive
+* [ ] **Auditoría de Seguridad:** Sanitización estricta del HTML (DOMPurify) y prevención de inyecciones SQL en todo el sistema.
+* [ ] **Rate Limiting:** Implementar limitadores de peticiones en Express.
+* [ ] **Avisos de error globales por Telegram:** Configurar un webhook/bot que capture crashes de Node.js o caídas de BD (similar a tu nodo "On Error" en n8n).
+* [ ] **Estrategia de Backups automatizada:** Volcado regular de la base de datos de PostgreSQL.
+
+#### Fase 3: UX y Frontend (Pulido Visual)
+
+* [ ] **Paginación:** Implementar en las vistas de Contactos y Campañas para evitar colapsos de memoria en el navegador.
+* [ ] **Corrección CSS (Checkboxes/Selects):** Solucionar el padding de los iconos en listas desplegables y checkboxes.
+* [ ] **Refactor Visual Global:** Cambiar logo sin fondo, ajustar el `max-width` (ej: `max-w-6xl`) para mejor lectura en notebooks y refinar el CSS.
+* [ ] **Responsive Design:** Asegurar que las tablas y modales sean usables en resoluciones móviles/tablets.
+* [ ] **Actualización de Meta/Title:** Cambiar title y favicon de la página en `index.html`.
+
+#### Fase 4: DevOps y Despliegue (Go-Live)
+
+* [ ] **Testing:** Escribir y ejecutar pruebas para los flujos críticos (Login, Poblar Cola, Rotación SMTP).
+* [ ] **Optimización de Recursos:** Revisar el tamaño de la imagen Docker final y limpiar logs innecesarios.
+* [ ] **Despliegue Final:** Subir al repositorio Git corporativo (con VPN) y levantar el `docker-compose.yml` en el servidor de producción.
+
+---
+
+### 🧠 Refresh Arquitectónico: Conceptos Clave
+
+Para que tengas el mapa mental claro al momento de implementar, aquí está la lógica detrás de los puntos críticos:
+
+#### 1. Rotación de Cuentas SMTP (Round-Robin)
+
+El objetivo es "diluir" el volumen de envíos para que Google no bloquee las cuentas por ráfagas de spam.
+
+* **Lógica SQL:** Cuando el worker necesita enviar un correo, el backend ejecuta una consulta que busca cuentas donde `estado = 'activo'` y `enviados_hoy < limite_diario` (ej. 400).
+* **El truco (Round-Robin):** Se ordena la consulta por `ultimo_uso ASC NULLS FIRST LIMIT 1`. Esto garantiza que el sistema siempre elija la cuenta que ha estado "descansando" por más tiempo.
+* **Circuit Breaker:** Si la cuenta alcanza su límite diario, el sistema actualiza automáticamente su estado a `agotado`, sacándola de la rotación hasta el reseteo del día siguiente.
+
+#### 2. Entregabilidad y DNS (SPF, DKIM, DMARC)
+
+Si envías desde `@gmail.com` nativo, Google ya firma los correos. Pero si en el futuro conectas un dominio personalizado del municipio (ej. `@tresdefebrero.gov.ar`) usando Google Workspace o un SMTP transaccional (SendGrid, AWS SES), enviar un correo sin estos registros es un viaje directo a la carpeta de SPAM.
+
+* **SPF:** Dice qué IPs están autorizadas a enviar correos en nombre de tu dominio.
+* **DKIM:** Es una firma criptográfica oculta en el correo que garantiza que no fue alterado en el camino.
+
+#### 3. Rate Limiting (Defensa contra Bots)
+
+Tu API actualmente está expuesta. Si un bot ataca el endpoint de `/api/auth/login` probando miles de contraseñas, o ataca el endpoint de `/api/queue/poblar`, puede tirar el servidor o saturar la base de datos.
+
+* **Solución:** Se implementa un middleware en Express (como `express-rate-limit`). Se configura, por ejemplo, para que una misma IP solo pueda intentar loguearse 5 veces por minuto. Si se excede, el servidor devuelve un error `HTTP 429 (Too Many Requests)`.
+
+#### 4. Estrategia de Backups (Dump Automatizado)
+
+Si bien la base de datos tiene persistencia en volúmenes Docker, si el servidor físico sufre un fallo irrecuperable o alguien hace un `DROP TABLE` por error, pierdes todo el directorio.
+
+* **Solución n8n-Native:** Puedes armar un flujo en tu instancia de n8n con un *Cron Trigger* (ej. todos los días a las 3 AM) que ejecute un *Execute Command* corriendo `pg_dump` directo al contenedor de PostgreSQL, y luego tome ese archivo `.sql` y lo suba mediante un nodo a Google Drive o S3. Es 100% automatizado y fuera del servidor principal.
