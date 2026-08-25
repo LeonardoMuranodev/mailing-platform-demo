@@ -101,7 +101,7 @@ export default function EstadisticasGenerales() {
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
             Métricas y Rendimiento Global
@@ -110,11 +110,11 @@ export default function EstadisticasGenerales() {
             Última sincronización: {lastSync.toLocaleTimeString()}
           </p>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
           <button
             onClick={handleExportCsv}
             disabled={loading}
-            className="flex items-center gap-2 bg-surface border border-border text-dark px-4 py-2 rounded-lg hover:bg-background transition-colors font-medium shadow-sm"
+            className="flex items-center justify-center gap-2 bg-surface border border-border text-dark px-4 py-2 rounded-lg hover:bg-background transition-colors font-medium shadow-sm w-full sm:w-auto"
           >
             <Download size={18} />
             Exportar CSV
@@ -122,7 +122,7 @@ export default function EstadisticasGenerales() {
           <button
             onClick={fetchStats}
             disabled={loading}
-            className="flex items-center gap-2 bg-surface border border-border text-dark px-4 py-2 rounded-lg hover:bg-background transition-colors font-medium shadow-sm"
+            className="flex items-center justify-center gap-2 bg-surface border border-border text-dark px-4 py-2 rounded-lg hover:bg-background transition-colors font-medium shadow-sm w-full sm:w-auto"
           >
             <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
             Actualizar datos

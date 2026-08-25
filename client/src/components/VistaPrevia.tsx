@@ -32,17 +32,19 @@ export default function VistaPrevia() {
   return (
     <div className="min-h-screen py-8 px-4 sm:px-6">
       {/* Top Bar */}
-      <div className="max-w-[650px] mx-auto mb-6 flex justify-between items-center">
+      <div className="max-w-[650px] mx-auto mb-6 flex flex-col-reverse sm:flex-row justify-between items-stretch sm:items-center gap-4">
         <button
           onClick={() => navigate('/nueva')}
-          className="flex items-center gap-2 text-muted hover:text-primary font-medium transition-colors bg-surface px-4 py-2 rounded-lg border border-border shadow-sm"
+          className="flex items-center justify-center gap-2 text-muted hover:text-primary font-medium transition-colors bg-surface px-4 py-2 rounded-lg border border-border shadow-sm w-full sm:w-auto"
         >
           <ArrowLeft size={18} />
           Volver al formulario
         </button>
-        <span className="text-sm text-muted font-medium px-3 py-1 bg-background rounded-full border border-border">
-          Modo de Vista Previa
-        </span>
+        <div className="flex justify-center">
+          <span className="text-sm text-muted font-medium px-3 py-1 bg-background rounded-full border border-border text-center">
+            Modo de Vista Previa
+          </span>
+        </div>
       </div>
 
       {/* ═══ EMAIL TEMPLATE ═══ */}

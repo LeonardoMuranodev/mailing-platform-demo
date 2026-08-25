@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Send, FileText, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Send, FileText, AlertCircle, CheckCircle2, LifeBuoy } from 'lucide-react';
 import { crearReporteSoporte } from '../../services/api';
-import logo3f from '../../assets/logo-3f.png';
 
 export default function ReportarForm() {
   const [form, setForm] = useState({ tipo: 'mejora', descripcion: '' });
@@ -69,18 +68,14 @@ export default function ReportarForm() {
   return (
     <div className="max-w-2xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
-        <div className="flex items-start gap-4">
-          <div className="w-11 h-11 overflow-hidden rounded-[14px] shadow-sm shrink-0 mt-0.5">
-            <img src={logo3f} alt="Logo 3F" className="w-full h-full object-cover scale-[1.15]" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
-              Soporte y Comentarios
-            </h1>
-            <p className="text-muted mt-1">
-              Reporta errores, solicita mejoras o déjanos sugerencias.
-            </p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
+            <LifeBuoy className="w-7 h-7" />
+            Soporte y Comentarios
+          </h1>
+          <p className="text-muted mt-1">
+            Reporta errores, solicita mejoras o déjanos sugerencias.
+          </p>
         </div>
       </div>
 

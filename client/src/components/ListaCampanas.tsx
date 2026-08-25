@@ -98,7 +98,7 @@ export default function ListaCampanas() {
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 w-full">
         <div className="flex items-start gap-4">
           <div className="w-11 h-11 overflow-hidden rounded-[14px] shadow-sm shrink-0 mt-0.5">
             <img src={logo3f} alt="Logo 3F" className="w-full h-full object-cover scale-[1.15]" />
@@ -112,15 +112,17 @@ export default function ListaCampanas() {
             </p>
           </div>
         </div>
-        {puedeCrear && (
-          <button
-            onClick={() => navigate('/nueva')}
-            className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg hover:bg-primary-dark transition-colors font-medium shadow-sm"
-          >
-            <Plus size={20} />
-            Nueva Campaña
-          </button>
-        )}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+          {puedeCrear && (
+            <button
+              onClick={() => navigate('/nueva')}
+              className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg hover:bg-primary-dark transition-colors font-medium shadow-sm w-full sm:w-auto"
+            >
+              <Plus size={20} />
+              Nueva Campaña
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Barra de Filtros */}
@@ -206,13 +208,12 @@ export default function ListaCampanas() {
                 <th className="px-6 py-4">Destinatarios</th>
                 <th className="px-6 py-4">Estado</th>
                 <th className="px-6 py-4">Fecha Límite</th>
-                <th className="px-6 py-4 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-muted">
+                  <td colSpan={4} className="px-6 py-12 text-center text-muted">
                     <div className="animate-pulse flex flex-col items-center">
                       <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-3"></div>
                       Cargando campañas...
@@ -221,7 +222,7 @@ export default function ListaCampanas() {
                 </tr>
               ) : campanas.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-muted">
+                  <td colSpan={4} className="px-6 py-12 text-center text-muted">
                     No se encontraron campañas.
                   </td>
                 </tr>
@@ -234,7 +235,11 @@ export default function ListaCampanas() {
                       : 'Ninguno';
 
                   return (
-                    <tr key={campana.id} className="hover:bg-background/50 transition-colors">
+                    <tr 
+                      key={campana.id} 
+                      onClick={() => navigate(`/campanas/${campana.id}`)}
+                      className="hover:bg-background/50 transition-colors cursor-pointer"
+                    >
                       <td className="px-6 py-4 font-medium text-dark max-w-xs truncate" title={campana.asunto}>
                         {campana.asunto}
                       </td>
@@ -248,14 +253,6 @@ export default function ListaCampanas() {
                       </td>
                       <td className="px-6 py-4">
                         {campana.fecha_limite_envio ? formatDate(campana.fecha_limite_envio) : '-'}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => navigate(`/campanas/${campana.id}`)}
-                          className="text-primary hover:text-primary-dark font-medium hover:underline text-sm"
-                        >
-                          Ver Detalle
-                        </button>
                       </td>
                     </tr>
                   );

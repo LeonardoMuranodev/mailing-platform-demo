@@ -145,7 +145,7 @@ export default function GestionUsuarios() {
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 pr-4 sm:pr-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
             <Users className="w-7 h-7" />
@@ -155,10 +155,10 @@ export default function GestionUsuarios() {
             Administrá las cuentas de la plataforma y asigná roles.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
           <button
             onClick={openCrearModal}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-light transition-colors font-medium shadow-sm"
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-light transition-colors font-medium shadow-sm w-full sm:w-auto"
           >
             <Plus size={18} />
             Crear Usuario
