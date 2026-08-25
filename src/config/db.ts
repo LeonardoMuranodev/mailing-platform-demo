@@ -13,9 +13,6 @@ export const dbPool = new Pool({
   connectionTimeoutMillis: 5_000,
 });
 
-dbPool.on('error', (err) => {
-  console.error('[DB] Unexpected pool error:', err.message);
-});
 
 /**
  * Verifica la conectividad al iniciar el servidor.

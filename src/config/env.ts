@@ -42,5 +42,11 @@ export const config = {
     smtpPass: process.env.SMTP_NOTIFIER_PASS || '',
     telegramChatId: process.env.TELEGRAM_CHAT_ID || '',
     telegramToken: process.env.TELEGRAM_TOKEN || '',
-  }
+  },
+  allowedOrigins: (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:3000')
+    .split(',')
+    .map((o) => o.trim()),
+  backup: {
+    retentionDays: parseInt(process.env.BACKUP_RETENTION_DAYS || '7', 10),
+  },
 };

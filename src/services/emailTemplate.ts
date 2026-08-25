@@ -1,4 +1,5 @@
 import type { Campana } from '../types/campana.js';
+import DOMPurify from 'isomorphic-dompurify';
 
 /** URLs de assets estáticos */
 const HEADER_URL =
@@ -24,7 +25,9 @@ interface EmailTemplateData {
  * (Gmail, Outlook, Yahoo, Apple Mail, etc.).
  */
 export function generarHtmlEmail(data: EmailTemplateData): string {
-  const { cuerpo_html, link_inscripcion, flyer_url } = data;
+  const { link_inscripcion, flyer_url } = data;
+  // Defense in depth: sanitizar HTML incluso si ya fue sanitizado al crear la campaña
+  const cuerpo_html = DOMPurify.sanitize(data.cuerpo_html);
 
   // ── Sección botón CTA (condicional) ──
   const botonHtml = link_inscripcion

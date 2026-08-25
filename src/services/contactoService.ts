@@ -83,12 +83,17 @@ export async function crearContacto(data: CrearContactoInput): Promise<Contacto 
 }
 
 export async function actualizarContacto(id: string, data: ActualizarContactoInput): Promise<Contacto | null> {
+  // Whitelist explícita de campos permitidos para prevenir property injection
+  const ALLOWED_FIELDS: ReadonlySet<string> = new Set([
+    'email', 'empresa_nombre', 'cuit', 'rubro_id', 'tipo', 'estado',
+  ]);
+
   const fields: string[] = [];
-  const values: any[] = [];
+  const values: unknown[] = [];
   let paramIndex = 1;
 
   for (const [key, value] of Object.entries(data)) {
-    if (value !== undefined) {
+    if (value !== undefined && ALLOWED_FIELDS.has(key)) {
       fields.push(`${key} = $${paramIndex}`);
       values.push(value);
       paramIndex++;

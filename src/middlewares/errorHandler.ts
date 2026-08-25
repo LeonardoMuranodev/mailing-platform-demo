@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
 import { sendError } from '../utils/responseHandler.js';
+import { notifyError } from '../services/telegramNotifier.js';
 
 /**
  * Middleware global de errores.
@@ -8,10 +9,12 @@ import { sendError } from '../utils/responseHandler.js';
  *
  * — ZodError         → 400 con detalles de validación
  * — Error genérico   → 500 (oculta detalles en producción)
+ *
+ * Los errores 500 se notifican automáticamente por Telegram.
  */
 export function errorHandler(
   err: unknown,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction,
 ): void {
@@ -55,6 +58,9 @@ export function errorHandler(
       console.warn(`[BusinessError] ${err.message}`);
     } else {
       console.error('[ErrorHandler]', err.message, isProduction ? '' : err.stack);
+      // 🚨 Notificar errores 500 por Telegram (fire-and-forget)
+      const route = `${req.method} ${req.originalUrl}`;
+      notifyError(`ErrorHandler — ${route}`, err).catch(() => {});
     }
 
     sendError(
@@ -69,5 +75,7 @@ export function errorHandler(
 
   // ── Fallback absoluto ────────────────────────────────
   console.error('[ErrorHandler] Unknown error:', err);
+  notifyError('ErrorHandler — Unknown error type', new Error(String(err))).catch(() => {});
   sendError(res, 'UNKNOWN_ERROR', 'Error interno del servidor', 500);
 }
+

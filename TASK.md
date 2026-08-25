@@ -1,5 +1,3 @@
-Aquí tienes el roadmap estructurado como checklist para que puedas ir marcando tu progreso. Debajo, te detallo la lógica técnica de los puntos clave que discutimos para refrescar la memoria.
-
 ### 📋 Roadmap de Producción: 3F Mailer
 
 #### Fase 1: El Motor (Core Business & Entregabilidad)
@@ -11,10 +9,11 @@ Aquí tienes el roadmap estructurado como checklist para que puedas ir marcando 
 
 #### Fase 2: Seguridad y Estabilidad (Hardening)
 
-* [ ] **Auditoría de Seguridad:** Sanitización estricta del HTML (DOMPurify) y prevención de inyecciones SQL en todo el sistema.
-* [ ] **Rate Limiting:** Implementar limitadores de peticiones en Express.
-* [ ] **Avisos de error globales por Telegram:** Configurar un webhook/bot que capture crashes de Node.js o caídas de BD (similar a tu nodo "On Error" en n8n).
-* [ ] **Estrategia de Backups automatizada:** Volcado regular de la base de datos de PostgreSQL.
+* [ x ] **Auditoría de Seguridad:** Sanitización estricta del HTML (DOMPurify) y prevención de inyecciones SQL en todo el sistema.
+* [ x ] **Rate Limiting:** Implementar limitadores de peticiones en Express.
+* [ x ] **Avisos de error globales por Telegram:** Configurar un webhook/bot que capture crashes de Node.js o caídas de BD (similar a tu nodo "On Error" en n8n).
+* [ x ] **Estrategia de Backups automatizada:** Volcado regular de la base de datos de PostgreSQL.
+* [ x ] **Backups en Google Drive:**
 
 #### Fase 3: UX y Frontend (Pulido Visual)
 

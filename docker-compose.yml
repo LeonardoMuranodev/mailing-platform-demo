@@ -95,6 +95,22 @@ services:
     networks:
       - mails-network
 
+  # ─── 5. DB BACKUP (PostgreSQL Dump → Google Drive) ──────
+  db-backup:
+    build:
+      context: .
+      dockerfile: Dockerfile.backup
+    container_name: mails-db-backup
+    restart: "no"
+    env_file:
+      - .env
+    environment:
+      - BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-7}
+    volumes:
+      - ./BACKUPS:/backups
+    profiles:
+      - backup
+
 # ─── Volumes ──────────────────────────────────────────────────
 volumes:
   redis_data:

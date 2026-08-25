@@ -1,0 +1,14 @@
+# ── Imagen ligera para backup de PostgreSQL ──────────────
+FROM postgres:17-alpine
+
+# Instalar dependencias: pg_dump ya está, solo falta curl y gzip
+RUN apk add --no-cache curl gzip
+
+# Copiar script de backup
+COPY scripts/backup-db.sh /usr/local/bin/backup-db.sh
+RUN chmod +x /usr/local/bin/backup-db.sh
+
+# Crear directorio de backups
+RUN mkdir -p /backups
+
+ENTRYPOINT ["/usr/local/bin/backup-db.sh"]

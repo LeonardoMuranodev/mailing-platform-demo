@@ -9,15 +9,20 @@ import { usuariosRouter } from './usuariosRoutes.js';
 import soporteRouter from './soporteRoutes.js';
 import { requireAuth } from '../middlewares/requireAuth.js';
 import { requireRole } from '../middlewares/requireRole.js';
+import { apiLimiter, authLimiter, queueLimiter } from '../middlewares/rateLimiter.js';
 
 export function registerRoutes(app: Application): void {
-  app.use('/api/auth', authRouter);
+  // Rate limiter general para toda la API
+  app.use('/api', apiLimiter);
+
+  // Auth — con limiter estricto adicional
+  app.use('/api/auth', authLimiter, authRouter);
 
   // Todas las rutas a partir de aquí requieren autenticación
   app.use('/api', requireAuth);
 
   app.use('/api/campanas', campanaRouter);
-  app.use('/api/queue', queueRouter);
+  app.use('/api/queue', queueLimiter, queueRouter);
   app.use('/api/smtp', smtpRouter);
   app.use('/api/stats', statsRouter);
   app.use('/api/contactos', contactoRouter);
@@ -25,4 +30,6 @@ export function registerRoutes(app: Application): void {
   app.use('/api/soporte', soporteRouter);
   
   console.log('[Routes] ✅ REST endpoints registered: /api/auth, /api/campanas, /api/queue, /api/smtp, /api/stats, /api/contactos, /api/usuarios, /api/soporte');
+  console.log('[Routes] 🛡️  Rate limiters active: auth (10/15min), api (200/15min), queue (5/1min)');
 }
+
