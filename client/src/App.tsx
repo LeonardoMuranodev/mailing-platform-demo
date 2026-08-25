@@ -46,7 +46,7 @@ function App() {
     <div className="min-h-screen flex flex-col bg-background text-dark transition-colors duration-300">
       {/* ── Navbar ─────────────────────────────────────── */}
       <header className="sticky top-0 z-40 bg-surface/80 backdrop-blur-md border-b border-border transition-colors duration-300">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-3 sm:h-16 gap-4 sm:gap-0">
+        <div className="w-full max-w-[1400px] mx-auto flex flex-col lg:flex-row lg:items-center justify-between px-4 sm:px-6 py-3 min-h-[64px] gap-4 lg:gap-8">
           
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 font-bold text-lg text-primary hover:text-primary-dark transition-colors shrink-0">
@@ -55,14 +55,14 @@ function App() {
           </Link>
 
           {/* Navigation Links */}
-          <nav className="flex items-center gap-1 sm:gap-2 overflow-x-auto pb-1 sm:pb-0 w-full sm:w-auto">
+          <nav className="flex items-center gap-1 overflow-x-auto pb-1 lg:pb-0 w-full lg:w-auto flex-1 lg:justify-center scrollbar-hide">
             {navLinks.map((link) => {
               const isActive = location.pathname === link.path || (link.path === '/' && location.pathname.startsWith('/campanas'));
               return (
                 <Link
                   key={link.path}
                   to={link.path}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap
+                  className={`flex items-center gap-2 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap
                     ${isActive 
                       ? 'bg-primary/10 text-primary' 
                       : 'text-muted hover:bg-background hover:text-dark'
@@ -76,7 +76,7 @@ function App() {
           </nav>
 
           {/* Actions */}
-          <div className="shrink-0 flex items-center gap-4 hidden sm:flex">
+          <div className="shrink-0 flex items-center justify-end gap-3 hidden sm:flex">
             <ThemeToggle />
             
             {user && (

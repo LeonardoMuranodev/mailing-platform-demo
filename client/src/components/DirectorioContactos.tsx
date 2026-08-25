@@ -486,7 +486,7 @@ export default function DirectorioContactos() {
             </tbody>
           </table>
         </div>
-        {totalPages > 1 && (
+        {total > 0 && (
           <div className="px-6 py-4 border-t border-border flex items-center justify-between bg-background">
             <div className="flex items-center gap-4">
               <span className="text-sm text-muted">
