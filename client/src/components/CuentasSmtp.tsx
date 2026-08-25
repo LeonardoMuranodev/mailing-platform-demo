@@ -144,21 +144,26 @@ export default function CuentasSmtp() {
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
             Cuentas SMTP y Capacidad de Envío
           </h1>
-          <p className="text-muted mt-1 text-sm flex items-center gap-2">
-            <Server size={16} />
-            Capacidad Global Diaria:{' '}
-            <span className="font-semibold text-dark">{usoTotal.toLocaleString()} / {capTotal.toLocaleString()}</span> correos disponibles hoy
-          </p>
+          <div className="text-muted mt-1.5 text-sm flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+            <div className="flex items-center gap-2">
+              <Server size={16} className="text-muted shrink-0" />
+              <span>Capacidad Global Diaria:</span>
+            </div>
+            <div className="pl-6 sm:pl-0 flex flex-wrap items-center gap-1.5">
+              <span className="font-bold text-primary">{usoTotal.toLocaleString()} / {capTotal.toLocaleString()}</span>
+              <span>correos disponibles hoy</span>
+            </div>
+          </div>
         </div>
         {puedeCrear && (
           <button
             onClick={openCrearModal}
-            className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark transition-colors font-medium shadow-sm"
+            className="flex items-center justify-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark transition-colors font-medium shadow-sm w-full md:w-auto"
           >
             <Plus size={18} />
             Conectar Cuenta Gmail

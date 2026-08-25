@@ -265,13 +265,13 @@ export default function ListaCampanas() {
           </table>
         </div>
         {total > 0 && (
-          <div className="px-6 py-4 border-t border-border flex items-center justify-between bg-background">
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-muted">
+          <div className="px-4 sm:px-6 py-4 border-t border-border flex flex-col sm:flex-row items-center justify-between bg-background gap-4">
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-center sm:text-left">
+              <span className="text-sm text-muted whitespace-nowrap">
                 Página <span className="font-medium text-dark">{page}</span> de <span className="font-medium text-dark">{totalPages}</span>
               </span>
               <div className="flex items-center gap-2">
-                <label htmlFor="limit" className="text-sm text-muted">Mostrar:</label>
+                <label htmlFor="limit" className="text-sm text-muted whitespace-nowrap">Mostrar:</label>
                 <select
                   id="limit"
                   value={limit}
@@ -288,18 +288,18 @@ export default function ListaCampanas() {
                 </select>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex justify-center gap-2 w-full sm:w-auto">
               <button 
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="px-3 py-1.5 border border-border rounded-md text-sm font-medium text-dark disabled:opacity-50 hover:bg-surface transition-colors"
+                className="flex-1 sm:flex-none px-3 py-1.5 border border-border rounded-md text-sm font-medium text-dark disabled:opacity-50 hover:bg-surface transition-colors text-center"
               >
                 Anterior
               </button>
               <button 
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="px-3 py-1.5 border border-border rounded-md text-sm font-medium text-dark disabled:opacity-50 hover:bg-surface transition-colors"
+                className="flex-1 sm:flex-none px-3 py-1.5 border border-border rounded-md text-sm font-medium text-dark disabled:opacity-50 hover:bg-surface transition-colors text-center"
               >
                 Siguiente
               </button>

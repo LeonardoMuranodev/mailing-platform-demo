@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Routes, Route, useLocation, Link, Navigate } from 'react-router-dom';
-import { Mail, BarChart3, Users, Settings, LogOut, UserCircle2, AlertTriangle, LifeBuoy } from 'lucide-react';
+import { Mail, BarChart3, Users, Settings, LogOut, UserCircle2, AlertTriangle, LifeBuoy, Menu, X } from 'lucide-react';
 import { useAuthStore } from './stores/authStore';
 import Login from './components/Login';
 import ListaCampanas from './components/ListaCampanas';
@@ -19,6 +19,7 @@ function App() {
   const location = useLocation();
   const { isAuthenticated, user, checkAuth, logout } = useAuthStore();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -46,23 +47,38 @@ function App() {
     <div className="min-h-screen flex flex-col bg-background text-dark transition-colors duration-300">
       {/* ── Navbar ─────────────────────────────────────── */}
       <header className="sticky top-0 z-40 bg-surface/80 backdrop-blur-md border-b border-border transition-colors duration-300">
-        <div className="w-full max-w-[1400px] mx-auto flex flex-col lg:flex-row lg:items-center justify-between px-4 sm:px-6 py-3 min-h-[64px] gap-4 lg:gap-8">
+        <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 py-3 min-h-[64px] flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-8">
           
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 font-bold text-lg text-primary hover:text-primary-dark transition-colors shrink-0">
-            <Mail size={24} className="text-primary" />
-            <span className="hidden sm:inline">3F Mailer</span>
-          </Link>
+          <div className="flex items-center justify-between w-full lg:w-auto shrink-0">
+            {/* Logo */}
+            <Link to="/" className="flex items-center gap-2 font-bold text-lg text-primary hover:text-primary-dark transition-colors">
+              <Mail size={24} className="text-primary" />
+              <span>3F Mailer</span>
+            </Link>
+
+            {/* Right side controls on Mobile */}
+            <div className="flex items-center gap-2 lg:hidden">
+              <ThemeToggle />
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="p-2 text-muted hover:text-dark hover:bg-background rounded-lg transition-colors focus:outline-none"
+                aria-label="Toggle menu"
+              >
+                {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
+            </div>
+          </div>
 
           {/* Navigation Links */}
-          <nav className="flex items-center gap-1 overflow-x-auto pb-1 lg:pb-0 w-full lg:w-auto flex-1 lg:justify-center scrollbar-hide">
+          <nav className={`${isMobileMenuOpen ? 'flex' : 'hidden'} lg:flex flex-col lg:flex-row items-stretch lg:items-center gap-1.5 lg:gap-1 w-full lg:w-auto flex-1 lg:justify-center transition-all duration-300 pb-3 lg:pb-0`}>
             {navLinks.map((link) => {
               const isActive = location.pathname === link.path || (link.path === '/' && location.pathname.startsWith('/campanas'));
               return (
                 <Link
                   key={link.path}
                   to={link.path}
-                  className={`flex items-center gap-2 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`flex items-center gap-2 px-3 lg:px-2.5 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap
                     ${isActive 
                       ? 'bg-primary/10 text-primary' 
                       : 'text-muted hover:bg-background hover:text-dark'
@@ -76,24 +92,30 @@ function App() {
           </nav>
 
           {/* Actions */}
-          <div className="shrink-0 flex items-center justify-end gap-3 hidden sm:flex">
-            <ThemeToggle />
+          <div className={`${isMobileMenuOpen ? 'flex' : 'hidden'} lg:flex flex-col lg:flex-row items-stretch lg:items-center lg:justify-end gap-4 border-t lg:border-t-0 border-border pt-4 lg:pt-0 shrink-0`}>
+            <div className="hidden lg:block">
+              <ThemeToggle />
+            </div>
             
             {user && (
-              <div className="flex items-center gap-3 pl-4 border-l border-border">
-                <div className="flex items-center gap-2">
-                  <UserCircle2 size={20} className="text-muted" />
+              <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 lg:pl-4 lg:border-l lg:border-border">
+                <div className="flex items-center gap-2 px-2 lg:px-0">
+                  <UserCircle2 size={20} className="text-muted shrink-0" />
                   <div className="flex flex-col">
                     <span className="text-sm font-semibold leading-tight">{user.nombre}</span>
                     <span className="text-[10px] uppercase font-bold text-primary tracking-wider">{user.rol}</span>
                   </div>
                 </div>
                 <button 
-                  onClick={() => setShowLogoutModal(true)}
-                  className="p-1.5 text-muted hover:text-danger rounded-md hover:bg-danger/10 transition-colors"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    setShowLogoutModal(true);
+                  }}
+                  className="flex items-center justify-center gap-2 lg:gap-0 px-3 py-2 lg:p-1.5 text-muted hover:text-danger rounded-lg lg:rounded-md hover:bg-danger/10 bg-background lg:bg-transparent border lg:border-0 border-border transition-colors w-full lg:w-auto text-sm font-medium"
                   title="Cerrar Sesión"
                 >
                   <LogOut size={18} />
+                  <span className="lg:hidden">Cerrar Sesión</span>
                 </button>
               </div>
             )}

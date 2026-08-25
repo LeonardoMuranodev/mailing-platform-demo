@@ -258,7 +258,7 @@ export default function DirectorioContactos() {
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 pr-4 sm:pr-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
             <Building2 className="w-7 h-7" />
@@ -268,19 +268,19 @@ export default function DirectorioContactos() {
             Gestioná la base de datos de empresas, filtrá por rubro y exportá contactos.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
           {puedeCrear && (
             <>
               <button
                 onClick={() => setIsImportModalOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-surface border border-border text-dark rounded-lg hover:bg-background transition-colors font-medium shadow-sm"
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-surface border border-border text-dark rounded-lg hover:bg-background transition-colors font-medium shadow-sm w-full sm:w-auto"
               >
                 <Upload size={18} />
                 Importar CSV
               </button>
               <button
                 onClick={openCrearModal}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-light transition-colors font-medium shadow-sm"
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-light transition-colors font-medium shadow-sm w-full sm:w-auto"
               >
                 <Plus size={18} />
                 Crear Contacto
@@ -289,7 +289,7 @@ export default function DirectorioContactos() {
           )}
           <button
             onClick={handleExportCsv}
-            className="flex items-center gap-2 px-4 py-2 bg-surface border border-border text-dark rounded-lg hover:bg-background transition-colors font-medium shadow-sm"
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-surface border border-border text-dark rounded-lg hover:bg-background transition-colors font-medium shadow-sm w-full sm:w-auto"
           >
             <Download size={18} />
             Exportar Contactos
@@ -487,13 +487,13 @@ export default function DirectorioContactos() {
           </table>
         </div>
         {total > 0 && (
-          <div className="px-6 py-4 border-t border-border flex items-center justify-between bg-background">
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-muted">
+          <div className="px-4 sm:px-6 py-4 border-t border-border flex flex-col sm:flex-row items-center justify-between bg-background gap-4">
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-center sm:text-left">
+              <span className="text-sm text-muted whitespace-nowrap">
                 Página <span className="font-medium text-dark">{page}</span> de <span className="font-medium text-dark">{totalPages}</span>
               </span>
               <div className="flex items-center gap-2">
-                <label htmlFor="limit" className="text-sm text-muted">Mostrar:</label>
+                <label htmlFor="limit" className="text-sm text-muted whitespace-nowrap">Mostrar:</label>
                 <select
                   id="limit"
                   value={limit}
@@ -510,18 +510,18 @@ export default function DirectorioContactos() {
                 </select>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex justify-center gap-2 w-full sm:w-auto">
               <button 
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="px-3 py-1.5 border border-border rounded-md text-sm font-medium text-dark disabled:opacity-50 hover:bg-surface transition-colors"
+                className="flex-1 sm:flex-none px-3 py-1.5 border border-border rounded-md text-sm font-medium text-dark disabled:opacity-50 hover:bg-surface transition-colors text-center"
               >
                 Anterior
               </button>
               <button 
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="px-3 py-1.5 border border-border rounded-md text-sm font-medium text-dark disabled:opacity-50 hover:bg-surface transition-colors"
+                className="flex-1 sm:flex-none px-3 py-1.5 border border-border rounded-md text-sm font-medium text-dark disabled:opacity-50 hover:bg-surface transition-colors text-center"
               >
                 Siguiente
               </button>
