@@ -50,7 +50,7 @@ function App() {
           
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 font-bold text-lg text-primary hover:text-primary-dark transition-colors shrink-0">
-            <img src="/3fcolor-recortada.png" alt="3F Mailer Logo" className="h-8 w-auto object-contain" />
+            <Mail size={24} className="text-primary" />
             <span className="hidden sm:inline">3F Mailer</span>
           </Link>
 

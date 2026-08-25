@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
-import logo3fColor from '../assets/3fcolor-recortada.png';
+import logo3f from '../assets/logo-3f.png';
 import ThemeToggle from './ThemeToggle';
 
 export default function Login() {
@@ -58,8 +58,8 @@ export default function Login() {
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
-          <div className="w-48 h-20 overflow-hidden flex items-center justify-center">
-            <img src={logo3fColor} alt="Logo 3F" className="h-full w-auto object-contain" />
+          <div className="w-20 h-20 overflow-hidden rounded-[20px] shadow-sm bg-white p-2">
+            <img src={logo3f} alt="Logo 3F" className="w-full h-full object-contain" />
           </div>
         </div>
         <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-dark">

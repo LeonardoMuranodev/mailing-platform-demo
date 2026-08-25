@@ -33,7 +33,7 @@ export default function ListaCampanas() {
   
   // Paginación
   const [page, setPage] = useState(1);
-  const limit = 15;
+  const [limit, setLimit] = useState(10);
 
   // Filtros
   const [asunto, setAsunto] = useState('');
@@ -90,11 +90,11 @@ export default function ListaCampanas() {
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
-  // Actualizar cuando cambie la página
+  // Actualizar cuando cambie la página o límite
   useEffect(() => {
     fetchCampanas(page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, [page, limit]);
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6">
@@ -266,9 +266,28 @@ export default function ListaCampanas() {
         </div>
         {totalPages > 1 && (
           <div className="px-6 py-4 border-t border-border flex items-center justify-between bg-background">
-            <span className="text-sm text-muted">
-              Página <span className="font-medium text-dark">{page}</span> de <span className="font-medium text-dark">{totalPages}</span>
-            </span>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-muted">
+                Página <span className="font-medium text-dark">{page}</span> de <span className="font-medium text-dark">{totalPages}</span>
+              </span>
+              <div className="flex items-center gap-2">
+                <label htmlFor="limit" className="text-sm text-muted">Mostrar:</label>
+                <select
+                  id="limit"
+                  value={limit}
+                  onChange={(e) => {
+                    setLimit(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  className="px-2 py-1 bg-background border border-border rounded text-sm text-dark focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+            </div>
             <div className="flex gap-2">
               <button 
                 onClick={() => setPage(p => Math.max(1, p - 1))}
