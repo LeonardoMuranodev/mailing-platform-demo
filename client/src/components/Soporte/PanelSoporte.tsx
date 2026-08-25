@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { obtenerReportesSoporte, marcarReporteResuelto } from '../../services/api';
-import { CheckCircle2, FileText, Inbox } from 'lucide-react';
-import logo3f from '../../assets/logo-3f.png';
+import { CheckCircle2, FileText, Inbox, LifeBuoy } from 'lucide-react';
 
 interface Reporte {
   id: string;
@@ -48,19 +47,15 @@ export default function PanelSoporte() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="flex items-start gap-4">
-          <div className="w-11 h-11 overflow-hidden rounded-[14px] shadow-sm shrink-0 mt-0.5">
-            <img src={logo3f} alt="Logo 3F" className="w-full h-full object-cover scale-[1.15]" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
-              Panel de Soporte
-            </h1>
-            <p className="text-muted mt-1">Gestión de mejoras, sugerencias y errores reportados.</p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
+            <LifeBuoy className="w-7 h-7" />
+            Panel de Soporte
+          </h1>
+          <p className="text-muted mt-1">Gestión de mejoras, sugerencias y errores reportados.</p>
         </div>
         
-        <div className="flex bg-surface border border-border p-1 rounded-lg">
+        <div className="flex flex-wrap justify-center w-full md:w-auto bg-surface border border-border p-1 rounded-lg">
           <button 
             onClick={() => setFiltro('todos')} 
             className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${filtro === 'todos' ? 'bg-primary text-white shadow-sm' : 'text-muted hover:text-dark'}`}
@@ -102,14 +97,14 @@ export default function PanelSoporte() {
               })
               .map(reporte => (
               <div key={reporte.id} className={`p-6 transition-colors ${reporte.estado === 'resuelto' ? 'bg-background/50 opacity-70' : 'bg-surface hover:bg-background'}`}>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 space-y-3">
-                    <div className="flex items-center gap-3">
-                      <span className={`px-2.5 py-1 text-xs font-medium rounded-full border uppercase ${tipoColors[reporte.tipo]}`}>
+                <div className="flex flex-col sm:flex-row items-start justify-between gap-4 w-full">
+                  <div className="flex-1 w-full space-y-3">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                      <span className={`px-2.5 py-1 text-xs font-medium rounded-full border uppercase shrink-0 ${tipoColors[reporte.tipo]}`}>
                         {reporte.tipo}
                       </span>
-                      <span className="text-sm font-medium text-dark">{reporte.usuario_nombre}</span>
-                      <span className="text-xs text-muted">
+                      <span className="text-sm font-medium text-dark truncate max-w-[150px] sm:max-w-none">{reporte.usuario_nombre}</span>
+                      <span className="text-xs text-muted whitespace-nowrap">
                         {new Date(reporte.creado_en).toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short' })}
                       </span>
                     </div>
