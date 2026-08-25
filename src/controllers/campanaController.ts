@@ -8,6 +8,7 @@ import {
 } from '../services/campanaService.js';
 import { sendSuccess, sendError } from '../utils/responseHandler.js';
 import type { CrearCampanaBody, CambiarEstadoBody } from '../schemas/campanaSchema.js';
+import { clearCacheByPrefix } from '../middlewares/cache.js';
 
 /**
  * POST /api/campanas
@@ -27,6 +28,11 @@ async function crear(req: Request, _res: Response, next: NextFunction): Promise<
     }
 
     const campana = await crearCampana({ ...body, flyer_url });
+    
+    // Invalidamos el caché de campañas y estadísticas
+    await clearCacheByPrefix('/api/campanas');
+    await clearCacheByPrefix('/api/stats');
+    
     sendSuccess(_res, campana, 201);
   } catch (err) {
     next(err);
@@ -62,11 +68,14 @@ async function cambiarEstado(req: Request, res: Response, next: NextFunction): P
     const { estado } = req.body as CambiarEstadoBody;
 
     const campana = await cambiarEstadoCampana(id, estado);
-
     if (!campana) {
       sendError(res, 'NOT_FOUND', 'Campaña no encontrada', 404);
       return;
     }
+
+    // Invalidamos el caché de campañas y estadísticas
+    await clearCacheByPrefix('/api/campanas');
+    await clearCacheByPrefix('/api/stats');
 
     sendSuccess(res, campana);
   } catch (err) {

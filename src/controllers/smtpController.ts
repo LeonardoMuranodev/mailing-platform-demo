@@ -8,6 +8,7 @@ import {
 } from '../services/smtpAccountService.js';
 import { sendSuccess, sendError } from '../utils/responseHandler.js';
 import type { CrearCuentaSmtpBody, ActualizarCuentaSmtpBody } from '../schemas/smtpSchema.js';
+import { clearCacheByPrefix } from '../middlewares/cache.js';
 
 /**
  * POST /api/smtp
@@ -17,6 +18,7 @@ async function crear(req: Request, res: Response, next: NextFunction): Promise<v
   try {
     const body = req.body as CrearCuentaSmtpBody;
     const cuenta = await crearCuentaSmtp(body);
+    await clearCacheByPrefix('/api/smtp');
     sendSuccess(res, cuenta, 201);
   } catch (err) {
     next(err);
@@ -52,6 +54,7 @@ async function actualizar(req: Request, res: Response, next: NextFunction): Prom
       return;
     }
 
+    await clearCacheByPrefix('/api/smtp');
     sendSuccess(res, cuenta);
   } catch (err) {
     next(err);
@@ -71,6 +74,7 @@ async function eliminar(req: Request, res: Response, next: NextFunction): Promis
       return;
     }
 
+    await clearCacheByPrefix('/api/smtp');
     sendSuccess(res, cuenta);
   } catch (err) {
     next(err);
@@ -97,6 +101,7 @@ async function toggleEstado(req: Request, res: Response, next: NextFunction): Pr
       return;
     }
 
+    await clearCacheByPrefix('/api/smtp');
     sendSuccess(res, cuenta);
   } catch (err) {
     next(err);

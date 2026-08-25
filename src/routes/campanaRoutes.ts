@@ -4,6 +4,7 @@ import { validateSchema } from '../middlewares/validateSchema.js';
 import { crearCampanaSchema, cambiarEstadoSchema } from '../schemas/campanaSchema.js';
 import { campanaController } from '../controllers/campanaController.js';
 import { requireRole } from '../middlewares/requireRole.js';
+import { cache } from '../middlewares/cache.js';
 
 export const campanaRouter = Router();
 
@@ -17,10 +18,10 @@ campanaRouter.post(
 );
 
 // GET /api/campanas — Listar campañas
-campanaRouter.get('/', campanaController.listar);
+campanaRouter.get('/', cache(15), campanaController.listar);
 
 // GET /api/campanas/:id/detalle — Obtener campaña con estadísticas
-campanaRouter.get('/:id/detalle', campanaController.detalle);
+campanaRouter.get('/:id/detalle', cache(15), campanaController.detalle);
 
 // GET /api/campanas/:id — Obtener campaña por UUID
 campanaRouter.get('/:id', campanaController.obtenerPorId);

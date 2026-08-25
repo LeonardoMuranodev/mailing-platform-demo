@@ -3,6 +3,7 @@ import { validateSchema } from '../middlewares/validateSchema.js';
 import { crearCuentaSmtpSchema, actualizarCuentaSmtpSchema } from '../schemas/smtpSchema.js';
 import { smtpController } from '../controllers/smtpController.js';
 import { requireRole } from '../middlewares/requireRole.js';
+import { cache } from '../middlewares/cache.js';
 
 export const smtpRouter = Router();
 
@@ -15,7 +16,7 @@ smtpRouter.post(
 );
 
 // GET /api/smtp — Listar cuentas SMTP
-smtpRouter.get('/', smtpController.listar);
+smtpRouter.get('/', cache(60), smtpController.listar);
 
 // PATCH /api/smtp/:id — Actualizar cuenta SMTP
 smtpRouter.patch(
