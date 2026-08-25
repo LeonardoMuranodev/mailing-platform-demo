@@ -46,11 +46,11 @@ function App() {
     <div className="min-h-screen flex flex-col bg-background text-dark transition-colors duration-300">
       {/* ── Navbar ─────────────────────────────────────── */}
       <header className="sticky top-0 z-40 bg-surface/80 backdrop-blur-md border-b border-border transition-colors duration-300">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-3 sm:h-16 gap-4 sm:gap-0">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-3 sm:h-16 gap-4 sm:gap-0">
           
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 font-bold text-lg text-primary hover:text-primary-dark transition-colors shrink-0">
-            <Mail size={24} className="text-primary" />
+            <img src="/3fcolor-recortada.png" alt="3F Mailer Logo" className="h-8 w-auto object-contain" />
             <span className="hidden sm:inline">3F Mailer</span>
           </Link>
 
@@ -154,7 +154,7 @@ function App() {
 
       {/* ── Footer ────────────────────────────────────── */}
       <footer className="border-t border-border mt-auto py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center text-muted text-sm font-medium">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 text-center text-muted text-sm font-medium">
           Desarrollado por el equipo de Tecno 3F
         </div>
       </footer>

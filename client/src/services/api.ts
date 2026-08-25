@@ -70,6 +70,13 @@ export async function cambiarEstadoCampana(
   });
 }
 
+export interface CampanasPaginatedResponse {
+  data: CampanaResponse[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 /**
  * Lista campañas con filtros opcionales.
  */
@@ -79,15 +86,19 @@ export async function listarCampanas(filtros?: {
   rubro?: string;
   fecha_desde?: string;
   fecha_hasta?: string;
-}): Promise<ApiResponse<CampanaResponse[]>> {
+  page?: number;
+  limit?: number;
+}): Promise<ApiResponse<CampanasPaginatedResponse>> {
   const query = new URLSearchParams();
   if (filtros?.asunto) query.append('asunto', filtros.asunto);
   if (filtros?.estado) query.append('estado', filtros.estado);
   if (filtros?.rubro) query.append('rubro', filtros.rubro);
   if (filtros?.fecha_desde) query.append('fecha_desde', filtros.fecha_desde);
   if (filtros?.fecha_hasta) query.append('fecha_hasta', filtros.fecha_hasta);
+  if (filtros?.page) query.append('page', filtros.page.toString());
+  if (filtros?.limit) query.append('limit', filtros.limit.toString());
 
-  return fetchApi<CampanaResponse[]>(`${API_BASE}/api/campanas?${query.toString()}`);
+  return fetchApi<CampanasPaginatedResponse>(`${API_BASE}/api/campanas?${query.toString()}`);
 }
 
 /**

@@ -28,7 +28,12 @@ export default function ListaCampanas() {
   const navigate = useNavigate();
   const { puedeCrear } = usePermisos();
   const [campanas, setCampanas] = useState<CampanaResponse[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  
+  // Paginación
+  const [page, setPage] = useState(1);
+  const limit = 15;
 
   // Filtros
   const [asunto, setAsunto] = useState('');
@@ -37,12 +42,18 @@ export default function ListaCampanas() {
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
 
-  const fetchCampanas = async () => {
+  const fetchCampanas = async (currentPage = page) => {
     setLoading(true);
     try {
-      const res = await listarCampanas({ asunto, estado, rubro, fecha_desde: fechaDesde, fecha_hasta: fechaHasta });
+      const res = await listarCampanas({ 
+        asunto, estado, rubro, fecha_desde: fechaDesde, fecha_hasta: fechaHasta, page: currentPage, limit 
+      });
       if (res.success && res.data) {
-        setCampanas(res.data);
+        setCampanas(res.data.data || []);
+        setTotal(res.data.total || 0);
+      } else {
+        setCampanas([]);
+        setTotal(0);
       }
     } catch (error) {
       console.error('Error al listar campañas:', error);
@@ -51,13 +62,10 @@ export default function ListaCampanas() {
     }
   };
 
-  useEffect(() => {
-    fetchCampanas();
-  }, []);
-
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchCampanas();
+    setPage(1);
+    fetchCampanas(1);
   };
 
   const handleResetFilters = () => {
@@ -66,15 +74,27 @@ export default function ListaCampanas() {
     setRubro('');
     setFechaDesde('');
     setFechaHasta('');
-    // Al setear en vacío, se debería hacer el fetch, pero react state es asíncrono
-    // Pasamos los params en blanco directo al listarCampanas o usamos el useEffect.
-    // Lo más sencillo es un fetch manual con filtros limpios:
+    setPage(1);
     setLoading(true);
-    listarCampanas({}).then(res => {
-      if (res.success && res.data) setCampanas(res.data);
+    listarCampanas({ page: 1, limit }).then(res => {
+      if (res.success && res.data) {
+        setCampanas(res.data.data || []);
+        setTotal(res.data.total || 0);
+      } else {
+        setCampanas([]);
+        setTotal(0);
+      }
       setLoading(false);
     });
   };
+
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+
+  // Actualizar cuando cambie la página
+  useEffect(() => {
+    fetchCampanas(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6">
@@ -244,6 +264,29 @@ export default function ListaCampanas() {
             </tbody>
           </table>
         </div>
+        {totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-border flex items-center justify-between bg-background">
+            <span className="text-sm text-muted">
+              Página <span className="font-medium text-dark">{page}</span> de <span className="font-medium text-dark">{totalPages}</span>
+            </span>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-3 py-1.5 border border-border rounded-md text-sm font-medium text-dark disabled:opacity-50 hover:bg-surface transition-colors"
+              >
+                Anterior
+              </button>
+              <button 
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="px-3 py-1.5 border border-border rounded-md text-sm font-medium text-dark disabled:opacity-50 hover:bg-surface transition-colors"
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

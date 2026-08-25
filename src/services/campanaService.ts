@@ -93,6 +93,15 @@ export interface ListarCampanasFiltros {
   estado?: EstadoCampana;
   fecha_desde?: string;
   fecha_hasta?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface CampanasResponse {
+  data: Campana[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 /**
@@ -100,7 +109,7 @@ export interface ListarCampanasFiltros {
  */
 export async function listarCampanas(
   filtros: ListarCampanasFiltros = {},
-): Promise<Campana[]> {
+): Promise<CampanasResponse> {
   const conditions: string[] = [];
   const values: unknown[] = [];
   let paramIdx = 1;
@@ -133,9 +142,30 @@ export async function listarCampanas(
     ? `WHERE ${conditions.join(' AND ')}`
     : '';
 
-  const query = `SELECT * FROM campanas ${whereClause} ORDER BY creado_en DESC;`;
-  const result = await dbPool.query<Campana>(query, values);
-  return result.rows;
+  const countQuery = `SELECT COUNT(*) FROM campanas ${whereClause}`;
+  const countResult = await dbPool.query(countQuery, values);
+  const total = parseInt(countResult.rows[0].count, 10);
+
+  const page = filtros.page || 1;
+  const limit = filtros.limit || 15;
+  const offset = (page - 1) * limit;
+
+  const query = `
+    SELECT * FROM campanas 
+    ${whereClause} 
+    ORDER BY creado_en DESC
+    LIMIT $${paramIdx} OFFSET $${paramIdx + 1}
+  `;
+  
+  const queryValues = [...values, limit, offset];
+  const result = await dbPool.query<Campana>(query, queryValues);
+  
+  return {
+    data: result.rows,
+    total,
+    page,
+    limit,
+  };
 }
 
 /** Campaña con estadísticas de cola de envíos */

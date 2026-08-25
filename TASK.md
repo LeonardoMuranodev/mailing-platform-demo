@@ -17,15 +17,15 @@
 
 #### Fase 3: UX y Frontend (Pulido Visual)
 
-* [ ] **Paginación:** Implementar en las vistas de Contactos y Campañas para evitar colapsos de memoria en el navegador.
-* [ ] **Corrección CSS (Checkboxes/Selects):** Solucionar el padding de los iconos en listas desplegables y checkboxes.
-* [ ] **Refactor Visual Global:** Cambiar logo sin fondo, ajustar el `max-width` (ej: `max-w-6xl`) para mejor lectura en notebooks y refinar el CSS.
-* [ ] **Responsive Design:** Asegurar que las tablas y modales sean usables en resoluciones móviles/tablets.
-* [ ] **Actualización de Meta/Title:** Cambiar title y favicon de la página en `index.html`.
+* [x] **Paginación:** Implementar en las vistas de Contactos y Campañas para evitar colapsos de memoria en el navegador.
+* [x] **Corrección CSS (Checkboxes/Selects):** Solucionar el padding de los iconos en listas desplegables y checkboxes.
+* [x] **Refactor Visual Global:** Cambiar logo sin fondo, ajustar el `max-width` (ej: `max-w-6xl`) para mejor lectura en notebooks y refinar el CSS.
+* [x] **Responsive Design:** Asegurar que las tablas y modales sean usables en resoluciones móviles/tablets.
+* [x] **Actualización de Meta/Title:** Cambiar title y favicon de la página en `index.html`.
 
 #### Fase 4: Cache (redis)
 
-Implementar redis para cachear las consultas a la base de datos. Las mas importantes
+* [ ] **Implementar redis:** para cachear las consultas a la base de datos. Las mas importantes
 
 #### Fase 5: DevOps y Despliegue (Go-Live)
 
