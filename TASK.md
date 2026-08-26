@@ -25,13 +25,14 @@
 
 #### Fase 4: Cache (redis)
 
-* [ ] **Implementar redis:** para cachear las consultas a la base de datos. Las mas importantes
+* [x] **Implementar redis:** para cachear las consultas a la base de datos. Las mas importantes
+* [] **Probar redis:**: Probar tiempos de respuesta , mostrando la diferencia entre sin / con redis
 
 #### Fase 5: DevOps y Despliegue (Go-Live)
 
-* [ ] **Testing:** Escribir y ejecutar pruebas para los flujos críticos (Login, Poblar Cola, Rotación SMTP).
-* [ ] **Optimización de Recursos:** Revisar el tamaño de la imagen Docker final y limpiar logs innecesarios.
-* [ ] **Despliegue Final:** Subir al repositorio Git corporativo (con VPN) y levantar el `docker-compose.yml` en el servidor de producción.
+* [x] **Testing:** Escribir y ejecutar pruebas para los flujos críticos (Login, Poblar Cola, Rotación SMTP).
+* [x] **Optimización de Recursos:** Revisar el tamaño de la imagen Docker final y limpiar logs innecesarios.
+* [] **Despliegue Final:** Subir al repositorio Git corporativo (con VPN) y levantar el `docker-compose.yml` en el servidor de producción.
 
 ---
 

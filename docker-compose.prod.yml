@@ -1,3 +1,15 @@
+# ══════════════════════════════════════════════════════════════
+# Docker Compose — PRODUCCIÓN (3F Mailer)
+# ══════════════════════════════════════════════════════════════
+# Uso: docker compose -f docker-compose.prod.yml up -d --build
+#
+# Diferencias con desarrollo:
+#   - Frontend → Nginx (build estático) con reverse proxy a /api
+#   - Sin Mailpit — se conecta a SMTPs reales de Gmail
+#   - Redis no expone puerto al host (solo red interna)
+#   - NODE_ENV=production
+# ══════════════════════════════════════════════════════════════
+
 services:
   # ─── 1. BACKEND API (Node.js / Express / TypeScript) ───────
   backend:
@@ -6,25 +18,18 @@ services:
       dockerfile: Dockerfile.backend
     container_name: mails-backend
     restart: unless-stopped
-    ports:
-      - "3000:3000"
     env_file:
       - .env
     environment:
       - PORT=3000
-      - NODE_ENV=development
-      # Overrides para servicios internos del compose
-      - SMTP_HOST=mailpit
-      - SMTP_PORT=1025
+      - NODE_ENV=production
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     volumes:
       - uploads_data:/app/uploads
     depends_on:
       redis:
-        condition: service_started
-      mailpit:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
@@ -34,36 +39,34 @@ services:
     networks:
       - mails-network
 
-  # ─── 2. FRONTEND CLIENT (React / Vite / TypeScript) ────────
+  # ─── 2. FRONTEND (Nginx — Build Estático + Reverse Proxy) ──
   frontend:
     build:
       context: ./client
       dockerfile: Dockerfile.frontend
-      target: development
+      target: production
     container_name: mails-frontend
     restart: unless-stopped
     ports:
-      - "5173:5173"
-    environment:
-      - VITE_API_URL=http://localhost:3000/api
-      - BACKEND_URL=http://backend:3000
-    volumes:
-      - ./client/src:/app/src
-      - ./client/public:/app/public
-      - ./client/index.html:/app/index.html
+      - "80:80"
     depends_on:
       backend:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
     networks:
       - mails-network
 
-  # ─── 3. REDIS (Cola de Trabajos — Envío Masivo) ────────────
+  # ─── 3. REDIS (Cache) ──────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: mails-redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
+    # No se expone al host en producción — solo accesible dentro de la red Docker
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
@@ -76,32 +79,7 @@ services:
     networks:
       - mails-network
 
-  # ─── 4. MAILPIT (SMTP de Pruebas — Intercepta correos) ────
-  mailpit:
-    image: axllent/mailpit:v1.21
-    container_name: mails-mailpit
-    restart: unless-stopped
-    ports:
-      - "8025:8025"   # Dashboard Web para ver correos
-      - "1025:1025"   # Puerto SMTP ficticio
-    environment:
-      - MP_MAX_MESSAGES=500
-      - MP_DATABASE=/data/mailpit.db
-      - MP_SMTP_AUTH_ACCEPT_ANY=true
-      - MP_SMTP_AUTH_ALLOW_INSECURE=true
-      - MP_UI_AUTH_FILE=
-    volumes:
-      - mailpit_data:/data
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8025/"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 5s
-    networks:
-      - mails-network
-
-  # ─── 5. DB BACKUP (PostgreSQL Dump → Google Drive) ──────
+  # ─── 4. DB BACKUP (PostgreSQL Dump → Google Drive) ─────────
   db-backup:
     build:
       context: .
@@ -120,8 +98,6 @@ services:
 # ─── Volumes ──────────────────────────────────────────────────
 volumes:
   redis_data:
-    driver: local
-  mailpit_data:
     driver: local
   uploads_data:
     driver: local

@@ -32,7 +32,7 @@ export const config = {
   },
   encryptionKey: process.env.ENCRYPTION_KEY || '',
   jwt: {
-    secret: process.env.JWT_SECRET || 'secret_para_desarrollo_cambiar_en_produccion',
+    secret: process.env.JWT_SECRET || process.env.ENCRYPTION_KEY || 'secret_para_desarrollo_cambiar_en_produccion',
     expiresIn: process.env.JWT_EXPIRES_IN || '24h',
   },
   notifier: {

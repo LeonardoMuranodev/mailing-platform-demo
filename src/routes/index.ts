@@ -9,11 +9,15 @@ import { usuariosRouter } from './usuariosRoutes.js';
 import soporteRouter from './soporteRoutes.js';
 import { requireAuth } from '../middlewares/requireAuth.js';
 import { requireRole } from '../middlewares/requireRole.js';
+import { healthRouter } from './healthRoutes.js';
 import { apiLimiter, authLimiter, queueLimiter } from '../middlewares/rateLimiter.js';
 
 export function registerRoutes(app: Application): void {
   // Rate limiter general para toda la API
   app.use('/api', apiLimiter);
+
+  // Health check — sin auth (para Docker healthchecks y monitoreo)
+  app.use('/api/health', healthRouter);
 
   // Auth — con limiter estricto adicional
   app.use('/api/auth', authLimiter, authRouter);
