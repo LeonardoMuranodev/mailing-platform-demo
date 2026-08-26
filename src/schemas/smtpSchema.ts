@@ -34,6 +34,16 @@ export const crearCuentaSmtpSchema = z.object({
     .int()
     .positive('El límite diario debe ser positivo')
     .default(400),
+  minimo_por_ejecucion: z
+    .number()
+    .int()
+    .positive()
+    .default(5),
+  maximo_por_ejecucion: z
+    .number()
+    .int()
+    .positive()
+    .default(25),
 });
 
 // ── Schema: Actualizar cuenta SMTP (parcial) ─────────────────
@@ -55,6 +65,8 @@ export const actualizarCuentaSmtpSchema = z.object({
     .optional(),
 
   limite_diario: z.number().int().positive().optional(),
+  minimo_por_ejecucion: z.number().int().positive().optional(),
+  maximo_por_ejecucion: z.number().int().positive().optional(),
 });
 
 // ── Tipos inferidos ──────────────────────────────────────────

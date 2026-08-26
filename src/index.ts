@@ -11,6 +11,8 @@ import {
   notifyUncaughtException,
   notifyUnhandledRejection,
 } from './services/telegramNotifier.js';
+import { procesarCola } from './services/emailWorker.js';
+import cron from 'node-cron';
 
 const app = express();
 
@@ -57,5 +59,11 @@ app.listen(config.port, async () => {
   console.log(`🚀 Server listening on http://localhost:${config.port}`);
   await testDbConnection();
   await seedUsuarios();
+
+  // Iniciar worker SMTP con Cron (Lunes a Viernes de 9 a 17 hs)
+  console.log(`🔄 Iniciando Worker SMTP (Cron: 0 9-17 * * 1-5)...`);
+  cron.schedule('0 9-17 * * 1-5', procesarCola, {
+    timezone: 'America/Argentina/Buenos_Aires',
+  });
 });
 

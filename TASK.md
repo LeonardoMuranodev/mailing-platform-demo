@@ -2,10 +2,10 @@
 
 #### Fase 1: El Motor (Core Business & Entregabilidad)
 
-* [ ] **Lógica de envío y rotación SMTP (Round-Robin):** Testear exhaustivamente la asignación de cuentas, respeto de límites diarios y actualización de estados (`enviado` / `fallido`).
-* [ ] **Link de desuscripción y manejo de rebotes:** *(⚠️ Acción requerida: Consultar con las encargadas si este requisito es estrictamente necesario legal/operativamente para las campañas del municipio, o si se omitirá en esta versión)*.
-* [ ] **Verificación DNS (SPF / DKIM / DMARC):** Validar la salud del dominio emisor para evitar caer en spam.
-* [ ] **Aviso de campaña terminada:** Reutilizar flujo de n8n para notificar (Email/Telegram) cuando la `cola_envios` quede sin registros pendientes.
+* [x] **Lógica de envío y rotación SMTP (Round-Robin):** Testear exhaustivamente la asignación de cuentas, respeto de límites diarios y actualización de estados (`enviado` / `fallido`).
+* [x] **Link de desuscripción y manejo de rebotes:** *(Omitido según respuesta del usuario)*.
+* [x] **Verificación DNS (SPF / DKIM / DMARC):** Validar la salud del dominio emisor para evitar caer en spam.
+* [x] **Aviso de campaña terminada:** Reutilizar flujo de n8n para notificar (Email/Telegram) cuando la `cola_envios` quede sin registros pendientes.
 
 #### Fase 2: Seguridad y Estabilidad (Hardening)
 
@@ -14,6 +14,11 @@
 * [ x ] **Avisos de error globales por Telegram:** Configurar un webhook/bot que capture crashes de Node.js o caídas de BD (similar a tu nodo "On Error" en n8n).
 * [ x ] **Estrategia de Backups automatizada:** Volcado regular de la base de datos de PostgreSQL.
 * [ x ] **Backups en Google Drive:**
+* [x] **Auditoría de Seguridad:** Sanitización estricta del HTML (DOMPurify) y prevención de inyecciones SQL en todo el sistema.
+* [x] **Rate Limiting:** Implementar limitadores de peticiones en Express.
+* [x] **Avisos de error globales por Telegram:** Configurar un webhook/bot que capture crashes de Node.js o caídas de BD (similar a tu nodo "On Error" en n8n).
+* [x] **Estrategia de Backups automatizada:** Volcado regular de la base de datos de PostgreSQL.
+* [x] **Backups en Google Drive:**
 
 #### Fase 3: UX y Frontend (Pulido Visual)
 
@@ -26,13 +31,13 @@
 #### Fase 4: Cache (redis)
 
 * [x] **Implementar redis:** para cachear las consultas a la base de datos. Las mas importantes
-* [] **Probar redis:**: Probar tiempos de respuesta , mostrando la diferencia entre sin / con redis
+* [x] **Probar redis:**: Probar tiempos de respuesta , mostrando la diferencia entre sin / con redis
 
 #### Fase 5: DevOps y Despliegue (Go-Live)
 
 * [x] **Testing:** Escribir y ejecutar pruebas para los flujos críticos (Login, Poblar Cola, Rotación SMTP).
 * [x] **Optimización de Recursos:** Revisar el tamaño de la imagen Docker final y limpiar logs innecesarios.
-* [] **Despliegue Final:** Subir al repositorio Git corporativo (con VPN) y levantar el `docker-compose.yml` en el servidor de producción.
+* [x] **Despliegue Final:** Subir al repositorio Git corporativo (con VPN) y levantar el `docker-compose.yml` en el servidor de producción.
 
 ---
 

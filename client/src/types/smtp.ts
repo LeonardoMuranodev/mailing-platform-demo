@@ -10,6 +10,8 @@ export interface CuentaSmtp {
   estado: EstadoCuentaSmtp;
   enviados_hoy: number;
   limite_diario: number;
+  minimo_por_ejecucion: number;
+  maximo_por_ejecucion: number;
   historial_despachado?: number;
   ultimo_uso: string | null;
   creado_en: string;
@@ -23,6 +25,8 @@ export interface CrearCuentaSmtpInput {
   usuario: string;
   password_encrypted: string;
   limite_diario?: number;
+  minimo_por_ejecucion?: number;
+  maximo_por_ejecucion?: number;
 }
 
 export interface ActualizarCuentaSmtpInput {
@@ -33,4 +37,6 @@ export interface ActualizarCuentaSmtpInput {
   password_encrypted?: string;
   estado?: EstadoCuentaSmtp;
   limite_diario?: number;
+  minimo_por_ejecucion?: number;
+  maximo_por_ejecucion?: number;
 }

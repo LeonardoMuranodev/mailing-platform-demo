@@ -10,6 +10,7 @@ import soporteRouter from './soporteRoutes.js';
 import { requireAuth } from '../middlewares/requireAuth.js';
 import { requireRole } from '../middlewares/requireRole.js';
 import { healthRouter } from './healthRoutes.js';
+import { dnsRouter } from './dnsRoutes.js';
 import { apiLimiter, authLimiter, queueLimiter } from '../middlewares/rateLimiter.js';
 
 export function registerRoutes(app: Application): void {
@@ -22,7 +23,10 @@ export function registerRoutes(app: Application): void {
   // Auth — con limiter estricto adicional
   app.use('/api/auth', authLimiter, authRouter);
 
-  // Todas las rutas a partir de aquí requieren autenticación
+  // DNS Check
+  app.use('/api/dns', dnsRouter);
+
+  // Campañas y Contactos rutas a partir de aquí requieren autenticación
   app.use('/api', requireAuth);
 
   app.use('/api/campanas', campanaRouter);

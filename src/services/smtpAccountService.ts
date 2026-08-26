@@ -50,6 +50,8 @@ export async function crearCuentaSmtp(data: CrearCuentaSmtpInput): Promise<Cuent
     usuario,
     password_encrypted,
     limite_diario = 400,
+    minimo_por_ejecucion = 5,
+    maximo_por_ejecucion = 25,
   } = data;
 
   const authUser = usuario || email;
@@ -58,8 +60,8 @@ export async function crearCuentaSmtp(data: CrearCuentaSmtpInput): Promise<Cuent
   const encryptedPassword = encrypt(password_encrypted);
 
   const query = `
-    INSERT INTO cuentas_smtp (email, host, puerto, usuario, password_encrypted, limite_diario)
-    VALUES ($1, $2, $3, $4, $5, $6)
+    INSERT INTO cuentas_smtp (email, host, puerto, usuario, password_encrypted, limite_diario, minimo_por_ejecucion, maximo_por_ejecucion)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     RETURNING *
   `;
 
@@ -70,6 +72,8 @@ export async function crearCuentaSmtp(data: CrearCuentaSmtpInput): Promise<Cuent
     usuario,
     encryptedPassword,
     limite_diario,
+    minimo_por_ejecucion,
+    maximo_por_ejecucion,
   ]);
 
   return omitPassword(result.rows[0]);

@@ -69,19 +69,30 @@ describe('Queue Service — poblarColaEnvios()', () => {
       rowCount: 3,
     });
 
+    // 4. UPDATE estado
+    mockQuery.mockResolvedValueOnce({
+      rows: [],
+      rowCount: 1,
+    });
+
     const result = await poblarColaEnvios(campanaId);
 
     expect(result.campana_id).toBe(campanaId);
     expect(result.total_insertados).toBe(3);
     expect(result.para_todos_rubros).toBe(true);
 
-    // Verificar que se hicieron las 3 queries
-    expect(mockQuery).toHaveBeenCalledTimes(3);
+    // Verificar que se hicieron las 4 queries
+    expect(mockQuery).toHaveBeenCalledTimes(4);
 
     // Verificar que el INSERT usó unnest con los IDs correctos
     const insertCall = mockQuery.mock.calls[2];
     expect(insertCall[0]).toContain('INSERT INTO cola_envios');
     expect(insertCall[1]).toEqual([campanaId, ['contact-1', 'contact-2', 'contact-3']]);
+
+    // Verificar que el UPDATE cambió el estado a 'en_proceso'
+    const updateCall = mockQuery.mock.calls[3];
+    expect(updateCall[0]).toContain("UPDATE campanas SET estado = 'en_proceso'");
+    expect(updateCall[1]).toEqual([campanaId]);
   });
 
   it('debería retornar 0 insertados si no hay contactos para los rubros', async () => {

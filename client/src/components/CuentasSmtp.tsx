@@ -22,6 +22,8 @@ export default function CuentasSmtp() {
     email: '',
     password_encrypted: '',
     limite_diario: 400,
+    minimo_por_ejecucion: 5,
+    maximo_por_ejecucion: 25,
   });
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -71,7 +73,7 @@ export default function CuentasSmtp() {
 
   const openCrearModal = () => {
     setEditingId(null);
-    setForm({ email: '', password_encrypted: '', limite_diario: 400 });
+    setForm({ email: '', password_encrypted: '', limite_diario: 400, minimo_por_ejecucion: 5, maximo_por_ejecucion: 25 });
     setErrorMsg('');
     setShowPassword(false);
     setIsModalOpen(true);
@@ -83,6 +85,8 @@ export default function CuentasSmtp() {
       email: cuenta.email,
       password_encrypted: '',
       limite_diario: cuenta.limite_diario,
+      minimo_por_ejecucion: cuenta.minimo_por_ejecucion || 5,
+      maximo_por_ejecucion: cuenta.maximo_por_ejecucion || 25,
     });
     setErrorMsg('');
     setShowPassword(false);
@@ -107,6 +111,8 @@ export default function CuentasSmtp() {
         const payload: any = {
           email: form.email,
           limite_diario: form.limite_diario,
+          minimo_por_ejecucion: form.minimo_por_ejecucion,
+          maximo_por_ejecucion: form.maximo_por_ejecucion,
         };
         if (form.password_encrypted) {
           payload.password_encrypted = form.password_encrypted;
@@ -124,6 +130,8 @@ export default function CuentasSmtp() {
           email: form.email,
           password_encrypted: form.password_encrypted,
           limite_diario: form.limite_diario,
+          minimo_por_ejecucion: form.minimo_por_ejecucion,
+          maximo_por_ejecucion: form.maximo_por_ejecucion,
         });
         if (res.success && res.data) {
           setCuentas([res.data, ...cuentas]);
@@ -329,6 +337,27 @@ export default function CuentasSmtp() {
                   className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50"
                 />
                 <p className="text-xs text-muted mt-1.5">Google permite máximo 500 al día. Recomendamos 400 por seguridad.</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-dark mb-1">Mínimos envíos por ejecución</label>
+                  <input 
+                    type="number" 
+                    value={form.minimo_por_ejecucion}
+                    onChange={e => setForm({...form, minimo_por_ejecucion: parseInt(e.target.value) || 0})}
+                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-dark mb-1">Máximos envíos por ejecución</label>
+                  <input 
+                    type="number" 
+                    value={form.maximo_por_ejecucion}
+                    onChange={e => setForm({...form, maximo_por_ejecucion: parseInt(e.target.value) || 0})}
+                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
+                </div>
               </div>
 
               <div className="pt-4 flex justify-end gap-3">
