@@ -4,7 +4,7 @@ import { config } from '../config/env.js';
 import { dbPool } from '../config/db.js';
 import nodemailer from 'nodemailer';
 
-export const MODO_PRUEBA = false; // Igual que en tu n8n
+export const MODO_PRUEBA = process.env.MODO_PRUEBA === 'true'; // Si es true: cada 5 min y cuentas test; si es false: 18:00 hs y cuentas prod
 
 // Emails a ignorar al extraer el destinatario rebotado
 const IGNORAR_MAILS = [
