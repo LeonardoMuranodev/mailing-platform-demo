@@ -31,13 +31,14 @@
 #### Fase 4: Cache (redis)
 
 * [x] **Implementar redis:** para cachear las consultas a la base de datos. Las mas importantes
-* [x] **Probar redis:**: Probar tiempos de respuesta , mostrando la diferencia entre sin / con redis
+* [] **Probar redis:**: Probar tiempos de respuesta , mostrando la diferencia entre sin / con redis
 
 #### Fase 5: DevOps y Despliegue (Go-Live)
 
 * [x] **Testing:** Escribir y ejecutar pruebas para los flujos críticos (Login, Poblar Cola, Rotación SMTP).
 * [x] **Optimización de Recursos:** Revisar el tamaño de la imagen Docker final y limpiar logs innecesarios.
-* [x] **Despliegue Final:** Subir al repositorio Git corporativo (con VPN) y levantar el `docker-compose.yml` en el servidor de producción.
+* [] **Despliegue Final:** Subir al repositorio Git corporativo (con VPN) y levantar el `docker-compose.yml` en el servidor de producción.
+* [] **Importar los contactos de la base de datos de Google Sheets:** al sistema
 
 ---
 
