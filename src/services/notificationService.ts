@@ -12,40 +12,6 @@ export async function notificarSoporte(tipo: string, descripcion: string, usuari
   msg += `*Descripción:* ${descripcion}\n`;
 
   // Enviar a Telegram si está configurado
-  if (telegramChatId && telegramToken) {
-    try {
-      if (adjuntoUrl) {
-        const filePath = path.join(process.cwd(), adjuntoUrl);
-        if (fs.existsSync(filePath)) {
-          const buffer = fs.readFileSync(filePath);
-          const blob = new Blob([buffer]);
-          const formData = new FormData();
-          formData.append('chat_id', telegramChatId);
-          formData.append('caption', msg);
-          formData.append('parse_mode', 'Markdown');
-          formData.append('document', blob, path.basename(filePath));
-
-          await fetch(`https://api.telegram.org/bot${telegramToken}/sendDocument`, {
-            method: 'POST',
-            body: formData,
-          });
-        }
-      } else {
-        await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: telegramChatId,
-            text: msg,
-            parse_mode: 'Markdown'
-          })
-        });
-      }
-    } catch (e) {
-      console.error('Error enviando telegram', e);
-    }
-  }
-
   // Enviar Email si está configurado
   if (smtpHost && smtpUser) {
     try {
@@ -101,23 +67,6 @@ export async function notificarCampanaTerminada(campanaId: string, asunto: strin
   msg += `*Total procesados:* ${stats.total}\n`;
   msg += `*Enviados exitosamente:* ${stats.enviados}\n`;
   msg += `*Fallidos:* ${stats.fallidos}\n`;
-
-  // Enviar a Telegram
-  if (telegramChatId && telegramToken) {
-    try {
-      await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: telegramChatId,
-          text: msg,
-          parse_mode: 'Markdown'
-        })
-      });
-    } catch (e) {
-      console.error('Error enviando telegram de campaña terminada', e);
-    }
-  }
 
   // Enviar Email
   if (smtpHost && smtpUser) {
