@@ -163,7 +163,7 @@ async function procesarCuenta(cuenta: any): Promise<ReboteProcesado[]> {
           const subjectLower = (parsed.subject || '').toLowerCase();
           const fullText = `${subjectLower} ${bodyLower}`;
 
-          let nuevoEstado = 'rebotado_desconocido';
+          let nuevoEstado = 'rebotado desconocido';
           let razon = 'Motivo de rebote no categorizado';
 
           // 1. EVALUACIÓN: BANDEJA LLENA / OVER QUOTA
@@ -177,7 +177,7 @@ async function procesarCuenta(cuenta: any): Promise<ReboteProcesado[]> {
             fullText.includes('espacio insuficiente') ||
             fullText.includes('quota exceeded')
           ) {
-            nuevoEstado = 'rebotado_bandeja_llena';
+            nuevoEstado = 'rebotado bandeja llena';
             razon = 'Bandeja de entrada llena / Cuota excedida';
           }
           // 2. EVALUACIÓN: DIRECCIÓN / CUENTA INEXISTENTE
@@ -192,7 +192,7 @@ async function procesarCuenta(cuenta: any): Promise<ReboteProcesado[]> {
             fullText.includes('unknown user') ||
             fullText.includes('550 5.1.1')
           ) {
-            nuevoEstado = 'rebotado_inexistente';
+            nuevoEstado = 'rebotado inexistente';
             razon = 'El correo o dominio no existe';
           }
           // 3. EVALUACIÓN: SPAM / POLÍTICA / RECHAZO
@@ -204,7 +204,7 @@ async function procesarCuenta(cuenta: any): Promise<ReboteProcesado[]> {
             fullText.includes('blacklisted') ||
             fullText.includes('554 5.7.1')
           ) {
-            nuevoEstado = 'rebotado_spam';
+            nuevoEstado = 'rebotado spam';
             razon = 'Bloqueado por reglas de Spam / Política del servidor';
           }
 
