@@ -31,7 +31,7 @@
 #### Fase 4: Cache (redis)
 
 * [x] **Implementar redis:** para cachear las consultas a la base de datos. Las mas importantes
-* [] **Probar redis:**: Probar tiempos de respuesta , mostrando la diferencia entre sin / con redis
+* [x] **Probar redis:**: Probar tiempos de respuesta , mostrando la diferencia entre sin / con redis
 
 #### Fase 5: DevOps y Despliegue (Go-Live)
 
