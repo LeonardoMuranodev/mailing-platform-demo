@@ -30,12 +30,72 @@ interface ReboteProcesado {
  * Función principal que lee IMAP, procesa rebotes, actualiza BD y envía alerta consolidada.
  */
 export async function procesarRebotes() {
-  const { host, port, user, pass, tls } = config.imap;
+  const cuentasImap = MODO_PRUEBA ? config.imapTest : config.imapProd;
 
-  if (!host || !user || !pass) {
-    console.log('BounceService: Credenciales IMAP incompletas, saltando procesamiento de rebotes.');
+  if (!cuentasImap || cuentasImap.length === 0) {
+    console.log('BounceService: No hay cuentas IMAP configuradas para el modo actual, saltando procesamiento de rebotes.');
     return;
   }
+
+  const rebotadosGlobales: ReboteProcesado[] = [];
+
+  for (const cuenta of cuentasImap) {
+    console.log(`BounceService: Procesando rebotes para la cuenta ${cuenta.user}...`);
+    const rebotesCuenta = await procesarCuenta(cuenta);
+    if (rebotesCuenta.length > 0) {
+      rebotadosGlobales.push(...rebotesCuenta);
+    }
+  }
+
+  if (rebotadosGlobales.length > 0) {
+    // 1. Deduplicación por email_fallido (priorizando 'Failure' sobre 'Delay')
+    const rebotadosUnicosMap = new Map<string, ReboteProcesado>();
+    
+    for (const item of rebotadosGlobales) {
+      const email = item.email_fallido;
+      const subjectNuevo = item.subject_original.toLowerCase();
+
+      if (!rebotadosUnicosMap.has(email)) {
+        rebotadosUnicosMap.set(email, item);
+      } else {
+        const existente = rebotadosUnicosMap.get(email)!;
+        const subjectExistente = existente.subject_original.toLowerCase();
+
+        if (subjectNuevo.includes('failure') && !subjectExistente.includes('failure')) {
+          rebotadosUnicosMap.set(email, item);
+        }
+      }
+    }
+
+    const rebotadosUnicos = Array.from(rebotadosUnicosMap.values());
+
+    // 2. Actualizar la BD
+    for (const rebote of rebotadosUnicos) {
+      if (rebote.contacto_id) {
+        // Actualizar estado del contacto
+        await dbPool.query(`UPDATE contactos SET estado = $1 WHERE id = $2`, [rebote.estado_nuevo, rebote.contacto_id]);
+        
+        // Actualizar la cola de envíos para reflejar el error
+        await dbPool.query(`
+          UPDATE cola_envios
+          SET estado = 'fallido', respuesta_smtp = $1
+          WHERE contacto_id = $2 AND estado IN ('pendiente', 'procesando', 'enviado')
+        `, [rebote.motivo_error, rebote.contacto_id]);
+      }
+    }
+
+    console.log(`BounceService: ${rebotadosUnicos.length} rebotes totales procesados y BBDD actualizada.`);
+
+    // 3. Enviar notificación HTML
+    await enviarAvisoConsolidado(rebotadosUnicos);
+  } else {
+    console.log('BounceService: No se encontraron rebotes en ninguna de las cuentas.');
+  }
+}
+
+async function procesarCuenta(cuenta: any): Promise<ReboteProcesado[]> {
+  const { host, port, user, pass, tls } = cuenta;
+  const rebotados: ReboteProcesado[] = [];
 
   const client = new ImapFlow({
     host,
@@ -49,179 +109,130 @@ export async function procesarRebotes() {
   });
 
   try {
-    console.log('BounceService: Conectando a IMAP...');
+    console.log(`BounceService [${user}]: Conectando a IMAP...`);
     await client.connect();
     
-    // Abrir bandeja de entrada (normalmente 'INBOX' o 'Rebotes' si configuraste una carpeta)
     const mailbox = await client.mailboxOpen('INBOX');
-    console.log(`BounceService: Bandeja abierta. Mensajes totales: ${mailbox.exists}`);
-
-    // Buscar mensajes NO leídos
-    const rebotados: ReboteProcesado[] = [];
+    console.log(`BounceService [${user}]: Bandeja abierta. Mensajes totales: ${mailbox.exists}`);
     
-    // Obtenemos solo los no leídos
-    // Para simplificar, usamos client.fetch con flag \Seen
     const fetchQuery = { seen: false };
-    
-    // Si no hay no leídos, search() lanza error si está vacío o devuelve false/array vacío
     const searchResult = await client.search(fetchQuery);
     
     if (searchResult === false || searchResult.length === 0) {
-      console.log('BounceService: No hay correos no leídos.');
-    } else {
-      console.log(`BounceService: Procesando ${searchResult.length} correos no leídos...`);
-      
-      for await (const message of client.fetch(searchResult, { source: true, flags: true })) {
-        if (!message.source) continue;
-        
-        const parsed: ParsedMail = await simpleParser(message.source);
-        
-        const body = parsed.html || parsed.textAsHtml || parsed.text || '';
-        const bodyLower = body.toLowerCase();
-        const subjectLower = (parsed.subject || '').toLowerCase();
-        const fullText = `${subjectLower} ${bodyLower}`;
-
-        let nuevoEstado = 'rebotado_desconocido';
-        let razon = 'Motivo de rebote no categorizado';
-
-        // 1. EVALUACIÓN: BANDEJA LLENA / OVER QUOTA
-        if (
-          fullText.includes('bandeja de entrada del destinatario está llena') ||
-          fullText.includes('bandeja de entrada esté llena') ||
-          fullText.includes('recibiendo demasiados mensajes') ||
-          fullText.includes('over quota') ||
-          fullText.includes('mailbox is full') ||
-          fullText.includes('storage limit') ||
-          fullText.includes('espacio insuficiente') ||
-          fullText.includes('quota exceeded')
-        ) {
-          nuevoEstado = 'rebotado_bandeja_llena';
-          razon = 'Bandeja de entrada llena / Cuota excedida';
-        }
-        // 2. EVALUACIÓN: DIRECCIÓN / CUENTA INEXISTENTE
-        else if (
-          fullText.includes('does not exist') ||
-          fullText.includes('not found') ||
-          fullText.includes('user unknown') ||
-          fullText.includes('no se ha encontrado') ||
-          fullText.includes('no encontramos el dominio') ||
-          fullText.includes('address rejected') ||
-          fullText.includes('no existe la cuenta') ||
-          fullText.includes('unknown user') ||
-          fullText.includes('550 5.1.1')
-        ) {
-          nuevoEstado = 'rebotado_inexistente';
-          razon = 'El correo o dominio no existe';
-        }
-        // 3. EVALUACIÓN: SPAM / POLÍTICA / RECHAZO
-        else if (
-          fullText.includes('spam') ||
-          fullText.includes('rejected') ||
-          fullText.includes('policy') ||
-          fullText.includes('bloqueado') ||
-          fullText.includes('blacklisted') ||
-          fullText.includes('554 5.7.1')
-        ) {
-          nuevoEstado = 'rebotado_spam';
-          razon = 'Bloqueado por reglas de Spam / Política del servidor';
-        }
-
-        // Extracción de dirección de correo afectada
-        const regex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/gi;
-        const matches = body.match(regex);
-        
-        let emailFallido: string | null = null;
-        if (matches) {
-          emailFallido = matches.find((m: string) => {
-            const mailClean = m.toLowerCase().trim();
-            return !IGNORAR_MAILS.some(ignorado => mailClean.includes(ignorado));
-          }) || null;
-        }
-
-        if (emailFallido) {
-          emailFallido = emailFallido.toLowerCase().trim();
-          
-          // Buscar contacto en la BD para enriquecer
-          const contactoResult = await dbPool.query(
-            `SELECT id, empresa_nombre, cuit FROM contactos WHERE LOWER(email) = $1 LIMIT 1`, 
-            [emailFallido]
-          );
-
-          let empresaNombre = 'Sin Especificar';
-          let cuit = 'Sin CUIT';
-          let contactoId = '';
-
-          if (contactoResult.rows.length > 0) {
-            empresaNombre = contactoResult.rows[0].empresa_nombre || 'Sin Especificar';
-            cuit = contactoResult.rows[0].cuit || 'Sin CUIT';
-            contactoId = contactoResult.rows[0].id;
-          }
-
-          rebotados.push({
-            email_fallido: emailFallido,
-            estado_nuevo: nuevoEstado,
-            motivo_error: razon,
-            subject_original: parsed.subject || '',
-            empresa_nombre: empresaNombre,
-            cuit: cuit,
-            contacto_id: contactoId
-          });
-        }
-
-        // Marcar como leído
-        await client.messageFlagsAdd(message.seq.toString(), ['\\Seen'], { uid: false });
-      }
+      console.log(`BounceService [${user}]: No hay correos no leídos.`);
+      return [];
     }
-
-    if (rebotados.length > 0) {
-      // 1. Deduplicación por email_fallido (priorizando 'Failure' sobre 'Delay')
-      const rebotadosUnicosMap = new Map<string, ReboteProcesado>();
+    
+    console.log(`BounceService [${user}]: Procesando ${searchResult.length} correos no leídos...`);
+    
+    for await (const message of client.fetch(searchResult, { source: true, flags: true })) {
+      if (!message.source) continue;
       
-      for (const item of rebotados) {
-        const email = item.email_fallido;
-        const subjectNuevo = item.subject_original.toLowerCase();
+      const parsed: ParsedMail = await simpleParser(message.source);
+      
+      const body = parsed.html || parsed.textAsHtml || parsed.text || '';
+      const bodyLower = body.toLowerCase();
+      const subjectLower = (parsed.subject || '').toLowerCase();
+      const fullText = `${subjectLower} ${bodyLower}`;
 
-        if (!rebotadosUnicosMap.has(email)) {
-          rebotadosUnicosMap.set(email, item);
-        } else {
-          const existente = rebotadosUnicosMap.get(email)!;
-          const subjectExistente = existente.subject_original.toLowerCase();
+      let nuevoEstado = 'rebotado_desconocido';
+      let razon = 'Motivo de rebote no categorizado';
 
-          if (subjectNuevo.includes('failure') && !subjectExistente.includes('failure')) {
-            rebotadosUnicosMap.set(email, item);
-          }
-        }
+      // 1. EVALUACIÓN: BANDEJA LLENA / OVER QUOTA
+      if (
+        fullText.includes('bandeja de entrada del destinatario está llena') ||
+        fullText.includes('bandeja de entrada esté llena') ||
+        fullText.includes('recibiendo demasiados mensajes') ||
+        fullText.includes('over quota') ||
+        fullText.includes('mailbox is full') ||
+        fullText.includes('storage limit') ||
+        fullText.includes('espacio insuficiente') ||
+        fullText.includes('quota exceeded')
+      ) {
+        nuevoEstado = 'rebotado_bandeja_llena';
+        razon = 'Bandeja de entrada llena / Cuota excedida';
+      }
+      // 2. EVALUACIÓN: DIRECCIÓN / CUENTA INEXISTENTE
+      else if (
+        fullText.includes('does not exist') ||
+        fullText.includes('not found') ||
+        fullText.includes('user unknown') ||
+        fullText.includes('no se ha encontrado') ||
+        fullText.includes('no encontramos el dominio') ||
+        fullText.includes('address rejected') ||
+        fullText.includes('no existe la cuenta') ||
+        fullText.includes('unknown user') ||
+        fullText.includes('550 5.1.1')
+      ) {
+        nuevoEstado = 'rebotado_inexistente';
+        razon = 'El correo o dominio no existe';
+      }
+      // 3. EVALUACIÓN: SPAM / POLÍTICA / RECHAZO
+      else if (
+        fullText.includes('spam') ||
+        fullText.includes('rejected') ||
+        fullText.includes('policy') ||
+        fullText.includes('bloqueado') ||
+        fullText.includes('blacklisted') ||
+        fullText.includes('554 5.7.1')
+      ) {
+        nuevoEstado = 'rebotado_spam';
+        razon = 'Bloqueado por reglas de Spam / Política del servidor';
       }
 
-      const rebotadosUnicos = Array.from(rebotadosUnicosMap.values());
-
-      // 2. Actualizar la BD
-      for (const rebote of rebotadosUnicos) {
-        if (rebote.contacto_id) {
-          // Actualizar estado del contacto
-          await dbPool.query(`UPDATE contactos SET estado = $1 WHERE id = $2`, [rebote.estado_nuevo, rebote.contacto_id]);
-          
-          // Actualizar la cola de envíos para reflejar el error
-          await dbPool.query(`
-            UPDATE cola_envios
-            SET estado = 'fallido', respuesta_smtp = $1
-            WHERE contacto_id = $2 AND estado IN ('pendiente', 'procesando', 'enviado')
-          `, [rebote.motivo_error, rebote.contacto_id]);
-        }
+      // Extracción de dirección de correo afectada
+      const regex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/gi;
+      const matches = body.match(regex);
+      
+      let emailFallido: string | null = null;
+      if (matches) {
+        emailFallido = matches.find((m: string) => {
+          const mailClean = m.toLowerCase().trim();
+          return !IGNORAR_MAILS.some(ignorado => mailClean.includes(ignorado));
+        }) || null;
       }
 
-      console.log(`BounceService: ${rebotadosUnicos.length} rebotes procesados y BBDD actualizada.`);
+      if (emailFallido) {
+        emailFallido = emailFallido.toLowerCase().trim();
+        
+        // Buscar contacto en la BD para enriquecer
+        const contactoResult = await dbPool.query(
+          `SELECT id, empresa_nombre, cuit FROM contactos WHERE LOWER(email) = $1 LIMIT 1`, 
+          [emailFallido]
+        );
 
-      // 3. Enviar notificación HTML
-      await enviarAvisoConsolidado(rebotadosUnicos);
+        let empresaNombre = 'Sin Especificar';
+        let cuit = 'Sin CUIT';
+        let contactoId = '';
+
+        if (contactoResult.rows.length > 0) {
+          empresaNombre = contactoResult.rows[0].empresa_nombre || 'Sin Especificar';
+          cuit = contactoResult.rows[0].cuit || 'Sin CUIT';
+          contactoId = contactoResult.rows[0].id;
+        }
+
+        rebotados.push({
+          email_fallido: emailFallido,
+          estado_nuevo: nuevoEstado,
+          motivo_error: razon,
+          subject_original: parsed.subject || '',
+          empresa_nombre: empresaNombre,
+          cuit: cuit,
+          contacto_id: contactoId
+        });
+      }
+
+      // Marcar como leído
+      await client.messageFlagsAdd(message.seq.toString(), ['\\Seen'], { uid: false });
     }
-
   } catch (error) {
-    console.error('BounceService: Error procesando rebotes', error);
+    console.error(`BounceService [${user}]: Error procesando rebotes`, error);
   } finally {
-    await client.logout();
-    console.log('BounceService: Conexión IMAP cerrada.');
+    try { await client.logout(); } catch(e) {}
+    console.log(`BounceService [${user}]: Conexión IMAP cerrada.`);
   }
+  
+  return rebotados;
 }
 
 /**

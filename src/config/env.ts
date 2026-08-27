@@ -15,13 +15,20 @@ export const config = {
     user: process.env.SMTP_USER || '',
     pass: process.env.SMTP_PASS || '',
   },
-  imap: {
-    host: process.env.IMAP_HOST || '',
-    port: parseInt(process.env.IMAP_PORT || '993', 10),
-    user: process.env.IMAP_USER || '',
-    pass: process.env.IMAP_PASS || '',
-    tls: process.env.IMAP_TLS !== 'false',
-  },
+  imapTest: [1, 2, 3, 4, 5].map(i => ({
+    host: process.env[`IMAP${i}_TEST_HOST`],
+    port: parseInt(process.env[`IMAP${i}_TEST_PORT`] || '993', 10),
+    user: process.env[`IMAP${i}_TEST_USER`] || '',
+    pass: process.env[`IMAP${i}_TEST_PASS`] || '',
+    tls: process.env[`IMAP${i}_TEST_TLS`] !== 'false',
+  })).filter(a => a.host && a.user),
+  imapProd: [1, 2, 3, 4, 5].map(i => ({
+    host: process.env[`IMAP${i}_HOST`],
+    port: parseInt(process.env[`IMAP${i}_PORT`] || '993', 10),
+    user: process.env[`IMAP${i}_USER`] || '',
+    pass: process.env[`IMAP${i}_PASS`] || '',
+    tls: process.env[`IMAP${i}_TLS`] !== 'false',
+  })).filter(a => a.host && a.user),
   db: {
     host: process.env.DB_HOST || '',
     port: parseInt(process.env.DB_PORT || '6543', 10),
