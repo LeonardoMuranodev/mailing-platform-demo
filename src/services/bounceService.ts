@@ -112,7 +112,13 @@ async function procesarCuenta(cuenta: any): Promise<ReboteProcesado[]> {
     console.log(`BounceService [${user}]: Conectando a IMAP...`);
     await client.connect();
     
-    const mailbox = await client.mailboxOpen('INBOX');
+    let mailbox;
+    try {
+      mailbox = await client.mailboxOpen('rebotes');
+    } catch (e) {
+      console.log(`BounceService [${user}]: Carpeta 'rebotes' no encontrada, intentando con 'INBOX'...`);
+      mailbox = await client.mailboxOpen('INBOX');
+    }
     console.log(`BounceService [${user}]: Bandeja abierta. Mensajes totales: ${mailbox.exists}`);
     
     const fetchQuery = { seen: false };
@@ -238,7 +244,7 @@ async function procesarCuenta(cuenta: any): Promise<ReboteProcesado[]> {
 /**
  * Genera el HTML y envía el email consolidado a los administradores.
  */
-async function enviarAvisoConsolidado(rebotes: ReboteProcesado[]) {
+export async function enviarAvisoConsolidado(rebotes: ReboteProcesado[]) {
   const destinatario = MODO_PRUEBA ? "claseiatecno@gmail.com" : "dpim3f@gmail.com";
   const cantidad = rebotes.length;
   const esPlural = cantidad > 1;
