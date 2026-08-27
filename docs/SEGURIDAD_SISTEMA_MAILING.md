@@ -25,8 +25,7 @@
 - [ ] La autorización se valida **siempre en el backend**, nunca confiar en lo que oculta/muestra el frontend (esconder un botón no es seguridad).
 - [ ] Middleware centralizado que verifique rol/permiso en **cada** endpoint, no solo en las rutas "sensibles" obvias.
 - [ ] Revisar **IDOR** (Insecure Direct Object Reference): que un usuario no pueda acceder a contactos/campañas/estadísticas de otra empresa/cliente cambiando un `id` en la URL o el body. Validar ownership (`campaign.owner_id === req.user.id` o pertenencia a la organización) en cada consulta.
-- [ ] Si hay multi-tenant (varias empresas usando el sistema), aplicar **Row Level Security (RLS) en Supabase/Postgres** además de la validación en el backend (defensa en profundidad).
-- [ ] Principio de mínimo privilegio: el rol "encargada de campañas" no debería poder, por ejemplo, gestionar usuarios o ver credenciales de las 5 cuentas de envío si no le corresponde.
+- [ ] Principio de mínimo privilegio: el rol "invitado" no debería poder, por ejemplo, gestionar usuarios o ver credenciales de las 5 cuentas de envío si no le corresponde.
 - [ ] Auditar acciones sensibles: quién creó/editó/eliminó una campaña, quién exportó contactos, etc. (ver sección de logging).
 
 ## 3. Validación y sanitización de entradas
