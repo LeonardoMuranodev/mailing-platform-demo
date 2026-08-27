@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
+import DOMPurify from 'isomorphic-dompurify';
 import {
   crearCampana,
   cambiarEstadoCampana,
@@ -27,7 +28,12 @@ async function crear(req: Request, _res: Response, next: NextFunction): Promise<
       return;
     }
 
-    const campana = await crearCampana({ ...body, flyer_url });
+    const cuerpo_html = body.cuerpo_html ? DOMPurify.sanitize(body.cuerpo_html) : undefined;
+    
+    const campanaData = { ...body, flyer_url };
+    if (cuerpo_html) campanaData.cuerpo_html = cuerpo_html;
+
+    const campana = await crearCampana(campanaData);
     
     // Invalidamos el caché de campañas y estadísticas
     await clearCacheByPrefix('/api/campanas');

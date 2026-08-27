@@ -14,12 +14,22 @@ import {
 import { procesarCola } from './services/emailWorker.js';
 import { procesarRebotes, MODO_PRUEBA } from './services/bounceService.js';
 import cron from 'node-cron';
-
+import rateLimit from 'express-rate-limit';
 const app = express();
 
 // ── Security Middlewares ─────────────────────────────────
 app.use(securityHeaders);
 app.use(corsMiddleware);
+
+// ── Global Rate Limiter ──────────────────────────────────
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 300, // Límite de 300 peticiones por IP cada 15 min
+  message: { success: false, error: { code: 'TOO_MANY_REQUESTS', message: 'Demasiadas peticiones, intente más tarde' } },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(globalLimiter);
 
 // ── Body Parsers (con límite de tamaño) ─────────────────
 app.use(express.json({ limit: '1mb' }));
