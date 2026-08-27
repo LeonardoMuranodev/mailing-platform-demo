@@ -12,7 +12,7 @@ import {
   notifyUnhandledRejection,
 } from './services/telegramNotifier.js';
 import { procesarCola } from './services/emailWorker.js';
-import { procesarRebotes } from './services/bounceService.js';
+import { procesarRebotes, MODO_PRUEBA } from './services/bounceService.js';
 import cron from 'node-cron';
 
 const app = express();
@@ -67,9 +67,10 @@ app.listen(config.port, async () => {
     timezone: 'America/Argentina/Buenos_Aires',
   });
 
-  // Iniciar procesador de rebotes IMAP (Lunes a Viernes a las 18:00 hs)
-  console.log(`📥 Iniciando Worker IMAP de Rebotes (Cron: 0 18 * * 1-5)...`);
-  cron.schedule('0 18 * * 1-5', procesarRebotes, {
+  // Iniciar procesador de rebotes IMAP (Lunes a Viernes a las 18:00 hs, o cada 5 min en TEST)
+  const cronExpression = MODO_PRUEBA ? '*/5 * * * *' : '0 18 * * 1-5';
+  console.log(`📥 Iniciando Worker IMAP de Rebotes (Cron: ${cronExpression})...`);
+  cron.schedule(cronExpression, procesarRebotes, {
     timezone: 'America/Argentina/Buenos_Aires',
   });
 });

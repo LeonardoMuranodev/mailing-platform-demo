@@ -4,7 +4,7 @@ import { config } from '../config/env.js';
 import { dbPool } from '../config/db.js';
 import nodemailer from 'nodemailer';
 
-const MODO_PRUEBA = false; // Igual que en tu n8n
+export const MODO_PRUEBA = false; // Igual que en tu n8n
 
 // Emails a ignorar al extraer el destinatario rebotado
 const IGNORAR_MAILS = [
