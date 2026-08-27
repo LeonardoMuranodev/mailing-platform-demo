@@ -105,131 +105,152 @@ async function procesarCuenta(cuenta: any): Promise<ReboteProcesado[]> {
       user,
       pass,
     },
-    logger: false, // Desactivar logs verbose de imapflow
+    logger: false,
+    emitLogs: false,
+  });
+
+  client.on('error', (err) => {
+    console.error(`BounceService [${user}]: Error en socket IMAP:`, err.message);
   });
 
   try {
     console.log(`BounceService [${user}]: Conectando a IMAP...`);
     await client.connect();
-    
-    let mailbox;
-    try {
-      mailbox = await client.mailboxOpen('rebotes');
-    } catch (e) {
-      console.log(`BounceService [${user}]: Carpeta 'rebotes' no encontrada, intentando con 'INBOX'...`);
-      mailbox = await client.mailboxOpen('INBOX');
-    }
-    console.log(`BounceService [${user}]: Bandeja abierta. Mensajes totales: ${mailbox.exists}`);
-    
-    const fetchQuery = { seen: false };
-    const searchResult = await client.search(fetchQuery);
-    
-    if (searchResult === false || searchResult.length === 0) {
-      console.log(`BounceService [${user}]: No hay correos no leídos.`);
-      return [];
-    }
-    
-    console.log(`BounceService [${user}]: Procesando ${searchResult.length} correos no leídos...`);
-    
-    for await (const message of client.fetch(searchResult, { source: true, flags: true })) {
-      if (!message.source) continue;
-      
-      const parsed: ParsedMail = await simpleParser(message.source);
-      
-      const body = parsed.html || parsed.textAsHtml || parsed.text || '';
-      const bodyLower = body.toLowerCase();
-      const subjectLower = (parsed.subject || '').toLowerCase();
-      const fullText = `${subjectLower} ${bodyLower}`;
 
-      let nuevoEstado = 'rebotado_desconocido';
-      let razon = 'Motivo de rebote no categorizado';
+    const carpetasAChequear: { nombre: string; query: any }[] = [
+      { nombre: 'rebotes', query: { unseen: true } },
+      { nombre: 'INBOX', query: { unseen: true, from: 'mailer-daemon' } },
+    ];
 
-      // 1. EVALUACIÓN: BANDEJA LLENA / OVER QUOTA
-      if (
-        fullText.includes('bandeja de entrada del destinatario está llena') ||
-        fullText.includes('bandeja de entrada esté llena') ||
-        fullText.includes('recibiendo demasiados mensajes') ||
-        fullText.includes('over quota') ||
-        fullText.includes('mailbox is full') ||
-        fullText.includes('storage limit') ||
-        fullText.includes('espacio insuficiente') ||
-        fullText.includes('quota exceeded')
-      ) {
-        nuevoEstado = 'rebotado_bandeja_llena';
-        razon = 'Bandeja de entrada llena / Cuota excedida';
-      }
-      // 2. EVALUACIÓN: DIRECCIÓN / CUENTA INEXISTENTE
-      else if (
-        fullText.includes('does not exist') ||
-        fullText.includes('not found') ||
-        fullText.includes('user unknown') ||
-        fullText.includes('no se ha encontrado') ||
-        fullText.includes('no encontramos el dominio') ||
-        fullText.includes('address rejected') ||
-        fullText.includes('no existe la cuenta') ||
-        fullText.includes('unknown user') ||
-        fullText.includes('550 5.1.1')
-      ) {
-        nuevoEstado = 'rebotado_inexistente';
-        razon = 'El correo o dominio no existe';
-      }
-      // 3. EVALUACIÓN: SPAM / POLÍTICA / RECHAZO
-      else if (
-        fullText.includes('spam') ||
-        fullText.includes('rejected') ||
-        fullText.includes('policy') ||
-        fullText.includes('bloqueado') ||
-        fullText.includes('blacklisted') ||
-        fullText.includes('554 5.7.1')
-      ) {
-        nuevoEstado = 'rebotado_spam';
-        razon = 'Bloqueado por reglas de Spam / Política del servidor';
+    for (const { nombre, query } of carpetasAChequear) {
+      let mailbox;
+      try {
+        mailbox = await client.mailboxOpen(nombre);
+      } catch (e) {
+        continue; // Si no existe la carpeta, pasamos a la siguiente
       }
 
-      // Extracción de dirección de correo afectada
-      const regex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/gi;
-      const matches = body.match(regex);
-      
-      let emailFallido: string | null = null;
-      if (matches) {
-        emailFallido = matches.find((m: string) => {
-          const mailClean = m.toLowerCase().trim();
-          return !IGNORAR_MAILS.some(ignorado => mailClean.includes(ignorado));
-        }) || null;
+      const searchResult = await client.search(query);
+      if (!searchResult || searchResult.length === 0) {
+        continue;
       }
 
-      if (emailFallido) {
-        emailFallido = emailFallido.toLowerCase().trim();
-        
-        // Buscar contacto en la BD para enriquecer
-        const contactoResult = await dbPool.query(
-          `SELECT id, empresa_nombre, cuit FROM contactos WHERE LOWER(email) = $1 LIMIT 1`, 
-          [emailFallido]
-        );
+      console.log(`BounceService [${user}] en '${nombre}': Procesando ${searchResult.length} correos no leídos...`);
 
-        let empresaNombre = 'Sin Especificar';
-        let cuit = 'Sin CUIT';
-        let contactoId = '';
+      const fetchedMessages: { seq: number; source: Buffer }[] = [];
 
-        if (contactoResult.rows.length > 0) {
-          empresaNombre = contactoResult.rows[0].empresa_nombre || 'Sin Especificar';
-          cuit = contactoResult.rows[0].cuit || 'Sin CUIT';
-          contactoId = contactoResult.rows[0].id;
+      for await (const message of client.fetch(searchResult, { source: true })) {
+        if (message.source) {
+          fetchedMessages.push({ seq: message.seq, source: message.source });
+        }
+      }
+
+      if (fetchedMessages.length > 0) {
+        // Marcar todos como leídos en una sola operación IMAP
+        const seqList = fetchedMessages.map(m => m.seq).join(',');
+        try {
+          await client.messageFlagsAdd(seqList, ['\\Seen'], { uid: false });
+        } catch (flagErr) {
+          console.error(`BounceService [${user}]: Error al marcar flags:`, flagErr);
         }
 
-        rebotados.push({
-          email_fallido: emailFallido,
-          estado_nuevo: nuevoEstado,
-          motivo_error: razon,
-          subject_original: parsed.subject || '',
-          empresa_nombre: empresaNombre,
-          cuit: cuit,
-          contacto_id: contactoId
-        });
-      }
+        // Parsear mensajes y procesar rebotes
+        for (const msgItem of fetchedMessages) {
+          const parsed: ParsedMail = await simpleParser(msgItem.source);
 
-      // Marcar como leído
-      await client.messageFlagsAdd(message.seq.toString(), ['\\Seen'], { uid: false });
+          const body = parsed.html || parsed.textAsHtml || parsed.text || '';
+          const bodyLower = body.toLowerCase();
+          const subjectLower = (parsed.subject || '').toLowerCase();
+          const fullText = `${subjectLower} ${bodyLower}`;
+
+          let nuevoEstado = 'rebotado_desconocido';
+          let razon = 'Motivo de rebote no categorizado';
+
+          // 1. EVALUACIÓN: BANDEJA LLENA / OVER QUOTA
+          if (
+            fullText.includes('bandeja de entrada del destinatario está llena') ||
+            fullText.includes('bandeja de entrada esté llena') ||
+            fullText.includes('recibiendo demasiados mensajes') ||
+            fullText.includes('over quota') ||
+            fullText.includes('mailbox is full') ||
+            fullText.includes('storage limit') ||
+            fullText.includes('espacio insuficiente') ||
+            fullText.includes('quota exceeded')
+          ) {
+            nuevoEstado = 'rebotado_bandeja_llena';
+            razon = 'Bandeja de entrada llena / Cuota excedida';
+          }
+          // 2. EVALUACIÓN: DIRECCIÓN / CUENTA INEXISTENTE
+          else if (
+            fullText.includes('does not exist') ||
+            fullText.includes('not found') ||
+            fullText.includes('user unknown') ||
+            fullText.includes('no se ha encontrado') ||
+            fullText.includes('no encontramos el dominio') ||
+            fullText.includes('address rejected') ||
+            fullText.includes('no existe la cuenta') ||
+            fullText.includes('unknown user') ||
+            fullText.includes('550 5.1.1')
+          ) {
+            nuevoEstado = 'rebotado_inexistente';
+            razon = 'El correo o dominio no existe';
+          }
+          // 3. EVALUACIÓN: SPAM / POLÍTICA / RECHAZO
+          else if (
+            fullText.includes('spam') ||
+            fullText.includes('rejected') ||
+            fullText.includes('policy') ||
+            fullText.includes('bloqueado') ||
+            fullText.includes('blacklisted') ||
+            fullText.includes('554 5.7.1')
+          ) {
+            nuevoEstado = 'rebotado_spam';
+            razon = 'Bloqueado por reglas de Spam / Política del servidor';
+          }
+
+          // Extracción de dirección de correo afectada
+          const regex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/gi;
+          const matches = body.match(regex);
+
+          let emailFallido: string | null = null;
+          if (matches) {
+            emailFallido = matches.find((m: string) => {
+              const mailClean = m.toLowerCase().trim();
+              return !IGNORAR_MAILS.some(ignorado => mailClean.includes(ignorado));
+            }) || null;
+          }
+
+          if (emailFallido) {
+            emailFallido = emailFallido.toLowerCase().trim();
+
+            // Buscar contacto en la BD para enriquecer
+            const contactoResult = await dbPool.query(
+              `SELECT id, empresa_nombre, cuit FROM contactos WHERE LOWER(email) = $1 LIMIT 1`,
+              [emailFallido]
+            );
+
+            let empresaNombre = 'Sin Especificar';
+            let cuit = 'Sin CUIT';
+            let contactoId = '';
+
+            if (contactoResult.rows.length > 0) {
+              empresaNombre = contactoResult.rows[0].empresa_nombre || 'Sin Especificar';
+              cuit = contactoResult.rows[0].cuit || 'Sin CUIT';
+              contactoId = contactoResult.rows[0].id;
+            }
+
+            rebotados.push({
+              email_fallido: emailFallido,
+              estado_nuevo: nuevoEstado,
+              motivo_error: razon,
+              subject_original: parsed.subject || '',
+              empresa_nombre: empresaNombre,
+              cuit: cuit,
+              contacto_id: contactoId,
+            });
+          }
+        }
+      }
     }
   } catch (error) {
     console.error(`BounceService [${user}]: Error procesando rebotes`, error);
