@@ -10,6 +10,7 @@ const ESTADO_BADGE_CLASSES: Record<string, string> = {
   borrador: 'bg-slate-100 text-slate-600 border-slate-200',
   aprobada: 'bg-blue-50 text-blue-700 border-blue-200',
   en_proceso: 'bg-amber-50 text-amber-700 border-amber-200',
+  pausada: 'bg-orange-50 text-orange-700 border-orange-200',
   completada: 'bg-green-50 text-green-700 border-green-200',
   cancelada: 'bg-red-50 text-red-700 border-red-200',
 };
@@ -18,6 +19,7 @@ const ESTADO_LABELS: Record<string, string> = {
   borrador: 'Borrador',
   aprobada: 'Aprobada',
   en_proceso: 'En Proceso',
+  pausada: 'Pausada',
   completada: 'Completada',
   cancelada: 'Cancelada',
 };
@@ -44,13 +46,16 @@ export default function DetalleCampana() {
   const [emailFiltro, setEmailFiltro] = useState('');
   const [estadoFiltro, setEstadoFiltro] = useState('');
 
-  const fetchData = async () => {
+  const fetchData = async (overrideEmail?: string, overrideEstado?: string) => {
     if (!id) return;
     setLoading(true);
     try {
+      const emailToUse = overrideEmail !== undefined ? overrideEmail : emailFiltro;
+      const estadoToUse = overrideEstado !== undefined ? overrideEstado : estadoFiltro;
+      
       const [campanaRes, colaRes] = await Promise.all([
         obtenerCampanaDetalle(id),
-        obtenerColaCampana(id, { email: emailFiltro, estado: estadoFiltro })
+        obtenerColaCampana(id, { email: emailToUse, estado: estadoToUse })
       ]);
       
       if (campanaRes.success && campanaRes.data) {
@@ -78,7 +83,11 @@ export default function DetalleCampana() {
   const handleTogglePausa = async () => {
     if (!campana) return;
     try {
-      const nuevoEstado = campana.estado === 'pausada' ? 'en_proceso' : 'pausada';
+      let nuevoEstado = 'pausada';
+      if (campana.estado === 'pausada') {
+        nuevoEstado = campana.stats.pendientes === 0 ? 'completada' : 'en_proceso';
+      }
+      
       const res = await cambiarEstadoCampana(campana.id, nuevoEstado);
       if (res.success && res.data) {
         setCampana(prev => prev ? { ...prev, estado: res.data!.estado } : prev);
@@ -203,9 +212,11 @@ export default function DetalleCampana() {
                 }} className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors text-sm font-medium" title="Ignorar cron y procesar la cola de envíos ahora mismo">
                   <Send size={16} /> Forzar Envío
                 </button>
-                <button onClick={handleTogglePausa} className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors text-sm font-medium">
-                  <Pause size={16} /> Pausar
-                </button>
+                {campana.estado === 'en_proceso' && (
+                  <button onClick={handleTogglePausa} className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors text-sm font-medium">
+                    <Pause size={16} /> Pausar
+                  </button>
+                )}
               </>
             )}
             {campana.estado === 'pausada' && (
@@ -281,10 +292,17 @@ export default function DetalleCampana() {
                   <option value="enviado">Enviado</option>
                   <option value="fallido">Fallido</option>
                 </select>
-                <button type="submit" className="bg-background text-muted border border-border hover:bg-border hover:text-dark px-4 py-2 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-colors">
-                  <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-                  Actualizar
-                </button>
+                <div className="flex gap-2">
+                  <button type="submit" className="flex-1 sm:flex-none bg-background text-muted border border-border hover:bg-border hover:text-dark px-4 py-2 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-colors">
+                    <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                    Actualizar
+                  </button>
+                  {(emailFiltro || estadoFiltro) && (
+                    <button type="button" onClick={() => { setEmailFiltro(''); setEstadoFiltro(''); fetchData('', ''); }} className="flex-1 sm:flex-none bg-background text-danger border border-border hover:bg-red-50 hover:border-red-200 px-4 py-2 rounded-lg font-medium text-sm flex items-center justify-center transition-colors">
+                      Limpiar
+                    </button>
+                  )}
+                </div>
               </form>
 
               {/* Tabla Cola */}

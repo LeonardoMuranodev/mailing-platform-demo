@@ -11,6 +11,7 @@ const loginLimiter = rateLimit({
   message: { success: false, error: { code: 'TOO_MANY_REQUESTS', message: 'Demasiados intentos de login fallidos, intente de nuevo en 15 minutos' } },
   standardHeaders: true,
   legacyHeaders: false,
+  skipSuccessfulRequests: true,
 });
 
 export const authRouter = Router();

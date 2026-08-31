@@ -12,6 +12,7 @@ const ESTADO_BADGE_CLASSES: Record<string, string> = {
   borrador: 'bg-slate-100 text-slate-600 border border-slate-200',
   aprobada: 'bg-blue-50 text-blue-700 border border-blue-200',
   en_proceso: 'bg-amber-50 text-amber-700 border border-amber-200',
+  pausada: 'bg-orange-50 text-orange-700 border border-orange-200',
   completada: 'bg-green-50 text-green-700 border border-green-200',
   cancelada: 'bg-red-50 text-red-700 border border-red-200',
 };
@@ -20,6 +21,7 @@ const ESTADO_LABELS: Record<string, string> = {
   borrador: 'Borrador',
   aprobada: 'Aprobada',
   en_proceso: 'En Proceso',
+  pausada: 'Pausada',
   completada: 'Completada',
   cancelada: 'Cancelada',
 };

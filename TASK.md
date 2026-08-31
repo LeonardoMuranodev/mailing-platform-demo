@@ -54,4 +54,13 @@
 * [x] **Logs Estructurados / Alertas:** Actualmente los errores van a la consola (`console.log`). Se podría conectar algo muy simple para guardar un archivo `.log` por día, útil si el servidor queda corriendo semanas.
 
 [x] Confirmar que anda el estado EN proceso y el boton de pausar y reanudar la campaña
-[x] Que se pueda eliminar varias con un check
+[x] Que se pueda eliminar varias con un 
+
+El estado pausada en el frontend estaria bueno que aparezaca "Pausada" con la P en mayuscula
+El pausada  aparece cuando esta Aprobada
+El estado pausada no pausa nada. Esta mal ese estado
+Luego de que este pausado y se reanude, me marco como en rpcoeso cuando ya deberia estar completada. Es un error que puede deberse al fallo de pausada que sigue enviando, osea, no deberia pasar nunca que tengo lo pauso y no tengo mas para enviar osea completado. Osea quizas es error se solucione, arreglando el estado pausada. Ahi se arreglo a Completada nose porque
+Error con los Flyers no cargan y no deberia pasar ya que antes funcionaban. En el mail aparece como que no hay imagen y en upload no aparece archivo alguno
+EN la cola de envios, al tocar el boton "Actualizar", cambie a estado fallido y no se vio nada todo OK. Pero al restablecer el filtro a "Todos los estados" no me aparecia nada 
+
+Reinicie la pagina y me mando al logueo y me da "Demasiado intetnos de login, intenta devuelta en 15 minutos
