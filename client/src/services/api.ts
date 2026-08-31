@@ -70,6 +70,17 @@ export async function cambiarEstadoCampana(
   });
 }
 
+/**
+ * Elimina una campaña.
+ */
+export async function eliminarCampana(
+  id: string,
+): Promise<ApiResponse<{ message: string }>> {
+  return fetchApi<{ message: string }>(`${API_BASE}/api/campanas/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 export interface CampanasPaginatedResponse {
   data: CampanaResponse[];
   total: number;
@@ -131,6 +142,15 @@ export async function obtenerColaCampana(
   if (filtros?.fecha_hasta) query.append('fecha_hasta', filtros.fecha_hasta);
 
   return fetchApi<ColaEnvioItem[]>(`${API_BASE}/api/queue/${campanaId}?${query.toString()}`);
+}
+
+/**
+ * Fuerza el procesamiento inmediato de la cola de envíos.
+ */
+export async function forzarEnvioCola(): Promise<ApiResponse<{ message: string }>> {
+  return fetchApi<{ message: string }>(`${API_BASE}/api/queue/procesar-ahora`, {
+    method: 'POST',
+  });
 }
 
 /**

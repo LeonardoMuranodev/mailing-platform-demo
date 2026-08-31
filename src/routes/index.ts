@@ -11,6 +11,7 @@ import { requireAuth } from '../middlewares/requireAuth.js';
 import { requireRole } from '../middlewares/requireRole.js';
 import { healthRouter } from './healthRoutes.js';
 import { dnsRouter } from './dnsRoutes.js';
+import { trackRouter } from './trackRoutes.js';
 import { apiLimiter, authLimiter, queueLimiter } from '../middlewares/rateLimiter.js';
 
 export function registerRoutes(app: Application): void {
@@ -25,6 +26,9 @@ export function registerRoutes(app: Application): void {
 
   // DNS Check
   app.use('/api/dns', dnsRouter);
+
+  // Tracking endpoints (Públicos - Para clientes de correo)
+  app.use('/api/track', trackRouter);
 
   // Campañas y Contactos rutas a partir de aquí requieren autenticación
   app.use('/api', requireAuth);

@@ -93,6 +93,8 @@ export interface CampanaExportRow {
   enviados: number;
   fallidos: number;
   pendientes: number;
+  abiertos: number;
+  clicks: number;
 }
 
 export async function obtenerCampanasParaExportar(): Promise<CampanaExportRow[]> {
@@ -102,7 +104,9 @@ export async function obtenerCampanasParaExportar(): Promise<CampanaExportRow[]>
       COUNT(ce.id)::int as total_envios,
       COUNT(ce.id) FILTER (WHERE ce.estado = 'enviado')::int as enviados,
       COUNT(ce.id) FILTER (WHERE ce.estado = 'fallido')::int as fallidos,
-      COUNT(ce.id) FILTER (WHERE ce.estado = 'pendiente' OR ce.estado = 'procesando')::int as pendientes
+      COUNT(ce.id) FILTER (WHERE ce.estado = 'pendiente' OR ce.estado = 'procesando')::int as pendientes,
+      COUNT(ce.id) FILTER (WHERE ce.fecha_apertura IS NOT NULL)::int as abiertos,
+      COUNT(ce.id) FILTER (WHERE ce.fecha_click IS NOT NULL)::int as clicks
     FROM campanas c
     LEFT JOIN cola_envios ce ON c.id = ce.campana_id
     GROUP BY c.id

@@ -4,6 +4,7 @@ import { obtenerSiguienteSmtpDisponible, incrementarCuotaSmtp } from './queueSer
 import { notificarCampanaTerminada, notificarCuotaGlobalAgotada } from './notificationService.js';
 import { generarHtmlDesdeCampana } from './emailTemplate.js';
 import { decrypt } from '../utils/encryption.js';
+import { config } from '../config/env.js';
 import type { Campana } from '../types/campana.js';
 
 let isWorkerRunning = false;
@@ -148,7 +149,29 @@ export async function procesarCola(): Promise<void> {
           actualizado_en: ''
         };
 
-        const html = generarHtmlDesdeCampana(campanaMock);
+        let html = generarHtmlDesdeCampana(campanaMock);
+        
+        // ── TRACKING INJECTION ──
+        const trackBase = config.publicApiUrl || 'http://localhost:3000';
+        
+        // 1. Reemplazar enlaces para Click Tracking (solo http/https)
+        html = html.replace(/<a\s+(?:[^>]*?\s+)?href=["'](https?:\/\/[^"']+)["']/gi, (match, url) => {
+          const encoded = encodeURIComponent(url);
+          return match.replace(url, `${trackBase}/api/track/click/${item.id}?url=${encoded}`);
+        });
+
+        // 2. Open Tracking Pixel (antes de </body> o al final)
+        const pixelHtml = `<img src="${trackBase}/api/track/open/${item.id}" width="1" height="1" style="display:none;max-height:0px;max-width:0px;opacity:0;overflow:hidden;" alt="" />`;
+        
+        // 3. Variabilidad Anti-Spam
+        const hashHtml = `<span style="display:none;color:transparent;opacity:0;font-size:0px;line-height:0px;max-height:0px;max-width:0px;overflow:hidden;">Ref: ${item.id}-${Date.now().toString(36)}</span>`;
+
+        if (html.includes('</body>')) {
+          html = html.replace('</body>', `${pixelHtml}\n${hashHtml}\n</body>`);
+        } else {
+          html += `\n${pixelHtml}\n${hashHtml}`;
+        }
+        // ────────────────────────
         const pass = decrypt(cuentaSmtp.password_encrypted);
 
         const transporter = nodemailer.createTransport({

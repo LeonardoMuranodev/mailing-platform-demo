@@ -4,7 +4,7 @@ import path from 'node:path';
 
 async function run() {
   try {
-    const sql = fs.readFileSync(path.join(process.cwd(), 'src/migrations/005_smtp_min_max.sql'), 'utf-8');
+    const sql = fs.readFileSync(path.join(process.cwd(), 'src/migrations/007_campanas_pausada.sql'), 'utf-8');
     await dbPool.query(sql);
     console.log('Migration applied successfully.');
   } catch (err) {

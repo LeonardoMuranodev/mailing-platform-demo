@@ -14,3 +14,6 @@ queueRouter.post(
 
 // GET /api/queue/:campanaId — Listar cola de envíos con filtros
 queueRouter.get('/:campanaId', queueController.listarCola);
+
+// POST /api/queue/procesar-ahora — Forzar envío manual
+queueRouter.post('/procesar-ahora', queueController.forzarEnvio);

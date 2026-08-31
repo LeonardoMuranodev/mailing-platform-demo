@@ -3,6 +3,7 @@ export type EstadoCampana =
   | 'borrador'
   | 'aprobada'
   | 'en_proceso'
+  | 'pausada'
   | 'completada'
   | 'cancelada';
 

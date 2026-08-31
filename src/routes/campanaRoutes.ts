@@ -34,3 +34,10 @@ campanaRouter.patch(
   campanaController.cambiarEstado,
 );
 
+// DELETE /api/campanas/:id — Eliminar campaña
+campanaRouter.delete(
+  '/:id',
+  requireRole(['desarrollador', 'encargada']),
+  campanaController.eliminar,
+);
+

@@ -3,7 +3,7 @@
 #### Fase 1: El Motor (Core Business & Entregabilidad)
 
 * [x] **Lógica de envío y rotación SMTP (Round-Robin):** Testear exhaustivamente la asignación de cuentas, respeto de límites diarios y actualización de estados (`enviado` / `fallido`).
-* [x] **Link de desuscripción y manejo de rebotes:** *(Omitido según respuesta del usuario)*.
+* [] **Link de desuscripción y manejo de rebotes:** *(Omitido según respuesta del usuario)*.
 * [x] **Verificación DNS (SPF / DKIM / DMARC):** Validar la salud del dominio emisor para evitar caer en spam.
 * [x] **Aviso de campaña terminada:** Reutilizar flujo de n8n para notificar (Email/Telegram) cuando la `cola_envios` quede sin registros pendientes.
 
@@ -24,7 +24,7 @@
 
 * [x] **Paginación:** Implementar en las vistas de Contactos y Campañas para evitar colapsos de memoria en el navegador.
 * [x] **Corrección CSS (Checkboxes/Selects):** Solucionar el padding de los iconos en listas desplegables y checkboxes.
-* [x] **Refactor Visual Global:** Cambiar logo sin fondo, ajustar el `max-width` (ej: `max-w-6xl`) para mejor lectura en notebooks y refinar el CSS.
+* [] **Refactor Visual Global:** Cambiar logo sin fondo, ajustar el `max-width` (ej: `max-w-6xl`) para mejor lectura en notebooks y refinar el CSS.
 * [x] **Responsive Design:** Asegurar que las tablas y modales sean usables en resoluciones móviles/tablets.
 * [x] **Actualización de Meta/Title:** Cambiar title y favicon de la página en `index.html`.
 
@@ -40,35 +40,18 @@
 * [] **Despliegue Final:** Subir al repositorio Git corporativo (con VPN) y levantar el `docker-compose.yml` en el servidor de producción.
 * [] **Importar los contactos de la base de datos de Google Sheets:** al sistema
 
----
+#### Fase 6: Analíticas y Tracking (Prioridad Media/Alta)
+* **Open Tracking (Pixel Invisible):** Inyectar un `<img src="https://tudominio.com/api/track/open/:id_envio" width="1" height="1" />` oculto en el HTML de la campaña. Cuando el cliente abre el mail, el servidor registra la apertura.
+* **Click Tracking:** Envolver todos los links (ej: a tu WhatsApp o Web) con una URL redireccionadora del backend (ej: `.../api/track/click/:id_envio?url=...`).
+* **Dashboard de Conversión:** Visualizar en el frontend el % de enviados, rebotados, abiertos y clickeados de cada campaña para medir qué copys/textos funcionan mejor.
 
-### 🧠 Refresh Arquitectónico: Conceptos Clave
+#### Fase 7: Operatividad y Frontend (Prioridad Media)
+* **Importador Visual de Contactos:** Una sección en el frontend donde subas un CSV/Excel o conectes Google Sheets y puedas mapear columnas visualmente (Ej: "Columna A -> Nombre", "Columna B -> Email").
+* **Pausado de Emergencia:** Un botón de "Pausar Campaña" por si te das cuenta 2 minutos después de lanzar que te equivocaste en un link o en el copy, para que el cron job deje de enviar.
 
-Para que tengas el mapa mental claro al momento de implementar, aquí está la lógica detrás de los puntos críticos:
+#### Fase 8: Infraestructura
+* **Detección de "Cuenta Quemada":** Si una cuenta SMTP empieza a rebotar muchos mensajes repentinamente (ej. Google la bloquea temporalmente), el sistema debería detectar ese "pico" y suspender la cuenta temporalmente, rotando todo el tráfico a las demás.
+* **Logs Estructurados / Alertas:** Actualmente los errores van a la consola (`console.log`). Se podría conectar algo muy simple para guardar un archivo `.log` por día, útil si el servidor queda corriendo semanas.
 
-#### 1. Rotación de Cuentas SMTP (Round-Robin)
-
-El objetivo es "diluir" el volumen de envíos para que Google no bloquee las cuentas por ráfagas de spam.
-
-* **Lógica SQL:** Cuando el worker necesita enviar un correo, el backend ejecuta una consulta que busca cuentas donde `estado = 'activo'` y `enviados_hoy < limite_diario` (ej. 400).
-* **El truco (Round-Robin):** Se ordena la consulta por `ultimo_uso ASC NULLS FIRST LIMIT 1`. Esto garantiza que el sistema siempre elija la cuenta que ha estado "descansando" por más tiempo.
-* **Circuit Breaker:** Si la cuenta alcanza su límite diario, el sistema actualiza automáticamente su estado a `agotado`, sacándola de la rotación hasta el reseteo del día siguiente.
-
-#### 2. Entregabilidad y DNS (SPF, DKIM, DMARC)
-
-Si envías desde `@gmail.com` nativo, Google ya firma los correos. Pero si en el futuro conectas un dominio personalizado del municipio (ej. `@tresdefebrero.gov.ar`) usando Google Workspace o un SMTP transaccional (SendGrid, AWS SES), enviar un correo sin estos registros es un viaje directo a la carpeta de SPAM.
-
-* **SPF:** Dice qué IPs están autorizadas a enviar correos en nombre de tu dominio.
-* **DKIM:** Es una firma criptográfica oculta en el correo que garantiza que no fue alterado en el camino.
-
-#### 3. Rate Limiting (Defensa contra Bots)
-
-Tu API actualmente está expuesta. Si un bot ataca el endpoint de `/api/auth/login` probando miles de contraseñas, o ataca el endpoint de `/api/queue/poblar`, puede tirar el servidor o saturar la base de datos.
-
-* **Solución:** Se implementa un middleware en Express (como `express-rate-limit`). Se configura, por ejemplo, para que una misma IP solo pueda intentar loguearse 5 veces por minuto. Si se excede, el servidor devuelve un error `HTTP 429 (Too Many Requests)`.
-
-#### 4. Estrategia de Backups (Dump Automatizado)
-
-Si bien la base de datos tiene persistencia en volúmenes Docker, si el servidor físico sufre un fallo irrecuperable o alguien hace un `DROP TABLE` por error, pierdes todo el directorio.
-
-* **Solución n8n-Native:** Puedes armar un flujo en tu instancia de n8n con un *Cron Trigger* (ej. todos los días a las 3 AM) que ejecute un *Execute Command* corriendo `pg_dump` directo al contenedor de PostgreSQL, y luego tome ese archivo `.sql` y lo suba mediante un nodo a Google Drive o S3. Es 100% automatizado y fuera del servidor principal.
+Confirmar que anda el estado EN proceso y el boton de pausar y reanudar la campaña
+Que se pueda eliminar varias con un check

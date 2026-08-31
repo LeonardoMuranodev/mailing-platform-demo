@@ -6,6 +6,7 @@ import {
   obtenerCampanaPorId,
   listarCampanas,
   obtenerCampanaConEstadisticas,
+  eliminarCampana,
 } from '../services/campanaService.js';
 import { sendSuccess, sendError } from '../utils/responseHandler.js';
 import type { CrearCampanaBody, CambiarEstadoBody } from '../schemas/campanaSchema.js';
@@ -129,10 +130,34 @@ async function detalle(req: Request, res: Response, next: NextFunction): Promise
   }
 }
 
+/**
+ * DELETE /api/campanas/:id
+ */
+async function eliminar(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const id = req.params.id as string;
+    const deleted = await eliminarCampana(id);
+
+    if (!deleted) {
+      sendError(res, 'NOT_FOUND', 'Campaña no encontrada', 404);
+      return;
+    }
+
+    // Invalidamos el caché
+    await clearCacheByPrefix('/api/campanas');
+    await clearCacheByPrefix('/api/stats');
+
+    sendSuccess(res, { message: 'Campaña eliminada correctamente' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export const campanaController = {
   crear,
   obtenerPorId,
   cambiarEstado,
   listar,
   detalle,
+  eliminar,
 };

@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Filter, RotateCcw } from 'lucide-react';
-import { listarCampanas } from '../services/api';
+import { Plus, Search, Filter, RotateCcw, CalendarIcon, Trash2, AlertTriangle } from 'lucide-react';
+import { listarCampanas, eliminarCampana } from '../services/api';
 import type { CampanaResponse } from '../types/campana';
 import { usePermisos } from '../hooks/usePermisos';
 import { formatDate } from '../utils/formatDate';
@@ -41,8 +41,11 @@ export default function ListaCampanas() {
   const [rubro, setRubro] = useState('');
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
+  
+  // Confirm Delete
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  const fetchCampanas = async (currentPage = page) => {
+  const fetchCampanas = useCallback(async (currentPage = page) => {
     setLoading(true);
     try {
       const res = await listarCampanas({ 
@@ -60,7 +63,7 @@ export default function ListaCampanas() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [asunto, estado, rubro, fechaDesde, fechaHasta, limit, page]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,13 +91,25 @@ export default function ListaCampanas() {
     });
   };
 
+  const handleDelete = async () => {
+    if (!deleteConfirmId) return;
+    try {
+      const res = await eliminarCampana(deleteConfirmId);
+      if (res.success) {
+        setCampanas(prev => prev.filter(c => c.id !== deleteConfirmId));
+        setDeleteConfirmId(null);
+        fetchCampanas(page);
+      }
+    } catch (err) {
+      console.error('Error al eliminar campaña:', err);
+    }
+  };
+
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
-  // Actualizar cuando cambie la página o límite
   useEffect(() => {
     fetchCampanas(page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, limit]);
+  }, [page, limit, fetchCampanas]);
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6">
@@ -208,12 +223,13 @@ export default function ListaCampanas() {
                 <th className="px-6 py-4">Destinatarios</th>
                 <th className="px-6 py-4">Estado</th>
                 <th className="px-6 py-4">Fecha Límite</th>
+                <th className="px-6 py-4 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-muted">
+                  <td colSpan={5} className="px-6 py-12 text-center text-muted">
                     <div className="animate-pulse flex flex-col items-center">
                       <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-3"></div>
                       Cargando campañas...
@@ -222,7 +238,7 @@ export default function ListaCampanas() {
                 </tr>
               ) : campanas.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-muted">
+                  <td colSpan={5} className="px-6 py-12 text-center text-muted">
                     No se encontraron campañas.
                   </td>
                 </tr>
@@ -252,7 +268,22 @@ export default function ListaCampanas() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        {campana.fecha_limite_envio ? formatDate(campana.fecha_limite_envio) : '-'}
+                        <div className="flex items-center gap-1.5">
+                          <CalendarIcon size={14} />
+                          {campana.fecha_limite_envio ? formatDate(campana.fecha_limite_envio) : '-'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteConfirmId(campana.id);
+                          }}
+                          className="p-1.5 text-muted hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Eliminar campaña"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </td>
                     </tr>
                   );
@@ -304,6 +335,42 @@ export default function ListaCampanas() {
           </div>
         )}
       </div>
+
+      {/* Modal de Confirmación de Eliminación */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="flex justify-center mb-4">
+                <div className="bg-red-100 p-3 rounded-full">
+                  <AlertTriangle size={32} className="text-red-600" />
+                </div>
+              </div>
+              <h3 className="text-xl font-bold text-center text-dark mb-2">
+                ¿Eliminar campaña?
+              </h3>
+              <p className="text-center text-muted mb-6">
+                Estás a punto de eliminar esta campaña. Se borrará todo su historial y estadísticas. Esta acción no se puede deshacer.
+              </p>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDeleteConfirmId(null)}
+                  className="flex-1 py-2.5 px-4 bg-surface border border-border text-dark rounded-lg font-medium hover:bg-border transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="flex-1 py-2.5 px-4 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors shadow-sm"
+                >
+                  Sí, Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ dotenv.config();
 
 export const config = {
   port: process.env.PORT || 3000,
+  publicApiUrl: process.env.PUBLIC_API_URL || process.env.VITE_API_BASE_URL || `http://localhost:${process.env.PORT || 3000}`,
   supabase: {
     url: process.env.SUPABASE_URL || '',
     anonKey: process.env.SUPABASE_ANON_KEY || '',

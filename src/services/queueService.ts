@@ -143,6 +143,8 @@ export interface ColaEnvioConDetalles {
   respuesta_smtp: string | null;
   intentos: number;
   fecha_envio: string | null;
+  fecha_apertura: string | null;
+  fecha_click: string | null;
   cuenta_smtp_email: string | null;
   creado_en: string;
 }
@@ -206,6 +208,8 @@ export async function obtenerColaPorCampana(
       ce.respuesta_smtp,
       ce.intentos,
       ce.fecha_envio,
+      ce.fecha_apertura,
+      ce.fecha_click,
       cs.email AS cuenta_smtp_email,
       ce.creado_en
     FROM cola_envios ce

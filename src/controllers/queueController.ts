@@ -46,7 +46,27 @@ async function listarCola(req: Request, res: Response, next: NextFunction): Prom
   }
 }
 
+import { procesarCola } from '../services/emailWorker.js';
+
+/**
+ * POST /api/queue/procesar-ahora
+ * Fuerzan la ejecución del worker de envíos.
+ */
+async function forzarEnvio(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    // Fire and forget (no esperamos a que termine para responder)
+    procesarCola().catch((err) => {
+      console.error('[Worker] Error al procesar cola forzadamente:', err);
+    });
+    
+    sendSuccess(res, { message: 'Procesamiento de cola iniciado' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export const queueController = {
   poblar,
   listarCola,
+  forzarEnvio,
 };

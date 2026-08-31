@@ -10,6 +10,8 @@ export interface CampanaFormData {
   rubros_seleccionados: string[];
 }
 
+export type EstadoCampana = 'borrador' | 'aprobada' | 'en_proceso' | 'pausada' | 'completada' | 'cancelada';
+
 /** Campaña retornada por el backend */
 export interface CampanaResponse {
   id: string;
@@ -21,7 +23,7 @@ export interface CampanaResponse {
   prioridad: 'alta' | 'media' | 'baja';
   para_todos_rubros: boolean;
   rubros_seleccionados: string[];
-  estado: 'borrador' | 'aprobada' | 'en_proceso' | 'completada' | 'cancelada';
+  estado: EstadoCampana;
   creado_en: string;
   actualizado_en: string;
 }
@@ -33,6 +35,8 @@ export interface CampanaConStats extends CampanaResponse {
     pendientes: number;
     enviados: number;
     fallidos: number;
+    abiertos: number;
+    clicks: number;
   };
 }
 
@@ -44,6 +48,8 @@ export interface ColaEnvioItem {
   respuesta_smtp: string | null;
   intentos: number;
   fecha_envio: string | null;
+  fecha_apertura: string | null;
+  fecha_click: string | null;
   cuenta_smtp_email: string | null;
   creado_en: string;
 }

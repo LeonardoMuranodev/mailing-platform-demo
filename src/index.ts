@@ -71,9 +71,10 @@ app.listen(config.port, async () => {
   await testDbConnection();
   await seedUsuarios();
 
-  // Iniciar worker SMTP con Cron (Lunes a Viernes de 9 a 17 hs)
-  console.log(`🔄 Iniciando Worker SMTP (Cron: 0 9-17 * * 1-5)...`);
-  cron.schedule('0 9-17 * * 1-5', procesarCola, {
+  // Iniciar worker SMTP con Cron (Lunes a Viernes de 9 a 17 hs, o cada 1 min en TEST)
+  const cronSmtp = MODO_PRUEBA ? '* * * * *' : '0 9-17 * * 1-5';
+  console.log(`🔄 Iniciando Worker SMTP (Cron: ${cronSmtp})...`);
+  cron.schedule(cronSmtp, procesarCola, {
     timezone: 'America/Argentina/Buenos_Aires',
   });
 

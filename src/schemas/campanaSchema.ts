@@ -69,8 +69,8 @@ export const crearCampanaSchema = z.object({
 });
 
 export const cambiarEstadoSchema = z.object({
-  estado: z.enum(['borrador', 'aprobada', 'en_proceso', 'completada', 'cancelada'], {
-    message: 'Estado inválido. Valores permitidos: borrador, aprobada, en_proceso, completada, cancelada',
+  estado: z.enum(['borrador', 'aprobada', 'en_proceso', 'pausada', 'completada', 'cancelada'], {
+    message: 'Estado inválido. Valores permitidos: borrador, aprobada, en_proceso, pausada, completada, cancelada',
   }),
 });
 

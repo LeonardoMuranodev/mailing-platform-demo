@@ -53,27 +53,30 @@ export async function crearCampana(data: CrearCampanaInput): Promise<Campana> {
 
 /**
  * Cambia el estado de una campaña existente.
- * Valida que el estado sea uno de los permitidos.
+ * Actualiza el estado de una campaña
  */
 export async function cambiarEstadoCampana(
   id: string,
-  estado: EstadoCampana,
+  nuevoEstado: string,
 ): Promise<Campana | null> {
-  if (!ESTADOS_VALIDOS.has(estado)) {
-    throw new Error(
-      `Estado inválido: "${estado}". Valores permitidos: ${[...ESTADOS_VALIDOS].join(', ')}`,
-    );
-  }
-
   const query = `
     UPDATE campanas
     SET estado = $1, actualizado_en = CURRENT_TIMESTAMP
     WHERE id = $2
-    RETURNING *;
+    RETURNING *
   `;
-
-  const result = await dbPool.query<Campana>(query, [estado, id]);
+  const result = await dbPool.query<Campana>(query, [nuevoEstado, id]);
   return result.rows[0] ?? null;
+}
+
+/**
+ * Elimina una campaña y su cola de envíos asociada.
+ */
+export async function eliminarCampana(id: string): Promise<boolean> {
+  // Al eliminar la campaña, la FK ON DELETE CASCADE eliminará la cola_envios.
+  const query = `DELETE FROM campanas WHERE id = $1 RETURNING id`;
+  const result = await dbPool.query(query, [id]);
+  return (result.rowCount ?? 0) > 0;
 }
 
 /**
@@ -175,6 +178,8 @@ export interface CampanaConStats extends Campana {
     pendientes: number;
     enviados: number;
     fallidos: number;
+    abiertos: number;
+    clicks: number;
   };
 }
 
@@ -192,7 +197,9 @@ export async function obtenerCampanaConEstadisticas(
       COUNT(*)::int AS total,
       COUNT(*) FILTER (WHERE estado = 'pendiente')::int AS pendientes,
       COUNT(*) FILTER (WHERE estado = 'enviado')::int AS enviados,
-      COUNT(*) FILTER (WHERE estado = 'fallido')::int AS fallidos
+      COUNT(*) FILTER (WHERE estado = 'fallido')::int AS fallidos,
+      COUNT(*) FILTER (WHERE fecha_apertura IS NOT NULL)::int AS abiertos,
+      COUNT(*) FILTER (WHERE fecha_click IS NOT NULL)::int AS clicks
     FROM cola_envios
     WHERE campana_id = $1;
   `;
@@ -202,6 +209,8 @@ export async function obtenerCampanaConEstadisticas(
     pendientes: number;
     enviados: number;
     fallidos: number;
+    abiertos: number;
+    clicks: number;
   }>(statsQuery, [id]);
 
   const stats = statsResult.rows[0] ?? {
@@ -209,6 +218,8 @@ export async function obtenerCampanaConEstadisticas(
     pendientes: 0,
     enviados: 0,
     fallidos: 0,
+    abiertos: 0,
+    clicks: 0,
   };
 
   return { ...campana, stats };
