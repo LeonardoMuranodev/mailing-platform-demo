@@ -323,10 +323,7 @@ export default function DetalleCampana() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex justify-center gap-2">
-                              <span title={item.fecha_apertura ? `Abierto: ${new Date(item.fecha_apertura).toLocaleString('es-AR')}` : 'No abierto'} className={`p-1 rounded-full ${item.fecha_apertura ? 'text-blue-600 bg-blue-100' : 'text-slate-300 bg-slate-50'}`}>
-                                <Eye size={14} />
-                              </span>
-                              <span title={item.fecha_click ? `Clic: ${new Date(item.fecha_click).toLocaleString('es-AR')}` : 'Sin clics'} className={`p-1 rounded-full ${item.fecha_click ? 'text-purple-600 bg-purple-100' : 'text-slate-300 bg-slate-50'}`}>
+                              <span title={item.fecha_click ? `Interactuó: ${new Date(item.fecha_click).toLocaleString('es-AR')}` : 'Sin interacciones'} className={`p-1 rounded-full ${item.fecha_click ? 'text-purple-600 bg-purple-100' : 'text-slate-300 bg-slate-50'}`}>
                                 <MousePointerClick size={14} />
                               </span>
                             </div>
