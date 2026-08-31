@@ -29,8 +29,8 @@ RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 # Copia el build compilado
 COPY --from=builder /app/dist ./dist
 
-# Crea carpeta de uploads con permisos adecuados
-RUN mkdir -p /app/uploads && chown -R node:node /app/uploads
+# Crea carpetas de uploads y logs con permisos adecuados
+RUN mkdir -p /app/uploads /app/logs && chown -R node:node /app/uploads /app/logs
 
 # Seguridad: no correr como root
 USER node
