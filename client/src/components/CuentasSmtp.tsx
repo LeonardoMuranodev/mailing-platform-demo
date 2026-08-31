@@ -6,6 +6,7 @@ import {
   actualizarCuentaSmtp,
   eliminarCuentaSmtp,
   toggleEstadoSmtp,
+  obtenerSmtpLogs,
 } from '../services/api';
 import type { CuentaSmtp } from '../types/smtp';
 import AlertMessage from './ui/AlertMessage';
@@ -32,12 +33,21 @@ export default function CuentasSmtp() {
   // Modal de Confirmación de Eliminación
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
+  const [logs, setLogs] = useState<any[]>([]);
+
   const fetchCuentas = async () => {
     setLoading(true);
     try {
-      const res = await obtenerCuentasSmtp();
-      if (res.success && res.data) {
-        setCuentas(res.data);
+      const [resCuentas, resLogs] = await Promise.all([
+        obtenerCuentasSmtp(),
+        obtenerSmtpLogs()
+      ]);
+      
+      if (resCuentas.success && resCuentas.data) {
+        setCuentas(resCuentas.data);
+      }
+      if (resLogs.success && resLogs.data) {
+        setLogs(resLogs.data);
       }
     } catch (e) {
       console.error(e);
@@ -283,6 +293,55 @@ export default function CuentasSmtp() {
           })}
         </div>
       )}
+
+      {/* Sección de Notificaciones y Alertas (Logs) */}
+      <div className="mt-12 animate-fade-in">
+        <h2 className="text-xl font-bold text-dark flex items-center gap-2 mb-6">
+          <Server className="text-primary" />
+          Registro de Alertas e Incidentes
+        </h2>
+        {logs.length === 0 ? (
+          <div className="bg-surface border border-border rounded-xl p-8 text-center text-muted">
+            <p>No se han registrado incidentes recientes en las cuentas SMTP.</p>
+          </div>
+        ) : (
+          <div className="bg-surface border border-border rounded-xl shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm whitespace-nowrap">
+                <thead className="bg-background border-b border-border">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold text-dark">Fecha</th>
+                    <th className="px-4 py-3 font-semibold text-dark">Cuenta</th>
+                    <th className="px-4 py-3 font-semibold text-dark">Tipo</th>
+                    <th className="px-4 py-3 font-semibold text-dark">Mensaje</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {logs.map((log) => (
+                    <tr key={log.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3 text-muted">
+                        {new Date(log.creado_en).toLocaleString('es-AR')}
+                      </td>
+                      <td className="px-4 py-3 font-medium text-dark">{log.cuenta_email}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded text-xs font-semibold 
+                          ${log.tipo === 'agotada' ? 'bg-warning text-white' : 
+                            log.tipo === 'bloqueada' ? 'bg-danger text-white' : 'bg-primary text-white'}`}>
+                          {log.tipo.toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-muted max-w-md truncate" title={log.mensaje}>
+                        {log.mensaje}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
 
       {/* Modal Crear/Editar */}
       {isModalOpen && (

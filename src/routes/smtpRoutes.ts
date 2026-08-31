@@ -2,10 +2,14 @@ import { Router } from 'express';
 import { validateSchema } from '../middlewares/validateSchema.js';
 import { crearCuentaSmtpSchema, actualizarCuentaSmtpSchema } from '../schemas/smtpSchema.js';
 import { smtpController } from '../controllers/smtpController.js';
+import { getSmtpLogs } from '../controllers/smtpLogsController.js';
 import { requireRole } from '../middlewares/requireRole.js';
 import { cache } from '../middlewares/cache.js';
 
 export const smtpRouter = Router();
+
+// GET /api/smtp/logs — Listar logs de cuentas SMTP
+smtpRouter.get('/logs', requireRole(['desarrollador', 'encargada']), getSmtpLogs);
 
 // POST /api/smtp — Registrar cuenta SMTP
 smtpRouter.post(

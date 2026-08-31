@@ -239,6 +239,13 @@ export async function crearContacto(data: CrearContactoInput): Promise<ApiRespon
   });
 }
 
+// ==========================================
+// SMTP Logs
+// ==========================================
+export async function obtenerSmtpLogs(): Promise<ApiResponse<any[]>> {
+  return fetchApi<any[]>(`${API_BASE}/api/smtp/logs`);
+}
+
 export async function actualizarContacto(id: string, data: ActualizarContactoInput): Promise<ApiResponse<ContactoConRubro>> {
   return fetchApi<ContactoConRubro>(`${API_BASE}/api/contactos/${id}`, {
     method: 'PATCH',

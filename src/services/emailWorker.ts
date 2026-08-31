@@ -221,6 +221,9 @@ export async function procesarCola(): Promise<void> {
           if (cuotaAgotadaMsg) {
             // Forzar actualización de estado a agotado para esta cuenta para que obtenerSiguienteSmtpDisponible no la devuelva
             await dbPool.query(`UPDATE cuentas_smtp SET estado = 'agotado', actualizado_en = CURRENT_TIMESTAMP WHERE id = $1`, [cuentaSmtp.id]);
+            await dbPool.query(`INSERT INTO smtp_logs (cuenta_smtp_id, tipo, mensaje) VALUES ($1, 'agotada', $2)`, [cuentaSmtp.id, respuestaSmtp]);
+            const { notificarCuentaProblema } = await import('./notificationService.js');
+            await notificarCuentaProblema(cuentaSmtp.email, 'agotada', respuestaSmtp);
           }
 
           intentosCirculares++;

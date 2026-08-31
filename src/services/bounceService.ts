@@ -86,6 +86,40 @@ export async function procesarRebotes() {
 
     console.log(`BounceService: ${rebotadosUnicos.length} rebotes totales procesados y BBDD actualizada.`);
 
+    // 2.5 Circuit Breaker: Detección de Cuenta Quemada
+    // Buscamos cuentas que hayan tenido >= 15 rebotes recientes
+    const maxBounces = parseInt(process.env.MAX_BOUNCES_PER_HOUR || '15', 10);
+    const cuentasQuemadasRes = await dbPool.query(`
+      SELECT cuenta_smtp_id, COUNT(*) as rebotes
+      FROM cola_envios
+      WHERE estado = 'fallido' 
+        AND cuenta_smtp_id IS NOT NULL
+        -- Asumimos que los rebotes procesados recientemente tienen fecha_envio relativamente reciente o están en la base.
+        -- Para mayor precisión, contamos los fallidos de las últimas 24hs.
+        AND fecha_envio >= NOW() - INTERVAL '24 hours'
+      GROUP BY cuenta_smtp_id
+      HAVING COUNT(*) >= $1
+    `, [maxBounces]);
+
+    if (cuentasQuemadasRes.rows.length > 0) {
+      const { notificarCuentaProblema } = await import('./notificationService.js');
+      
+      for (const row of cuentasQuemadasRes.rows) {
+        // Verificar si ya está bloqueada para no notificar múltiples veces
+        const cuentaInfo = await dbPool.query(`SELECT email, estado FROM cuentas_smtp WHERE id = $1`, [row.cuenta_smtp_id]);
+        if (cuentaInfo.rows.length > 0 && cuentaInfo.rows[0].estado !== 'bloqueado') {
+          const emailCuenta = cuentaInfo.rows[0].email;
+          const msg = `Se detectaron ${row.rebotes} rebotes recientes (Umbral: ${maxBounces}).`;
+          
+          await dbPool.query(`UPDATE cuentas_smtp SET estado = 'bloqueado', actualizado_en = CURRENT_TIMESTAMP WHERE id = $1`, [row.cuenta_smtp_id]);
+          await dbPool.query(`INSERT INTO smtp_logs (cuenta_smtp_id, tipo, mensaje) VALUES ($1, 'bloqueada', $2)`, [row.cuenta_smtp_id, msg]);
+          
+          await notificarCuentaProblema(emailCuenta, 'bloqueada', msg);
+          console.log(`BounceService: Cuenta ${emailCuenta} bloqueada por superar ${maxBounces} rebotes.`);
+        }
+      }
+    }
+
     // 3. Enviar notificación HTML
     await enviarAvisoConsolidado(rebotadosUnicos);
   } else {

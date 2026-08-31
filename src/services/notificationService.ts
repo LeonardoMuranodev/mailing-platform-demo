@@ -336,3 +336,28 @@ export async function notificarCuotaGlobalAgotada() {
     }
   }
 }
+
+export async function notificarCuentaProblema(email: string, tipo: 'agotada' | 'bloqueada', detalle: string) {
+  const { telegramChatId, telegramToken } = config.notifier;
+
+  const emoji = tipo === 'agotada' ? '⚠️' : '🚨';
+  const accion = tipo === 'agotada' ? 'alcanzó su cuota diaria' : 'fue BLOQUEADA por excesos de rebotes';
+  
+  const msg = `${emoji} *Atención - Cuenta SMTP*\n\nLa cuenta \`${email}\` ${accion}.\n\n*Detalle:* ${detalle}`;
+
+  if (telegramChatId && telegramToken) {
+    try {
+      await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: telegramChatId,
+          text: msg,
+          parse_mode: 'Markdown'
+        })
+      });
+    } catch (e) {
+      console.error('Error enviando telegram de cuenta problema', e);
+    }
+  }
+}

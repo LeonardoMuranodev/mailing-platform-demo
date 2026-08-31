@@ -47,6 +47,8 @@
     "node-cron": "^4.6.0",
     "nodemailer": "^9.0.5",
     "pg": "^8.23.0",
+    "winston": "^3.19.0",
+    "winston-daily-rotate-file": "^5.0.0",
     "zod": "^4.4.3"
   }
 }
