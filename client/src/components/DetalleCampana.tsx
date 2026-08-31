@@ -337,9 +337,15 @@ export default function DetalleCampana() {
                           </td>
                           <td className="px-4 py-3">
                             {item.respuesta_smtp ? (
-                              <span className="text-xs text-red-500 cursor-help" title={item.respuesta_smtp}>
-                                Ver error
-                              </span>
+                              item.estado === 'fallido' ? (
+                                <span className="text-xs font-medium text-red-600 cursor-help underline decoration-red-300 underline-offset-2" title={item.respuesta_smtp}>
+                                  Error
+                                </span>
+                              ) : (
+                                <span className="text-xs font-medium text-green-600 cursor-help" title={item.respuesta_smtp}>
+                                  OK
+                                </span>
+                              )
                             ) : (
                               '-'
                             )}
