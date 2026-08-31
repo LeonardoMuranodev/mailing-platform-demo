@@ -224,11 +224,10 @@ export default function DetalleCampana() {
       </div>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
         <StatCard title="Contactos" value={campana.stats.total} icon={<Mail className="text-slate-400" />} />
         <StatCard title="Enviados" value={campana.stats.enviados} icon={<CheckCircle2 className="text-green-500" />} />
-        <StatCard title="Abiertos" value={campana.stats.abiertos} icon={<Eye className="text-blue-500" />} />
-        <StatCard title="Clics" value={campana.stats.clicks} icon={<MousePointerClick className="text-purple-500" />} />
+        <StatCard title="Interacciones" value={campana.stats.clicks} icon={<MousePointerClick className="text-purple-500" />} />
         <StatCard title="Pendientes" value={campana.stats.pendientes} icon={<Clock className="text-amber-500" />} />
         <StatCard title="Fallidos" value={campana.stats.fallidos} icon={<AlertTriangle className="text-red-500" />} />
       </div>
@@ -377,21 +376,11 @@ export default function DetalleCampana() {
 
                 <div>
                   <div className="flex justify-between text-sm font-medium mb-1">
-                    <span className="text-dark flex items-center gap-1"><Eye size={16} className="text-blue-500" /> Tasa de Apertura (Open Rate)</span>
-                    <span className="text-blue-600 font-bold">{campana.stats.enviados > 0 ? ((campana.stats.abiertos / campana.stats.enviados) * 100).toFixed(1) : 0}%</span>
+                    <span className="text-dark flex items-center gap-1"><MousePointerClick size={16} className="text-purple-500" /> Tasa de Interacción (Clics en enlaces)</span>
+                    <span className="text-purple-600 font-bold">{campana.stats.enviados > 0 ? ((campana.stats.clicks / campana.stats.enviados) * 100).toFixed(1) : 0}%</span>
                   </div>
                   <div className="w-full bg-surface border border-border rounded-full h-3 overflow-hidden">
-                    <div className="bg-blue-500 h-3 rounded-full transition-all duration-500" style={{ width: `${campana.stats.enviados > 0 ? (campana.stats.abiertos / campana.stats.enviados) * 100 : 0}%` }}></div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-sm font-medium mb-1">
-                    <span className="text-dark flex items-center gap-1"><MousePointerClick size={16} className="text-purple-500" /> Tasa de Clics (Click Rate)</span>
-                    <span className="text-purple-600 font-bold">{campana.stats.abiertos > 0 ? ((campana.stats.clicks / campana.stats.abiertos) * 100).toFixed(1) : 0}%</span>
-                  </div>
-                  <div className="w-full bg-surface border border-border rounded-full h-3 overflow-hidden">
-                    <div className="bg-purple-500 h-3 rounded-full transition-all duration-500" style={{ width: `${campana.stats.abiertos > 0 ? (campana.stats.clicks / campana.stats.abiertos) * 100 : 0}%` }}></div>
+                    <div className="bg-purple-500 h-3 rounded-full transition-all duration-500" style={{ width: `${campana.stats.enviados > 0 ? (campana.stats.clicks / campana.stats.enviados) * 100 : 0}%` }}></div>
                   </div>
                 </div>
 
