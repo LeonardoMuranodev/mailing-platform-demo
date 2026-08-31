@@ -7,6 +7,7 @@ import {
   listarCampanas,
   obtenerCampanaConEstadisticas,
   eliminarCampana,
+  eliminarCampanasMasivo,
 } from '../services/campanaService.js';
 import { sendSuccess, sendError } from '../utils/responseHandler.js';
 import type { CrearCampanaBody, CambiarEstadoBody } from '../schemas/campanaSchema.js';
@@ -153,6 +154,22 @@ async function eliminar(req: Request, res: Response, next: NextFunction): Promis
   }
 }
 
+async function eliminarMasivo(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      sendError(res, 'BAD_REQUEST', 'Debe proporcionar un array de IDs', 400);
+      return;
+    }
+
+    await eliminarCampanasMasivo(ids);
+    
+    sendSuccess(res, { message: 'Campañas eliminadas correctamente' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export const campanaController = {
   crear,
   obtenerPorId,
@@ -160,4 +177,5 @@ export const campanaController = {
   listar,
   detalle,
   eliminar,
+  eliminarMasivo,
 };

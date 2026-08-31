@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Filter, RotateCcw, CalendarIcon, Trash2, AlertTriangle } from 'lucide-react';
-import { listarCampanas, eliminarCampana } from '../services/api';
+import { listarCampanas, eliminarCampana, eliminarCampanasMasivo } from '../services/api';
 import type { CampanaResponse } from '../types/campana';
 import { usePermisos } from '../hooks/usePermisos';
 import { formatDate } from '../utils/formatDate';
@@ -45,6 +45,10 @@ export default function ListaCampanas() {
   // Confirm Delete
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
+  // Bulk Delete
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+
   const fetchCampanas = useCallback(async (currentPage = page) => {
     setLoading(true);
     try {
@@ -58,6 +62,7 @@ export default function ListaCampanas() {
         setCampanas([]);
         setTotal(0);
       }
+      setSelectedIds(new Set()); // Reset selections on new fetch
     } catch (error) {
       console.error('Error al listar campañas:', error);
     } finally {
@@ -87,8 +92,40 @@ export default function ListaCampanas() {
         setCampanas([]);
         setTotal(0);
       }
+      setSelectedIds(new Set());
       setLoading(false);
     });
+  };
+
+  const toggleSelection = (id: string) => {
+    const newSelection = new Set(selectedIds);
+    if (newSelection.has(id)) {
+      newSelection.delete(id);
+    } else {
+      newSelection.add(id);
+    }
+    setSelectedIds(newSelection);
+  };
+
+  const toggleAllSelection = () => {
+    if (selectedIds.size === campanas.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(campanas.map(c => c.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    try {
+      const res = await eliminarCampanasMasivo(Array.from(selectedIds));
+      if (res.success) {
+        setShowBulkDeleteConfirm(false);
+        fetchCampanas(); // Refetch to update pagination correctly
+      }
+    } catch (error) {
+      console.error('Error al eliminar campañas masivamente', error);
+    }
   };
 
   const handleDelete = async () => {
@@ -96,12 +133,11 @@ export default function ListaCampanas() {
     try {
       const res = await eliminarCampana(deleteConfirmId);
       if (res.success) {
-        setCampanas(prev => prev.filter(c => c.id !== deleteConfirmId));
+        fetchCampanas();
         setDeleteConfirmId(null);
-        fetchCampanas(page);
       }
-    } catch (err) {
-      console.error('Error al eliminar campaña:', err);
+    } catch (error) {
+      console.error('Error al eliminar campaña:', error);
     }
   };
 
@@ -128,6 +164,15 @@ export default function ListaCampanas() {
           </div>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+          {puedeCrear && selectedIds.size > 0 && (
+            <button
+              onClick={() => setShowBulkDeleteConfirm(true)}
+              className="flex items-center justify-center gap-2 bg-danger text-white px-5 py-2.5 rounded-lg hover:bg-danger-dark transition-colors font-medium shadow-sm w-full sm:w-auto"
+            >
+              <Trash2 size={20} />
+              Borrar Seleccionadas ({selectedIds.size})
+            </button>
+          )}
           {puedeCrear && (
             <button
               onClick={() => navigate('/nueva')}
@@ -219,6 +264,14 @@ export default function ListaCampanas() {
           <table className="w-full text-left text-sm text-muted">
             <thead className="bg-background text-dark text-xs uppercase font-semibold border-b border-border">
               <tr>
+                <th className="px-6 py-4 w-12 text-center">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
+                    checked={selectedIds.size > 0 && selectedIds.size === campanas.length}
+                    onChange={toggleAllSelection}
+                  />
+                </th>
                 <th className="px-6 py-4">Asunto</th>
                 <th className="px-6 py-4">Destinatarios</th>
                 <th className="px-6 py-4">Estado</th>
@@ -229,7 +282,7 @@ export default function ListaCampanas() {
             <tbody className="divide-y divide-border">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-muted">
+                  <td colSpan={6} className="px-6 py-12 text-center text-muted">
                     <div className="animate-pulse flex flex-col items-center">
                       <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-3"></div>
                       Cargando campañas...
@@ -238,7 +291,7 @@ export default function ListaCampanas() {
                 </tr>
               ) : campanas.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-muted">
+                  <td colSpan={6} className="px-6 py-12 text-center text-muted">
                     No se encontraron campañas.
                   </td>
                 </tr>
@@ -256,6 +309,14 @@ export default function ListaCampanas() {
                       onClick={() => navigate(`/campanas/${campana.id}`)}
                       className="hover:bg-background/50 transition-colors cursor-pointer"
                     >
+                      <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
+                          checked={selectedIds.has(campana.id)}
+                          onChange={() => toggleSelection(campana.id)}
+                        />
+                      </td>
                       <td className="px-6 py-4 font-medium text-dark max-w-xs truncate" title={campana.asunto}>
                         {campana.asunto}
                       </td>
@@ -365,6 +426,42 @@ export default function ListaCampanas() {
                   className="flex-1 py-2.5 px-4 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors shadow-sm"
                 >
                   Sí, Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmación de Eliminación Masiva */}
+      {showBulkDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="flex justify-center mb-4">
+                <div className="bg-red-100 p-3 rounded-full">
+                  <AlertTriangle size={32} className="text-red-600" />
+                </div>
+              </div>
+              <h3 className="text-xl font-bold text-center text-dark mb-2">
+                ¿Eliminar {selectedIds.size} campañas?
+              </h3>
+              <p className="text-center text-muted mb-6">
+                Estás a punto de eliminar {selectedIds.size} campañas seleccionadas. Se borrará todo su historial y estadísticas. Esta acción no se puede deshacer.
+              </p>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowBulkDeleteConfirm(false)}
+                  className="flex-1 py-2.5 px-4 bg-surface border border-border text-dark rounded-lg font-medium hover:bg-border transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleBulkDelete}
+                  className="flex-1 py-2.5 px-4 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors shadow-sm"
+                >
+                  Sí, Eliminar Todas
                 </button>
               </div>
             </div>

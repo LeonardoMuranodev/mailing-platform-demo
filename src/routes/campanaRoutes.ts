@@ -34,6 +34,13 @@ campanaRouter.patch(
   campanaController.cambiarEstado,
 );
 
+// DELETE /api/campanas/masivo — Eliminar campañas masivamente
+campanaRouter.delete(
+  '/masivo',
+  requireRole(['desarrollador', 'encargada']),
+  campanaController.eliminarMasivo,
+);
+
 // DELETE /api/campanas/:id — Eliminar campaña
 campanaRouter.delete(
   '/:id',

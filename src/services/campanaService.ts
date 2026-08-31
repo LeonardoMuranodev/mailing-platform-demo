@@ -240,3 +240,8 @@ export async function obtenerCampanaConEstadisticas(
   return { ...campana, stats };
 }
 
+export async function eliminarCampanasMasivo(ids: string[]): Promise<boolean> {
+  const query = 'DELETE FROM campanas WHERE id = ANY($1::uuid[]) RETURNING id;';
+  const { rowCount } = await dbPool.query(query, [ids]);
+  return (rowCount ?? 0) > 0;
+}

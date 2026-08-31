@@ -81,6 +81,19 @@ export async function eliminarCampana(
   });
 }
 
+/**
+ * Elimina múltiples campañas masivamente.
+ */
+export async function eliminarCampanasMasivo(
+  ids: string[],
+): Promise<ApiResponse<{ message: string }>> {
+  return fetchApi<{ message: string }>(`${API_BASE}/api/campanas/masivo`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids }),
+  });
+}
+
 export interface CampanasPaginatedResponse {
   data: CampanaResponse[];
   total: number;
