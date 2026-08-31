@@ -3,4 +3,6 @@ dist/
 .env
 *.log
 logs/
+uploads/*
+!uploads/.gitkeep
 BACKUPS/

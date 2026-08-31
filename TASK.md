@@ -47,7 +47,7 @@
 
 #### Fase 7: Operatividad y Frontend (Prioridad Media)
 * **Importador Visual de Contactos:** Una sección en el frontend donde subas un CSV/Excel o conectes Google Sheets y puedas mapear columnas visualmente (Ej: "Columna A -> Nombre", "Columna B -> Email").
-* **Pausado de Emergencia:** Un botón de "Pausar Campaña" por si te das cuenta 2 minutos después de lanzar que te equivocaste en un link o en el copy, para que el cron job deje de enviar.
+[x] * **Pausado de Emergencia:** Un botón de "Pausar Campaña" por si te das cuenta 2 minutos después de lanzar que te equivocaste en un link o en el copy, para que el cron job deje de enviar.
 
 #### Fase 8: Infraestructura
 * [x] **Detección de "Cuenta Quemada":** Si una cuenta SMTP empieza a rebotar muchos mensajes repentinamente (ej. Google la bloquea temporalmente), el sistema debería detectar ese "pico" y suspender la cuenta temporalmente, rotando todo el tráfico a las demás.
