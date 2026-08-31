@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Filter, RotateCcw, Plus, Edit2, Trash2, X, Users, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Search, RotateCcw, Plus, Edit2, Trash2, X, Users, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import {
   obtenerUsuarios,
   crearUsuario,
@@ -7,10 +7,10 @@ import {
   eliminarUsuario,
 } from '../services/api';
 import AlertMessage from './ui/AlertMessage';
-import type { Usuario } from '../types/auth';
+import type { AuthUser } from '../types/auth';
 
 export default function GestionUsuarios() {
-  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [usuarios, setUsuarios] = useState<AuthUser[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -74,13 +74,13 @@ export default function GestionUsuarios() {
     setIsModalOpen(true);
   };
 
-  const openEditarModal = (u: Usuario) => {
-    setEditingId(u.id);
+  const openEditarModal = (user: AuthUser) => {
+    setEditingId(user.id);
     setForm({
-      nombre: u.nombre,
-      email: u.email,
-      password: '', // Blank by default, only sent if changed
-      rol: u.rol,
+      nombre: user.nombre,
+      email: user.email,
+      password: '',
+      rol: user.rol,
     });
     setErrorMsg('');
     setShowPassword(false);

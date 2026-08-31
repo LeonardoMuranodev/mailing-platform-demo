@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Send, AlertTriangle, CheckCircle2, Clock, Mail, Search, RefreshCw, BarChart2, Download, Eye, MousePointerClick, Pause, Play, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Send, AlertTriangle, CheckCircle2, Clock, Mail, Search, RefreshCw, BarChart2, Download, MousePointerClick, Pause, Play, Trash2 } from 'lucide-react';
 import { obtenerCampanaDetalle, obtenerColaCampana, cambiarEstadoCampana, eliminarCampana } from '../services/api';
 import type { CampanaConStats, ColaEnvioItem } from '../types/campana';
 import { formatDate } from '../utils/formatDate';

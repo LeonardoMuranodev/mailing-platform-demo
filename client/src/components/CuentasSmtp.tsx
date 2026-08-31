@@ -62,10 +62,10 @@ export default function CuentasSmtp() {
 
   const handleToggleEstado = async (id: string, estadoActual: string) => {
     const nuevoEstado = estadoActual === 'activo' ? 'inactivo' : 'activo';
-    setCuentas(prev => prev.map(c => c.id === id ? { ...c, estado: nuevoEstado } : c));
+    setCuentas(prev => prev.map(c => c.id === id ? { ...c, estado: nuevoEstado as any } : c));
     const res = await toggleEstadoSmtp(id, nuevoEstado);
     if (!res.success) {
-      setCuentas(prev => prev.map(c => c.id === id ? { ...c, estado: estadoActual } : c));
+      setCuentas(prev => prev.map(c => c.id === id ? { ...c, estado: estadoActual as any } : c));
       alert('Error al cambiar el estado de la cuenta');
     }
   };

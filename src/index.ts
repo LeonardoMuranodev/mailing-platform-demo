@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'node:path';
+import { logger } from './utils/logger.js';
 import { config } from './config/env.js';
 import { testDbConnection, dbPool } from './config/db.js';
 import { registerRoutes } from './routes/index.js';
@@ -46,20 +47,22 @@ app.use(errorHandler);
 
 // ── Global Process Error Handlers ───────────────────────
 process.on('uncaughtException', async (error) => {
-  console.error('[FATAL] Uncaught Exception:', error);
+  logger.error('[FATAL] Uncaught Exception:', { error: error.message, stack: error.stack });
   await notifyUncaughtException(error);
   // Dar tiempo al mensaje de Telegram antes de cerrar
   setTimeout(() => process.exit(1), 2000);
 });
 
 process.on('unhandledRejection', async (reason) => {
-  console.error('[FATAL] Unhandled Rejection:', reason);
+  logger.error('[FATAL] Unhandled Rejection:', reason);
   await notifyUnhandledRejection(reason);
+  // Dar tiempo al mensaje de Telegram antes de cerrar
+  setTimeout(() => process.exit(1), 2000);
 });
 
 // Notificar errores inesperados del pool de BD
 dbPool.on('error', async (err) => {
-  console.error('[DB] Unexpected pool error:', err.message);
+  logger.error('[DB] Unexpected pool error:', err.message);
   await notifyDbError(err);
 });
 
