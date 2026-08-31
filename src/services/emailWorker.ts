@@ -50,7 +50,7 @@ export async function procesarCola(): Promise<void> {
       SELECT c.*, 
              (SELECT count(*) FROM cola_envios ce WHERE ce.campana_id = c.id AND ce.estado = 'pendiente') as pendientes
       FROM campanas c
-      WHERE c.estado = 'en_proceso'
+      WHERE c.estado IN ('en_proceso', 'aprobada')
       ORDER BY c.prioridad ASC, c.creado_en ASC
       LIMIT 1
     `);
@@ -96,7 +96,7 @@ export async function procesarCola(): Promise<void> {
       FROM cola_envios ce
       JOIN contactos co ON ce.contacto_id = co.id
       JOIN campanas c ON ce.campana_id = c.id
-      WHERE ce.estado = 'pendiente' AND c.estado = 'en_proceso'
+      WHERE ce.estado = 'pendiente' AND c.estado IN ('en_proceso', 'aprobada')
       ORDER BY 
         CASE WHEN c.prioridad = 'alta' THEN 1 ELSE 2 END ASC,
         ce.id ASC
@@ -111,8 +111,16 @@ export async function procesarCola(): Promise<void> {
       return;
     }
 
+    const campanasTransicionadas = new Set<string>();
+
     // 4. Procesar el lote
     for (const item of lote) {
+      // Si la campaña estaba en "aprobada", la pasamos a "en_proceso" al enviar el primer mail
+      if (item.campana_estado === 'aprobada' && !campanasTransicionadas.has(item.campana_id)) {
+        await dbPool.query(`UPDATE campanas SET estado = 'en_proceso', actualizado_en = CURRENT_TIMESTAMP WHERE id = $1`, [item.campana_id]);
+        campanasTransicionadas.add(item.campana_id);
+      }
+
       // Intentar enviar con hasta `cantidadCuentas` cuentas distintas si fallan
       let enviadoExitoso = false;
       let estadoNuevo = 'fallido';

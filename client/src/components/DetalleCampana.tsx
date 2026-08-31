@@ -193,7 +193,7 @@ export default function DetalleCampana() {
             <span className={`px-3 py-1.5 text-sm font-semibold border rounded-full ${ESTADO_BADGE_CLASSES[campana.estado] || 'bg-slate-100'}`}>
               {ESTADO_LABELS[campana.estado] || campana.estado}
             </span>
-            {campana.estado === 'en_proceso' && (
+            {['en_proceso', 'aprobada'].includes(campana.estado) && (
               <>
                 <button onClick={async () => {
                   import('../services/api').then(m => {

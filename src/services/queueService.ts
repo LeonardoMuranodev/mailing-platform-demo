@@ -77,8 +77,7 @@ export async function poblarColaEnvios(campanaId: string): Promise<PoblarColaRes
 
   const insertResult = await dbPool.query(insertQuery, [campanaId, contactoIds]);
 
-  // 6. Cambiar estado a 'en_proceso' para iniciar el envío automático
-  await dbPool.query(`UPDATE campanas SET estado = 'en_proceso', actualizado_en = CURRENT_TIMESTAMP WHERE id = $1`, [campanaId]);
+  // 6. La campaña queda en estado 'aprobada'. El worker la pasará a 'en_proceso' al enviar el primer mail.
 
   return {
     campana_id: campanaId,

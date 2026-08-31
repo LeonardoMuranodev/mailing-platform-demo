@@ -66,7 +66,22 @@ export async function cambiarEstadoCampana(
     RETURNING *
   `;
   const result = await dbPool.query<Campana>(query, [nuevoEstado, id]);
-  return result.rows[0] ?? null;
+  let campana = result.rows[0] ?? null;
+
+  // Si el nuevo estado es "aprobada", automáticamente generamos la cola
+  // La campaña quedará en estado "aprobada" hasta que el worker envíe el primer correo.
+  if (campana && nuevoEstado === 'aprobada') {
+    const { poblarColaEnvios } = await import('./queueService.js');
+    try {
+      await poblarColaEnvios(id);
+    } catch (error) {
+      console.error(`Error poblando cola para campaña ${id}:`, error);
+      // Si falla por falta de contactos u otra cosa, podemos decidir si dejarla aprobada o volverla a borrador.
+      // Actualmente poblarColaEnvios no tira error si hay 0, solo retorna 0.
+    }
+  }
+
+  return campana;
 }
 
 /**
