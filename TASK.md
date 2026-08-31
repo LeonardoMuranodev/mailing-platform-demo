@@ -37,21 +37,21 @@
 
 * [x] **Testing:** Escribir y ejecutar pruebas para los flujos críticos (Login, Poblar Cola, Rotación SMTP).
 * [x] **Optimización de Recursos:** Revisar el tamaño de la imagen Docker final y limpiar logs innecesarios.
-* [] **Despliegue Final:** Subir al repositorio Git corporativo (con VPN) y levantar el `docker-compose.yml` en el servidor de producción.
+* [] **Despliegue Final:** Subir al repositorio Git corporativo (con VPN) y levantar el `docker-compose.yml` en el servidor de producción. Ya tengo el dominio disponible, tengo que configurar todo eso.
 * [] **Importar los contactos de la base de datos de Google Sheets:** al sistema
 
 #### Fase 6: Analíticas y Tracking (Prioridad Media/Alta)
-* **Open Tracking (Pixel Invisible):** Inyectar un `<img src="https://tudominio.com/api/track/open/:id_envio" width="1" height="1" />` oculto en el HTML de la campaña. Cuando el cliente abre el mail, el servidor registra la apertura.
-* **Click Tracking:** Envolver todos los links (ej: a tu WhatsApp o Web) con una URL redireccionadora del backend (ej: `.../api/track/click/:id_envio?url=...`).
-* **Dashboard de Conversión:** Visualizar en el frontend el % de enviados, rebotados, abiertos y clickeados de cada campaña para medir qué copys/textos funcionan mejor.
+[x] **Open Tracking (Pixel Invisible):** Inyectar un `<img src="https://tudominio.com/api/track/open/:id_envio" width="1" height="1" />` oculto en el HTML de la campaña. Cuando el cliente abre el mail, el servidor registra la apertura.
+[x] **Click Tracking:** Envolver todos los links (ej: a tu WhatsApp o Web) con una URL redireccionadora del backend (ej: `.../api/track/click/:id_envio?url=...`).
+[x] **Dashboard de Conversión:** Visualizar en el frontend el % de enviados, rebotados, abiertos y clickeados de cada campaña para medir qué copys/textos funcionan mejor.
 
 #### Fase 7: Operatividad y Frontend (Prioridad Media)
 * **Importador Visual de Contactos:** Una sección en el frontend donde subas un CSV/Excel o conectes Google Sheets y puedas mapear columnas visualmente (Ej: "Columna A -> Nombre", "Columna B -> Email").
 * **Pausado de Emergencia:** Un botón de "Pausar Campaña" por si te das cuenta 2 minutos después de lanzar que te equivocaste en un link o en el copy, para que el cron job deje de enviar.
 
 #### Fase 8: Infraestructura
-* **Detección de "Cuenta Quemada":** Si una cuenta SMTP empieza a rebotar muchos mensajes repentinamente (ej. Google la bloquea temporalmente), el sistema debería detectar ese "pico" y suspender la cuenta temporalmente, rotando todo el tráfico a las demás.
-* **Logs Estructurados / Alertas:** Actualmente los errores van a la consola (`console.log`). Se podría conectar algo muy simple para guardar un archivo `.log` por día, útil si el servidor queda corriendo semanas.
+* [x] **Detección de "Cuenta Quemada":** Si una cuenta SMTP empieza a rebotar muchos mensajes repentinamente (ej. Google la bloquea temporalmente), el sistema debería detectar ese "pico" y suspender la cuenta temporalmente, rotando todo el tráfico a las demás.
+* [x] **Logs Estructurados / Alertas:** Actualmente los errores van a la consola (`console.log`). Se podría conectar algo muy simple para guardar un archivo `.log` por día, útil si el servidor queda corriendo semanas.
 
-Confirmar que anda el estado EN proceso y el boton de pausar y reanudar la campaña
-Que se pueda eliminar varias con un check
+[x] Confirmar que anda el estado EN proceso y el boton de pausar y reanudar la campaña
+[x] Que se pueda eliminar varias con un check

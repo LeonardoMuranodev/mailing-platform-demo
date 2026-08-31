@@ -20,6 +20,7 @@ services:
       - REDIS_PORT=6379
     volumes:
       - uploads_data:/app/uploads
+      - ./logs:/app/logs
     depends_on:
       redis:
         condition: service_started

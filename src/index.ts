@@ -70,20 +70,20 @@ import { seedUsuarios } from './scripts/seedUsuarios.js';
 
 // ── Start ───────────────────────────────────────────────
 app.listen(config.port, async () => {
-  console.log(`🚀 Server listening on http://localhost:${config.port}`);
+  logger.info(`🚀 Server listening on http://localhost:${config.port}`);
   await testDbConnection();
   await seedUsuarios();
 
   // Iniciar worker SMTP con Cron (Lunes a Viernes de 9 a 17 hs, o cada 1 min en TEST)
   const cronSmtp = MODO_PRUEBA ? '* * * * *' : '0 9-17 * * 1-5';
-  console.log(`🔄 Iniciando Worker SMTP (Cron: ${cronSmtp})...`);
+  logger.info(`🔄 Iniciando Worker SMTP (Cron: ${cronSmtp})...`);
   cron.schedule(cronSmtp, procesarCola, {
     timezone: 'America/Argentina/Buenos_Aires',
   });
 
   // Iniciar procesador de rebotes IMAP (Lunes a Viernes a las 18:00 hs, o cada 5 min en TEST)
   const cronExpression = MODO_PRUEBA ? '*/5 * * * *' : '0 18 * * 1-5';
-  console.log(`📥 Iniciando Worker IMAP de Rebotes (Cron: ${cronExpression})...`);
+  logger.info(`📥 Iniciando Worker IMAP de Rebotes (Cron: ${cronExpression})...`);
   cron.schedule(cronExpression, procesarRebotes, {
     timezone: 'America/Argentina/Buenos_Aires',
   });
