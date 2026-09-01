@@ -9,6 +9,15 @@ import type {
   ContactosResponse
 } from '../types/contacto.js';
 
+export interface ContactoImportRow {
+  email: string;
+  empresa_nombre?: string | null;
+  cuit?: string | null;
+  rubro_id?: string | null;
+  tipo?: string | null;
+  estado?: string | null;
+}
+
 export async function listarContactos(filtros: ListarContactosQuery): Promise<ContactosResponse> {
   const { page = 1, limit = 10, busqueda, rubro_id, estado } = filtros;
   const offset = (page - 1) * limit;
@@ -173,4 +182,43 @@ export async function importarContactosCsv(buffer: Buffer): Promise<{ procesados
     procesados: records.length,
     insertados_o_actualizados: afectadas
   };
+}
+
+/**
+ * Importa un array de contactos ya mapeados (desde el importador visual del frontend).
+ * Hace upsert por email.
+ */
+export async function importarContactosJson(
+  contactos: ContactoImportRow[]
+): Promise<{ procesados: number; insertados_o_actualizados: number }> {
+  let afectadas = 0;
+
+  for (const row of contactos) {
+    if (!row.email || !row.email.trim()) continue;
+
+    const query = `
+      INSERT INTO contactos (email, empresa_nombre, cuit, rubro_id, tipo, estado)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (email) DO UPDATE
+      SET
+        empresa_nombre = COALESCE(EXCLUDED.empresa_nombre, contactos.empresa_nombre),
+        cuit           = COALESCE(EXCLUDED.cuit, contactos.cuit),
+        rubro_id       = COALESCE(EXCLUDED.rubro_id, contactos.rubro_id),
+        tipo           = COALESCE(EXCLUDED.tipo, contactos.tipo),
+        estado         = COALESCE(EXCLUDED.estado, contactos.estado),
+        actualizado_en = CURRENT_TIMESTAMP
+    `;
+
+    await dbPool.query(query, [
+      row.email.trim().toLowerCase(),
+      row.empresa_nombre || null,
+      row.cuit || null,
+      row.rubro_id || null,
+      row.tipo || null,
+      row.estado || 'funcional',
+    ]);
+    afectadas++;
+  }
+
+  return { procesados: contactos.length, insertados_o_actualizados: afectadas };
 }

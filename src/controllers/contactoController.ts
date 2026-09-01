@@ -7,6 +7,7 @@ import {
   eliminarContactosBulk,
   toggleEstadoContacto,
   importarContactosCsv,
+  importarContactosJson,
 } from '../services/contactoService.js';
 import { sendSuccess, sendError } from '../utils/responseHandler.js';
 import type {
@@ -15,6 +16,7 @@ import type {
   ListarContactosQueryType,
   BulkDeleteBody,
 } from '../schemas/contactoSchema.js';
+import type { ContactoImportRow } from '../services/contactoService.js';
 
 async function listar(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -121,6 +123,20 @@ async function importarCsv(req: Request, res: Response, next: NextFunction): Pro
   }
 }
 
+async function importarJson(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { contactos } = req.body as { contactos: ContactoImportRow[] };
+    if (!Array.isArray(contactos) || contactos.length === 0) {
+      sendError(res, 'BAD_REQUEST', 'El array de contactos está vacío o es inválido', 400);
+      return;
+    }
+    const result = await importarContactosJson(contactos);
+    sendSuccess(res, result, 200);
+  } catch (err) {
+    next(err);
+  }
+}
+
 export const contactoController = {
   listar,
   crear,
@@ -129,4 +145,5 @@ export const contactoController = {
   bulkDelete,
   toggleEstado,
   importarCsv,
+  importarJson,
 };

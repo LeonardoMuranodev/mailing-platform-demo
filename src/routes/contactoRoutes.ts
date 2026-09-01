@@ -36,3 +36,5 @@ contactoRouter.delete('/:id', requireRole(['desarrollador', 'encargada']), conta
 contactoRouter.patch('/:id/toggle', requireRole(['desarrollador', 'encargada']), contactoController.toggleEstado);
 
 contactoRouter.post('/importar-csv', requireRole(['desarrollador', 'encargada']), upload.single('file'), contactoController.importarCsv);
+
+contactoRouter.post('/import-json', requireRole(['desarrollador', 'encargada']), contactoController.importarJson);

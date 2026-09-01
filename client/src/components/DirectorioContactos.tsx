@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Search, Filter, RotateCcw, Upload, Download, Plus, Edit2, Trash2, X, Building2, AlertCircle } from 'lucide-react';
 import {
   obtenerContactos,
@@ -6,12 +6,12 @@ import {
   actualizarContacto,
   eliminarContacto,
   eliminarContactosBulk,
-  importarContactosCsv,
 } from '../services/api';
 import type { ContactoConRubro, CrearContactoInput } from '../types/contacto';
 import { RUBROS_LABELS, RUBROS_LIST } from '../data/rubros';
 import { usePermisos } from '../hooks/usePermisos';
 import AlertMessage from './ui/AlertMessage';
+import ImportadorVisual from './ImportadorVisual';
 
 export default function DirectorioContactos() {
   const [contactos, setContactos] = useState<ContactoConRubro[]>([]);
@@ -45,9 +45,6 @@ export default function DirectorioContactos() {
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   
-  const [importFile, setImportFile] = useState<File | null>(null);
-  const [importing, setImporting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Confirm Delete
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -229,30 +226,6 @@ export default function DirectorioContactos() {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
-  const handleImport = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!importFile) return;
-    
-    setImporting(true);
-    setErrorMsg('');
-    try {
-      const formData = new FormData();
-      formData.append('file', importFile);
-      const res = await importarContactosCsv(formData);
-      if (res.success) {
-        setIsImportModalOpen(false);
-        setImportFile(null);
-        fetchContactosData();
-        alert(`Importación exitosa. Procesados: ${res.data?.procesados}, Afectados: ${res.data?.insertados_o_actualizados}`);
-      } else {
-        setErrorMsg(res.error?.message || 'Error al importar');
-      }
-    } catch (e) {
-      setErrorMsg('Error de red');
-    } finally {
-      setImporting(false);
-    }
-  };
 
   const totalPages = Math.ceil(total / limit);
 
@@ -276,7 +249,7 @@ export default function DirectorioContactos() {
                 className="flex items-center justify-center gap-2 px-4 py-2 bg-surface border border-border text-dark rounded-lg hover:bg-background transition-colors font-medium shadow-sm w-full sm:w-auto"
               >
                 <Upload size={18} />
-                Importar CSV
+                Importar CSV / Excel
               </button>
               <button
                 onClick={openCrearModal}
@@ -655,64 +628,10 @@ export default function DirectorioContactos() {
       )}
 
       {isImportModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-surface w-full max-w-md rounded-xl border border-border shadow-2xl overflow-hidden animate-fade-in">
-            <div className="px-6 py-4 border-b border-border flex justify-between items-center">
-              <h2 className="text-lg font-bold text-dark">Importar Contactos</h2>
-              <button onClick={() => { setIsImportModalOpen(false); setImportFile(null); }} className="text-muted hover:text-dark">
-                <X size={20} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleImport} className="p-6 space-y-4 text-center">
-              <div className="text-left">
-                <AlertMessage type="error" message={errorMsg} />
-              </div>
-
-              <div 
-                className="border-2 border-dashed border-border rounded-xl p-8 hover:bg-background/50 transition-colors cursor-pointer group"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <input 
-                  type="file" 
-                  accept=".csv" 
-                  className="hidden" 
-                  ref={fileInputRef}
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files.length > 0) {
-                      setImportFile(e.target.files[0]);
-                    }
-                  }}
-                />
-                <Upload className="mx-auto h-12 w-12 text-muted group-hover:text-primary transition-colors mb-3" />
-                <p className="text-sm font-medium text-dark">
-                  {importFile ? importFile.name : 'Haz clic para seleccionar un archivo CSV'}
-                </p>
-                <p className="text-xs text-muted mt-1">
-                  Debe contener cabeceras como 'email', 'empresa', 'cuit'.
-                </p>
-              </div>
-
-              <div className="pt-4 flex justify-end gap-3">
-                <button 
-                  type="button" 
-                  onClick={() => { setIsImportModalOpen(false); setImportFile(null); }}
-                  className="px-4 py-2 border border-border bg-background text-dark rounded-lg hover:bg-surface font-medium transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit" 
-                  disabled={importing || !importFile}
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark font-medium transition-colors disabled:opacity-70 flex items-center gap-2"
-                >
-                  {importing && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
-                  {importing ? 'Procesando...' : 'Importar CSV'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <ImportadorVisual
+          onClose={() => setIsImportModalOpen(false)}
+          onImportComplete={() => { setIsImportModalOpen(false); setPage(1); fetchContactosData(1); }}
+        />
       )}
 
       {/* Modal de Confirmación de Eliminación */}
