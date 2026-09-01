@@ -54,40 +54,80 @@ function autoDetect(col: string): CampoDestino {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NORMALIZE VALUES
+// Reglas:
+//   - Todo se normaliza a minúsculas antes de comparar
+//   - Separadores como _ - / y espacios son equivalentes
+//   - Valores no reconocidos → null (campos opcionales) o 'funcional' (estado)
 // ─────────────────────────────────────────────────────────────────────────────
+
+/** Canonicaliza un string: minúsculas, quita acentos y reemplaza _ - / por espacio */
+function canonical(s: string): string {
+  return s
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')  // quita acentos
+    .replace(/[_\-\/]+/g, ' ')        // _ - / → espacio
+    .replace(/\s+/g, ' ')             // múltiples espacios → uno
+    .trim();
+}
 
 function normalizarRubro(raw: string): string | null {
   if (!raw) return null;
-  const lower = raw.toLowerCase().trim();
-  if (RUBROS_LIST.includes(lower)) return lower;
+  const c = canonical(raw);
+  // match exacto sobre clave
+  if (RUBROS_LIST.includes(c)) return c;
+  // match sobre label (ej: 'Metalúrgica' → 'metalurgica')
   for (const [key, label] of Object.entries(RUBROS_LABELS)) {
-    if (label.toLowerCase() === lower) return key;
+    if (canonical(label) === c) return key;
   }
+  // match parcial: 'metalurg' dentro de 'metalurgica' o viceversa
   for (const rubro of RUBROS_LIST) {
-    if (lower.includes(rubro) || rubro.includes(lower)) return rubro;
+    if (c.includes(rubro) || rubro.includes(c)) return rubro;
   }
-  return null;
+  return null; // rubro desconocido → null, no se guarda nada
 }
 
 function normalizarTipo(raw: string): string | null {
   if (!raw) return null;
-  const lower = raw.toLowerCase().trim();
-  if (lower.includes('principal')) return 'principal';
-  if (lower.includes('secundario')) return 'secundario';
-  return raw.trim() || null;
+  const c = canonical(raw);
+  if (c.includes('principal')) return 'principal';
+  if (c.includes('secundario') || c.includes('secundaria')) return 'secundario';
+  return null; // tipo desconocido → null, no se guarda
 }
 
-function normalizarEstado(raw: string): string {
+/** Estados válidos internos */
+const ESTADOS_VALIDOS = [
+  'funcional',
+  'inactivo',
+  'rebotado inexistente',
+  'rebotado bandeja llena',
+  'rebotado spam',
+  'rebotado desconocido',
+] as const;
+type EstadoValido = typeof ESTADOS_VALIDOS[number];
+
+function normalizarEstado(raw: string): EstadoValido {
   if (!raw) return 'funcional';
-  const lower = raw.toLowerCase().trim();
-  if (lower.includes('rebotado') || lower.includes('rebotad')) {
-    if (lower.includes('inexistente')) return 'rebotado inexistente';
-    if (lower.includes('bandeja') || lower.includes('llena')) return 'rebotado bandeja llena';
-    if (lower.includes('spam')) return 'rebotado spam';
-    return 'rebotado desconocido';
+  const c = canonical(raw);
+
+  // Match exacto primero (ej: 'funcional', 'inactivo')
+  if (c === 'funcional' || c === 'activo' || c === 'active') return 'funcional';
+  if (c === 'inactivo' || c === 'inactive') return 'inactivo';
+
+  // Match sobre estados compuestos rebotado
+  if (c.includes('rebotado') || c.includes('rebotad') || c.includes('bounce') || c.includes('bounced')) {
+    if (c.includes('inexistente') || c.includes('inexistent') || c.includes('noexiste')) return 'rebotado inexistente';
+    if (c.includes('bandeja') || c.includes('llena') || c.includes('full') || c.includes('quota')) return 'rebotado bandeja llena';
+    if (c.includes('spam') || c.includes('span') || c.includes('junk')) return 'rebotado spam'; // "span" = typo de "spam"
+    if (c.includes('desconocido') || c.includes('unknown') || c.includes('error')) return 'rebotado desconocido';
+    return 'rebotado desconocido'; // rebotado genérico
   }
-  if (lower === 'inactivo') return 'inactivo';
-  return 'funcional';
+
+  // error_formato y otros estados de error desconocidos → rebotado desconocido
+  if (c.includes('error') || c.includes('formato') || c.includes('invalid')) return 'rebotado desconocido';
+
+  return 'funcional'; // fallback seguro
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -112,7 +152,6 @@ export default function ImportadorVisual({ onClose, onImportComplete }: Props) {
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [fileName, setFileName] = useState('');
   const [mappings, setMappings] = useState<MappedColumn[]>([]);
@@ -134,7 +173,6 @@ export default function ImportadorVisual({ onClose, onImportComplete }: Props) {
         skipEmptyLines: true,
         complete: ({ data, meta }) => {
           const cols = meta.fields ?? [];
-          setHeaders(cols);
           setRows(data);
           setMappings(cols.map(c => ({ colOriginal: c, campoDestino: autoDetect(c) })));
           setPaso(1);
@@ -150,7 +188,6 @@ export default function ImportadorVisual({ onClose, onImportComplete }: Props) {
           const jsonData = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: '' });
           if (!jsonData.length) { setErrorMsg('El archivo Excel está vacío.'); return; }
           const cols = Object.keys(jsonData[0]);
-          setHeaders(cols);
           setRows(jsonData);
           setMappings(cols.map(c => ({ colOriginal: c, campoDestino: autoDetect(c) })));
           setPaso(1);
@@ -174,12 +211,13 @@ export default function ImportadorVisual({ onClose, onImportComplete }: Props) {
   // ── Build contacts ─────────────────────────────────────────────────────────
 
   const buildContactos = (): ContactoImportRow[] => {
-    return rows.map(row => {
+    // Construir contactos y deduplicar por email (último gana, con aviso)
+    const contactosRaw = rows.map(row => {
       const contact: ContactoImportRow = { email: '' };
       for (const m of mappings) {
         if (m.campoDestino === '_ignorar') continue;
         const val = String(row[m.colOriginal] ?? '').trim();
-        if (m.campoDestino === 'email') contact.email = val.toLowerCase();
+        if (m.campoDestino === 'email') contact.email = val.toLowerCase().trim();
         else if (m.campoDestino === 'empresa_nombre') contact.empresa_nombre = val || null;
         else if (m.campoDestino === 'cuit') contact.cuit = val || null;
         else if (m.campoDestino === 'rubro_id') contact.rubro_id = normalizarRubro(val);
@@ -188,7 +226,26 @@ export default function ImportadorVisual({ onClose, onImportComplete }: Props) {
       }
       return contact;
     }).filter(c => c.email.includes('@'));
+
+    // Deduplicar: si el mismo email aparece varias veces en el archivo,
+    // se queda con la ÚLTIMA ocurrencia (Map preserva el último valor)
+    const emailMap = new Map<string, ContactoImportRow>();
+    for (const c of contactosRaw) emailMap.set(c.email, c);
+    return Array.from(emailMap.values());
   };
+
+  // Cantidad de emails duplicados en el archivo (solo informativo)
+  const emailsDuplicados = (() => {
+    if (paso < 1) return 0;
+    const emails = rows
+      .map(row => {
+        const emailCol = mappings.find(m => m.campoDestino === 'email');
+        if (!emailCol) return '';
+        return String(row[emailCol.colOriginal] ?? '').toLowerCase().trim();
+      })
+      .filter(e => e.includes('@'));
+    return emails.length - new Set(emails).size;
+  })();
 
   const validados = paso >= 1 ? buildContactos() : [];
   const emailsMapped = mappings.some(m => m.campoDestino === 'email');
@@ -296,7 +353,7 @@ export default function ImportadorVisual({ onClose, onImportComplete }: Props) {
                 <p className="text-sm text-muted">
                   Archivo: <span className="font-semibold text-dark">{fileName}</span> — <span className="font-semibold text-primary">{rows.length} filas</span> encontradas
                 </p>
-                <button onClick={() => { setPaso(0); setHeaders([]); setRows([]); setErrorMsg(''); }} className="text-xs text-muted hover:text-dark underline">
+                <button onClick={() => { setPaso(0); setRows([]); setErrorMsg(''); }} className="text-xs text-muted hover:text-dark underline">
                   Cambiar archivo
                 </button>
               </div>
@@ -390,6 +447,7 @@ export default function ImportadorVisual({ onClose, onImportComplete }: Props) {
                   <p className="text-xs text-muted mt-2">
                     Se importarán <strong className="text-primary">{validados.length}</strong> contactos válidos de {rows.length} filas totales.
                     {rows.length - validados.length > 0 && <span className="text-amber-600"> ({rows.length - validados.length} sin email válido, serán ignoradas)</span>}
+                    {emailsDuplicados > 0 && <span className="text-amber-600"> · {emailsDuplicados} email(s) duplicado(s) en el archivo, se importa solo el último.</span>}
                   </p>
                 </div>
               )}
