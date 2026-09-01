@@ -88,12 +88,11 @@ function normalizarRubro(raw: string): string | null {
   return null; // rubro desconocido → null, no se guarda nada
 }
 
-function normalizarTipo(raw: string): string | null {
-  if (!raw) return null;
+function normalizarTipo(raw: string): string {
+  if (!raw) return 'principal';
   const c = canonical(raw);
-  if (c.includes('principal')) return 'principal';
   if (c.includes('secundario') || c.includes('secundaria')) return 'secundario';
-  return null; // tipo desconocido → null, no se guarda
+  return 'principal'; // tipo desconocido o vacío → principal por defecto
 }
 
 /** Estados válidos internos */
@@ -379,6 +378,9 @@ export default function ImportadorVisual({ onClose, onImportComplete }: Props) {
                   <div className="px-4 py-3">
                     <p className="text-muted">Si el rubro del archivo no coincide con ninguno de los rubros del sistema, el contacto se importa igual pero <strong className="text-dark">sin rubro asignado</strong>. Podrés asignárselo después desde el listado.</p>
                   </div>
+                  <div className="px-4 py-3">
+                    <p className="text-muted">Tené en cuenta que a los contactos sin rubro <strong>solo les llegarán las campañas que se envíen a "Todos los rubros" o si marcás la opción "Sin rubro"</strong> al crear la campaña.</p>
+                  </div>
                 </div>
 
                 <div className="border border-border rounded-xl divide-y divide-border overflow-hidden">
@@ -386,7 +388,7 @@ export default function ImportadorVisual({ onClose, onImportComplete }: Props) {
                     <p className="font-semibold text-dark">🔖 ¿Qué pasa si el Tipo no es Principal ni Secundario?</p>
                   </div>
                   <div className="px-4 py-3">
-                    <p className="text-muted">Solo se reconocen los valores <strong className="text-dark">Principal</strong> y <strong className="text-dark">Secundario</strong>. Si el archivo tiene otro valor, el contacto se importa sin tipo asignado.</p>
+                    <p className="text-muted">Solo se reconocen los valores <strong className="text-dark">Principal</strong> y <strong className="text-dark">Secundario</strong>. Si el archivo tiene otro valor, o dejás la columna vacía, el contacto se importará como <strong className="text-dark">Principal</strong> por defecto.</p>
                   </div>
                 </div>
 

@@ -46,13 +46,34 @@ export async function poblarColaEnvios(campanaId: string): Promise<PoblarColaRes
     contactosQuery = `SELECT id FROM contactos WHERE estado = 'funcional'`;
     contactosParams = [];
   } else {
-    contactosQuery = `
-      SELECT c.id
-      FROM contactos c
-      WHERE c.estado = 'funcional'
-        AND c.rubro_id = ANY($1)
-    `;
-    contactosParams = [rubrosSeleccionados];
+    const isSinRubro = rubrosSeleccionados.includes('__sin_rubro__');
+    const validRubros = rubrosSeleccionados.filter(r => r !== '__sin_rubro__');
+
+    if (isSinRubro && validRubros.length > 0) {
+      contactosQuery = `
+        SELECT c.id
+        FROM contactos c
+        WHERE c.estado = 'funcional'
+          AND (c.rubro_id = ANY($1) OR c.rubro_id IS NULL)
+      `;
+      contactosParams = [validRubros];
+    } else if (isSinRubro) {
+      contactosQuery = `
+        SELECT c.id
+        FROM contactos c
+        WHERE c.estado = 'funcional'
+          AND c.rubro_id IS NULL
+      `;
+      contactosParams = [];
+    } else {
+      contactosQuery = `
+        SELECT c.id
+        FROM contactos c
+        WHERE c.estado = 'funcional'
+          AND c.rubro_id = ANY($1)
+      `;
+      contactosParams = [validRubros];
+    }
   }
 
   const contactosResult = await dbPool.query<{ id: string }>(contactosQuery, contactosParams);

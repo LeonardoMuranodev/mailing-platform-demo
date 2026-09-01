@@ -308,6 +308,20 @@ export default function CrearCampana() {
                 Seleccionar Rubros Destinatarios
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[300px] overflow-y-auto p-4 bg-background rounded-lg border border-border">
+                {/* Opción especial: Sin rubro */}
+                <label key="__sin_rubro__" className="flex items-center gap-2.5 cursor-pointer hover:bg-surface p-2 rounded transition-colors border border-border bg-surface/50">
+                  <input
+                    type="checkbox"
+                    checked={form.rubros_seleccionados.includes('__sin_rubro__')}
+                    onChange={() => toggleRubro('__sin_rubro__')}
+                    disabled={isSubmittedSuccessfully}
+                    className="w-4 h-4 text-primary rounded border-border focus:ring-primary"
+                  />
+                  <span className="text-dark select-none font-semibold">
+                    Sin rubro asignado
+                  </span>
+                </label>
+
                 {RUBROS_LIST.map((rubro) => (
                   <label key={rubro} className="flex items-center gap-2.5 cursor-pointer hover:bg-surface p-2 rounded transition-colors">
                     <input
