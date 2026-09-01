@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { Upload, X, CheckCircle2, AlertTriangle, ChevronRight, FileSpreadsheet } from 'lucide-react';
+import { Upload, X, CheckCircle2, AlertTriangle, ChevronRight, FileSpreadsheet, HelpCircle } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { RUBROS_LABELS, RUBROS_LIST } from '../data/rubros';
@@ -159,6 +159,7 @@ export default function ImportadorVisual({ onClose, onImportComplete }: Props) {
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<{ procesados: number; insertados_o_actualizados: number } | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [showHelp, setShowHelp] = useState(false);
 
   // ── Parse ──────────────────────────────────────────────────────────────────
 
@@ -285,7 +286,7 @@ export default function ImportadorVisual({ onClose, onImportComplete }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-surface w-full max-w-3xl rounded-2xl border border-border shadow-2xl overflow-hidden animate-fade-in flex flex-col max-h-[90vh]">
+      <div className="bg-surface w-full max-w-3xl rounded-2xl border border-border shadow-2xl overflow-hidden animate-fade-in flex flex-col max-h-[90vh] relative">
 
         {/* Header */}
         <div className="px-6 py-4 border-b border-border flex justify-between items-center shrink-0">
@@ -306,10 +307,111 @@ export default function ImportadorVisual({ onClose, onImportComplete }: Props) {
               ))}
             </div>
           </div>
-          <button onClick={onClose} className="text-muted hover:text-dark transition-colors p-1">
-            <X size={20} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowHelp(true)}
+              className="text-muted hover:text-primary transition-colors p-1 rounded-lg hover:bg-primary/10"
+              title="Ayuda sobre el importador"
+            >
+              <HelpCircle size={20} />
+            </button>
+            <button onClick={onClose} className="text-muted hover:text-dark transition-colors p-1">
+              <X size={20} />
+            </button>
+          </div>
         </div>
+
+        {/* Modal de Ayuda */}
+        {showHelp && (
+          <div className="absolute inset-0 z-10 bg-surface/95 backdrop-blur-sm rounded-2xl overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-5">
+                <h3 className="text-lg font-bold text-dark flex items-center gap-2">
+                  <HelpCircle size={20} className="text-primary" />
+                  Guía del Importador
+                </h3>
+                <button onClick={() => setShowHelp(false)} className="text-muted hover:text-dark transition-colors p-1">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-5 text-sm">
+
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                  <p className="font-semibold text-blue-800 mb-2">📄 ¿Qué archivos puedo subir?</p>
+                  <p className="text-blue-700">Podés subir archivos <strong>.CSV</strong> o <strong>.Excel (.xlsx / .xls)</strong>. El archivo puede tener los nombres de columna que quieras; en el siguiente paso vas a indicar a qué campo pertenece cada una.</p>
+                </div>
+
+                <div className="border border-border rounded-xl divide-y divide-border overflow-hidden">
+                  <div className="px-4 py-3 bg-background">
+                    <p className="font-semibold text-dark">✉️ ¿Qué pasa si hay un email repetido?</p>
+                  </div>
+                  <div className="px-4 py-3">
+                    <p className="text-muted"><strong className="text-dark">Dentro del archivo:</strong> Si el mismo email aparece dos veces en tu planilla, el sistema se queda con los datos de la última fila que encuentre y descarta la anterior.</p>
+                  </div>
+                  <div className="px-4 py-3">
+                    <p className="text-muted"><strong className="text-dark">Contacto que ya existía:</strong> Si el email ya estaba cargado en el sistema, sus datos se van a <strong>actualizar</strong> con los del archivo. El contacto no se duplica, simplemente se sobreescribe con la información más reciente.</p>
+                  </div>
+                </div>
+
+                <div className="border border-border rounded-xl divide-y divide-border overflow-hidden">
+                  <div className="px-4 py-3 bg-background">
+                    <p className="font-semibold text-dark">📋 ¿Qué pasa con el Estado?</p>
+                  </div>
+                  <div className="px-4 py-3">
+                    <p className="text-muted">El sistema acepta el estado en cualquier formato. Por ejemplo, <code className="bg-background px-1 rounded">FUNCIONAL</code>, <code className="bg-background px-1 rounded">funcional</code> o <code className="bg-background px-1 rounded">Funcional</code> son lo mismo.</p>
+                  </div>
+                  <div className="px-4 py-3">
+                    <p className="text-muted">Los separadores tampoco importan: <code className="bg-background px-1 rounded">rebotado_inexistente</code>, <code className="bg-background px-1 rounded">rebotado-inexistente</code> y <code className="bg-background px-1 rounded">Rebotado Inexistente</code> se leen igual.</p>
+                  </div>
+                  <div className="px-4 py-3">
+                    <p className="text-muted">Si hay un pequeño error de tipeo como <code className="bg-background px-1 rounded">rebotado_span</code> en lugar de <em>spam</em>, el sistema lo reconoce igual.</p>
+                  </div>
+                  <div className="px-4 py-3">
+                    <p className="text-muted">Si el valor del estado no se puede reconocer, el contacto se importa con estado <strong className="text-dark">Funcional</strong> por defecto.</p>
+                  </div>
+                </div>
+
+                <div className="border border-border rounded-xl divide-y divide-border overflow-hidden">
+                  <div className="px-4 py-3 bg-background">
+                    <p className="font-semibold text-dark">🏭 ¿Qué pasa si el Rubro no se reconoce?</p>
+                  </div>
+                  <div className="px-4 py-3">
+                    <p className="text-muted">Si el rubro del archivo no coincide con ninguno de los rubros del sistema, el contacto se importa igual pero <strong className="text-dark">sin rubro asignado</strong>. Podrés asignárselo después desde el listado.</p>
+                  </div>
+                </div>
+
+                <div className="border border-border rounded-xl divide-y divide-border overflow-hidden">
+                  <div className="px-4 py-3 bg-background">
+                    <p className="font-semibold text-dark">🔖 ¿Qué pasa si el Tipo no es Principal ni Secundario?</p>
+                  </div>
+                  <div className="px-4 py-3">
+                    <p className="text-muted">Solo se reconocen los valores <strong className="text-dark">Principal</strong> y <strong className="text-dark">Secundario</strong>. Si el archivo tiene otro valor, el contacto se importa sin tipo asignado.</p>
+                  </div>
+                </div>
+
+                <div className="border border-border rounded-xl divide-y divide-border overflow-hidden">
+                  <div className="px-4 py-3 bg-background">
+                    <p className="font-semibold text-dark">❌ ¿Qué filas se saltan?</p>
+                  </div>
+                  <div className="px-4 py-3">
+                    <p className="text-muted">Solo se ignoran las filas que <strong className="text-dark">no tienen un email válido</strong> (es decir, sin el símbolo @). Todas las demás se importan aunque les falten otros datos.</p>
+                  </div>
+                </div>
+
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setShowHelp(false)}
+                  className="px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark font-medium transition-colors text-sm"
+                >
+                  Entendido
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Scrollable content */}
         <div className="overflow-y-auto flex-1 p-6">

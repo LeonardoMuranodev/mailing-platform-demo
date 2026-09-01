@@ -133,7 +133,7 @@ export default function DirectorioContactos() {
 
   const openCrearModal = () => {
     setEditingId(null);
-    setForm({ email: '', empresa_nombre: '', cuit: '', rubro_id: '', estado: 'funcional' });
+    setForm({ email: '', empresa_nombre: '', cuit: '', rubro_id: '', estado: 'funcional', tipo: '' });
     setErrorMsg('');
     setIsModalOpen(true);
   };
@@ -146,6 +146,7 @@ export default function DirectorioContactos() {
       cuit: c.cuit || '',
       rubro_id: c.rubro_id || '',
       estado: c.estado,
+      tipo: c.tipo || '',
     });
     setErrorMsg('');
     setIsModalOpen(true);
@@ -541,6 +542,7 @@ export default function DirectorioContactos() {
               <AlertMessage type="error" message={errorMsg} />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Email - full width */}
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-dark mb-1">Email <span className="text-danger">*</span></label>
                   <input 
@@ -551,7 +553,8 @@ export default function DirectorioContactos() {
                     placeholder="ejemplo@empresa.com"
                   />
                 </div>
-                
+
+                {/* Empresa - full width */}
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-dark mb-1">Empresa / Razón Social</label>
                   <input 
@@ -563,17 +566,19 @@ export default function DirectorioContactos() {
                   />
                 </div>
 
-                <div>
+                {/* CUIT - full width */}
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-dark mb-1">CUIT</label>
                   <input 
                     type="text" 
                     value={form.cuit || ''}
                     onChange={e => setForm({...form, cuit: e.target.value})}
                     className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 h-[42px]"
-                    placeholder="Sin guiones"
+                    placeholder="Sin guiones (ej: 30709328995)"
                   />
                 </div>
 
+                {/* Estado y Tipo - lado a lado */}
                 <div>
                   <label className="block text-sm font-medium text-dark mb-1">Estado</label>
                   <select
@@ -590,6 +595,20 @@ export default function DirectorioContactos() {
                   </select>
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-dark mb-1">Tipo de Contacto</label>
+                  <select
+                    value={form.tipo || ''}
+                    onChange={e => setForm({...form, tipo: e.target.value})}
+                    className="w-full pl-3 pr-10 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 h-[42px]"
+                  >
+                    <option value="">Sin tipo asignado</option>
+                    <option value="principal">Principal</option>
+                    <option value="secundario">Secundario</option>
+                  </select>
+                </div>
+
+                {/* Rubro - full width */}
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-dark mb-1">Rubro</label>
                   <select
