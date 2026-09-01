@@ -14,6 +14,7 @@ import {
 } from './services/telegramNotifier.js';
 import { procesarCola } from './services/emailWorker.js';
 import { procesarRebotes, MODO_PRUEBA } from './services/bounceService.js';
+import { resetearContadoresSmtp } from './services/smtpAccountService.js';
 import cron from 'node-cron';
 import rateLimit from 'express-rate-limit';
 const app = express();
@@ -85,6 +86,20 @@ app.listen(config.port, async () => {
   const cronExpression = MODO_PRUEBA ? '*/5 * * * *' : '0 18 * * 1-5';
   logger.info(`📥 Iniciando Worker IMAP de Rebotes (Cron: ${cronExpression})...`);
   cron.schedule(cronExpression, procesarRebotes, {
+    timezone: 'America/Argentina/Buenos_Aires',
+  });
+
+  // Tarea de mantenimiento diario a la medianoche
+  const cronMedianoche = MODO_PRUEBA ? '*/10 * * * *' : '0 0 * * *';
+  logger.info(`🕛 Programando reset de contadores SMTP (Cron: ${cronMedianoche})...`);
+  cron.schedule(cronMedianoche, async () => {
+    try {
+      await resetearContadoresSmtp();
+      logger.info('[CRON] Contadores SMTP reseteados correctamente.');
+    } catch (err: any) {
+      logger.error('[CRON] Error reseteando contadores SMTP:', err.message);
+    }
+  }, {
     timezone: 'America/Argentina/Buenos_Aires',
   });
 });

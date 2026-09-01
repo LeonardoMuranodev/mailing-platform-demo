@@ -13,6 +13,7 @@ services:
     environment:
       - PORT=3000
       - NODE_ENV=development
+      - TZ=America/Argentina/Buenos_Aires
       # Overrides para servicios internos del compose
       - SMTP_HOST=mailpit
       - SMTP_PORT=1025

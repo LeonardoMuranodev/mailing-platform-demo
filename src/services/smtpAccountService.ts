@@ -13,6 +13,19 @@ function omitPassword(cuenta: CuentaSmtp): CuentaSmtp {
 }
 
 /**
+ * Resetea los contadores diarios (enviados_hoy) de todas las cuentas SMTP a 0.
+ * Si una cuenta estaba 'agotado', la vuelve a pasar a 'activo'.
+ */
+export async function resetearContadoresSmtp(): Promise<void> {
+  const query = `
+    UPDATE cuentas_smtp
+    SET enviados_hoy = 0,
+        estado = CASE WHEN estado = 'agotado' THEN 'activo' ELSE estado END
+  `;
+  await dbPool.query(query);
+}
+
+/**
  * Verifica las credenciales SMTP. Lanza error si fallan.
  */
 async function verificarConexionSmtp(host: string, puerto: number, usuario: string, pass: string) {
