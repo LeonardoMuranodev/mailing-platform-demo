@@ -86,15 +86,14 @@ services:
       context: .
       dockerfile: Dockerfile.backup
     container_name: mails-db-backup
-    restart: "no"
+    restart: unless-stopped
     env_file:
       - .env
     environment:
       - BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-7}
+      - TZ=America/Argentina/Buenos_Aires
     volumes:
       - ./BACKUPS:/backups
-    profiles:
-      - backup
 
 # ─── Volumes ──────────────────────────────────────────────────
 volumes:

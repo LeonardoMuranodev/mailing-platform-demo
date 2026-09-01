@@ -11,4 +11,8 @@ RUN chmod +x /usr/local/bin/backup-db.sh
 # Crear directorio de backups
 RUN mkdir -p /backups
 
-ENTRYPOINT ["/usr/local/bin/backup-db.sh"]
+# Configurar el cron (corre todos los días a las 03:00 AM)
+RUN echo "0 3 * * * /usr/local/bin/backup-db.sh > /proc/1/fd/1 2>/proc/1/fd/2" > /var/spool/cron/crontabs/root
+
+# Iniciar crond en el foreground (-f) con log level 2 (-l 2)
+ENTRYPOINT ["crond", "-f", "-l", "2"]
