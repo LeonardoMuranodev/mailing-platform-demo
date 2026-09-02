@@ -3,6 +3,7 @@ export type EstadoContacto = 'funcional' | 'inactivo' | 'rebotado inexistente' |
 export interface Contacto {
   id: string;
   empresa_nombre: string | null;
+  empresa_id: string | null;
   email: string;
   tipo: string | null;
   estado: EstadoContacto;

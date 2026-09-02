@@ -44,7 +44,23 @@ export default function DirectorioContactos() {
   });
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  
+
+  // Autocompletado empresa
+  const [empresasSugeridas, setEmpresasSugeridas] = useState<Array<{id: string; nombre: string; cuit: string | null}>>([]);
+  const [showEmpresaSugeridas, setShowEmpresaSugeridas] = useState(false);
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+  const buscarEmpresasSugeridas = async (q: string) => {
+    if (!q || q.length < 2) { setEmpresasSugeridas([]); setShowEmpresaSugeridas(false); return; }
+    try {
+      const token = localStorage.getItem('token');
+      const resp = await fetch(`${API_BASE}/empresas?q=${encodeURIComponent(q)}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await resp.json();
+      if (data.success) { setEmpresasSugeridas(data.data); setShowEmpresaSugeridas(data.data.length > 0); }
+    } catch { setEmpresasSugeridas([]); }
+  };
 
   // Confirm Delete
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -554,16 +570,38 @@ export default function DirectorioContactos() {
                   />
                 </div>
 
-                {/* Empresa - full width */}
-                <div className="sm:col-span-2">
+                {/* Empresa - full width con autocompletado */}
+                <div className="sm:col-span-2" style={{ position: 'relative' }}>
                   <label className="block text-sm font-medium text-dark mb-1">Empresa / Razón Social</label>
                   <input 
-                    type="text" 
+                    type="text"
+                    autoComplete="off"
                     value={form.empresa_nombre || ''}
-                    onChange={e => setForm({...form, empresa_nombre: e.target.value})}
+                    onChange={e => {
+                      setForm({...form, empresa_nombre: e.target.value});
+                      buscarEmpresasSugeridas(e.target.value);
+                    }}
+                    onBlur={() => setTimeout(() => setShowEmpresaSugeridas(false), 150)}
                     className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 h-[42px]"
-                    placeholder="Nombre de la empresa"
+                    placeholder="Nombre de la empresa (busca entre existentes)"
                   />
+                  {showEmpresaSugeridas && empresasSugeridas.length > 0 && (
+                    <ul className="absolute z-50 w-full bg-surface border border-border rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+                      {empresasSugeridas.map(emp => (
+                        <li
+                          key={emp.id}
+                          className="px-3 py-2 hover:bg-primary/10 cursor-pointer text-dark flex justify-between items-center"
+                          onMouseDown={() => {
+                            setForm(f => ({ ...f, empresa_nombre: emp.nombre, cuit: emp.cuit || f.cuit }));
+                            setShowEmpresaSugeridas(false);
+                          }}
+                        >
+                          <span>{emp.nombre}</span>
+                          {emp.cuit && <span className="text-muted text-xs">{emp.cuit}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
 
                 {/* CUIT - full width */}

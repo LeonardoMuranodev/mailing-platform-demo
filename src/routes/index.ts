@@ -5,6 +5,7 @@ import { queueRouter } from './queueRoutes.js';
 import { smtpRouter } from './smtpRoutes.js';
 import { statsRouter } from './statsRoutes.js';
 import { contactoRouter } from './contactoRoutes.js';
+import { empresaRouter } from './empresaRoutes.js';
 import { usuariosRouter } from './usuariosRoutes.js';
 import soporteRouter from './soporteRoutes.js';
 import { requireAuth } from '../middlewares/requireAuth.js';
@@ -38,10 +39,11 @@ export function registerRoutes(app: Application): void {
   app.use('/api/smtp', smtpRouter);
   app.use('/api/stats', statsRouter);
   app.use('/api/contactos', contactoRouter);
+  app.use('/api/empresas', empresaRouter);
   app.use('/api/usuarios', usuariosRouter);
   app.use('/api/soporte', soporteRouter);
   
-  console.log('[Routes] ✅ REST endpoints registered: /api/auth, /api/campanas, /api/queue, /api/smtp, /api/stats, /api/contactos, /api/usuarios, /api/soporte');
+  console.log('[Routes] ✅ REST endpoints registered: /api/auth, /api/campanas, /api/queue, /api/smtp, /api/stats, /api/contactos, /api/empresas, /api/usuarios, /api/soporte');
   console.log('[Routes] 🛡️  Rate limiters active: auth (10/15min), api (200/15min), queue (5/1min)');
 }
 

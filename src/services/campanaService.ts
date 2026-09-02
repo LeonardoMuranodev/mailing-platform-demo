@@ -85,11 +85,11 @@ export async function cambiarEstadoCampana(
 }
 
 /**
- * Elimina una campaña y su cola de envíos asociada.
+ * Elimina (soft delete) una campaña marcando eliminado_en.
+ * Los datos de tracking y estadísticas se preservan.
  */
 export async function eliminarCampana(id: string): Promise<boolean> {
-  // Al eliminar la campaña, la FK ON DELETE CASCADE eliminará la cola_envios.
-  const query = `DELETE FROM campanas WHERE id = $1 RETURNING id`;
+  const query = `UPDATE campanas SET eliminado_en = CURRENT_TIMESTAMP WHERE id = $1 AND eliminado_en IS NULL RETURNING id`;
   const result = await dbPool.query(query, [id]);
   return (result.rowCount ?? 0) > 0;
 }
@@ -155,6 +155,9 @@ export async function listarCampanas(
     values.push(filtros.fecha_hasta);
     paramIdx++;
   }
+
+  // Siempre excluir campañas borradas (soft delete)
+  conditions.push('eliminado_en IS NULL');
 
   const whereClause = conditions.length > 0
     ? `WHERE ${conditions.join(' AND ')}`
@@ -241,7 +244,7 @@ export async function obtenerCampanaConEstadisticas(
 }
 
 export async function eliminarCampanasMasivo(ids: string[]): Promise<boolean> {
-  const query = 'DELETE FROM campanas WHERE id = ANY($1::uuid[]) RETURNING id;';
+  const query = 'UPDATE campanas SET eliminado_en = CURRENT_TIMESTAMP WHERE id = ANY($1::uuid[]) AND eliminado_en IS NULL RETURNING id;';
   const { rowCount } = await dbPool.query(query, [ids]);
   return (rowCount ?? 0) > 0;
 }

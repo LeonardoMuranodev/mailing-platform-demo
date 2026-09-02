@@ -1,5 +1,6 @@
 import { dbPool } from '../config/db.js';
 import { parse } from 'csv-parse/sync';
+import { upsertEmpresa } from './empresaService.js';
 import type {
   Contacto,
   ContactoConRubro,
@@ -72,9 +73,12 @@ export async function listarContactos(filtros: ListarContactosQuery): Promise<Co
 export async function crearContacto(data: CrearContactoInput): Promise<Contacto | null> {
   const { email, empresa_nombre, cuit, rubro_id, tipo = 'empresa', estado = 'funcional' } = data;
 
+  // Upsert empresa (crea o reutiliza)
+  const empresa_id = await upsertEmpresa(empresa_nombre, cuit);
+
   const query = `
-    INSERT INTO contactos (email, empresa_nombre, cuit, rubro_id, tipo, estado)
-    VALUES ($1, $2, $3, $4, $5, $6)
+    INSERT INTO contactos (email, empresa_nombre, cuit, rubro_id, tipo, estado, empresa_id)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
     ON CONFLICT (email) DO NOTHING
     RETURNING *
   `;
@@ -86,9 +90,10 @@ export async function crearContacto(data: CrearContactoInput): Promise<Contacto 
     rubro_id ?? null,
     tipo,
     estado,
+    empresa_id,
   ]);
 
-  return result.rows[0] ?? null; // Returns null if conflict
+  return result.rows[0] ?? null;
 }
 
 export async function actualizarContacto(id: string, data: ActualizarContactoInput): Promise<Contacto | null> {
@@ -196,9 +201,12 @@ export async function importarContactosJson(
   for (const row of contactos) {
     if (!row.email || !row.email.trim()) continue;
 
+    // Upsert empresa
+    const empresa_id = await upsertEmpresa(row.empresa_nombre, row.cuit);
+
     const query = `
-      INSERT INTO contactos (email, empresa_nombre, cuit, rubro_id, tipo, estado)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO contactos (email, empresa_nombre, cuit, rubro_id, tipo, estado, empresa_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       ON CONFLICT (email) DO UPDATE
       SET
         empresa_nombre = COALESCE(EXCLUDED.empresa_nombre, contactos.empresa_nombre),
@@ -206,6 +214,7 @@ export async function importarContactosJson(
         rubro_id       = COALESCE(EXCLUDED.rubro_id, contactos.rubro_id),
         tipo           = COALESCE(EXCLUDED.tipo, contactos.tipo),
         estado         = COALESCE(EXCLUDED.estado, contactos.estado),
+        empresa_id     = COALESCE(EXCLUDED.empresa_id, contactos.empresa_id),
         actualizado_en = CURRENT_TIMESTAMP
     `;
 
@@ -216,6 +225,7 @@ export async function importarContactosJson(
       row.rubro_id || null,
       row.tipo || null,
       row.estado || 'funcional',
+      empresa_id,
     ]);
     afectadas++;
   }
