@@ -99,6 +99,7 @@ export async function procesarCola(): Promise<void> {
       WHERE ce.estado = 'pendiente' AND c.estado IN ('en_proceso', 'aprobada')
       ORDER BY 
         CASE WHEN c.prioridad = 'alta' THEN 1 ELSE 2 END ASC,
+        c.fecha_limite_envio ASC NULLS LAST,
         ce.id ASC
       LIMIT $1
       FOR UPDATE OF ce SKIP LOCKED;
@@ -142,12 +143,18 @@ export async function procesarCola(): Promise<void> {
 
         cuentaIdUsada = cuentaSmtp.id;
 
+        const trackBase = config.publicApiUrl || 'http://localhost:3000';
+        let flyerAbsUrl = item.flyer_url;
+        if (flyerAbsUrl && flyerAbsUrl.startsWith('/uploads/')) {
+          flyerAbsUrl = `${trackBase}${flyerAbsUrl}`;
+        }
+
         const campanaMock: Campana = {
           id: item.campana_id,
           asunto: item.asunto,
           cuerpo_html: item.cuerpo_html,
           link_inscripcion: item.link_inscripcion,
-          flyer_url: item.flyer_url,
+          flyer_url: flyerAbsUrl,
           estado: item.campana_estado,
           fecha_limite_envio: '',
           prioridad: 'media',
@@ -160,7 +167,6 @@ export async function procesarCola(): Promise<void> {
         let html = generarHtmlDesdeCampana(campanaMock);
         
         // ── TRACKING INJECTION ──
-        const trackBase = config.publicApiUrl || 'http://localhost:3000';
         
         // 1. Reemplazar enlaces para Click Tracking (solo http/https)
         html = html.replace(/<a\s+(?:[^>]*?\s+)?href=["'](https?:\/\/[^"']+)["']/gi, (match, url) => {
@@ -252,6 +258,9 @@ export async function procesarCola(): Promise<void> {
         break;
       }
     }
+
+    // 5. Verificar completadas una vez finalizado el lote
+    await verificarCampanasCompletadas();
 
   } catch (error) {
     console.error('Error en procesarCola:', error);

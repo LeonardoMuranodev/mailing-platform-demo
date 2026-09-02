@@ -114,7 +114,7 @@ app.listen(config.port, async () => {
   });
 
   // Iniciar procesador de rebotes IMAP (Lunes a Viernes a las 18:00 hs, o cada 5 min en TEST)
-  const cronExpression = MODO_PRUEBA ? '*/5 * * * *' : '0 18 * * 1-5';
+  const cronExpression = MODO_PRUEBA ? '*/5 * * * *' : '5 9-17 * * 1-5';
   logger.info(`📥 Iniciando Worker IMAP de Rebotes (Cron: ${cronExpression})...`);
   cron.schedule(cronExpression, procesarRebotes, {
     timezone: 'America/Argentina/Buenos_Aires',
