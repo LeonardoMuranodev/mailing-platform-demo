@@ -68,11 +68,42 @@ dbPool.on('error', async (err) => {
 });
 
 import { seedUsuarios } from './scripts/seedUsuarios.js';
+import fs from 'node:fs';
+
+async function runMigrations(): Promise<void> {
+  // En el contenedor las migraciones están en /app/src/migrations (source),
+  // en el build compilado en /app/dist/../src no existe, así que buscamos en dos lugares.
+  const candidates = [
+    path.resolve(process.cwd(), 'src/migrations'),
+    path.resolve(process.cwd(), 'dist/migrations'), // por si acaso el build copia SQLs
+  ];
+  const migrationsDir = candidates.find(d => fs.existsSync(d));
+  if (!migrationsDir) {
+    logger.warn('[Migration] No se encontró directorio de migraciones, saltando...');
+    return;
+  }
+  const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
+  for (const file of files) {
+    try {
+      const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+      await dbPool.query(sql);
+      logger.info(`✅ [Migration] ${file} OK`);
+    } catch (err: any) {
+      // Ignorar errores de objetos ya existentes (idempotente)
+      if (err.code === '42701' || err.code === '42P07' || err.code === '42710') {
+        logger.info(`⏭️ [Migration] ${file} ya aplicada (skip)`);
+      } else {
+        logger.error(`❌ [Migration] ${file} falló:`, err.message);
+      }
+    }
+  }
+}
 
 // ── Start ───────────────────────────────────────────────
 app.listen(config.port, async () => {
   logger.info(`🚀 Server listening on http://localhost:${config.port}`);
   await testDbConnection();
+  await runMigrations();
   await seedUsuarios();
 
   // Iniciar worker SMTP con Cron (Lunes a Viernes de 9 a 17 hs, o cada 1 min en TEST)

@@ -29,6 +29,9 @@ RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 # Copia el build compilado
 COPY --from=builder /app/dist ./dist
 
+# Copia las migraciones SQL (se ejecutan al arranque)
+COPY --from=builder /app/src/migrations ./src/migrations
+
 # Crea carpetas de uploads y logs con permisos adecuados
 RUN mkdir -p /app/uploads /app/logs && chown -R node:node /app/uploads /app/logs
 

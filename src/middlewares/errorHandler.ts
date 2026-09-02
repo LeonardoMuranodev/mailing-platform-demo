@@ -42,9 +42,18 @@ export function errorHandler(
     }
   }
 
-  // ── Errores de negocio y fallback ─────────────────────
+  // ── Errores de negocio y fallback ─────────────────
   if (err instanceof Error) {
     const isProduction = process.env.NODE_ENV === 'production';
+
+    // Errores de BD de PostgreSQL: NUNCA se muestran al usuario
+    const isPgError = 'code' in err && typeof (err as any).code === 'string' && (err as any).code.match(/^[0-9A-Z]{5}$/);
+    if (isPgError) {
+      console.error('[DB Error]', err.message, (err as any).code);
+      notifyError(`DB Error ${(err as any).code} — ${req.method} ${req.originalUrl}`, err).catch(() => {});
+      sendError(res, 'INTERNAL_ERROR', 'Error interno del servidor', 500);
+      return;
+    }
 
     // Allow certain specific business errors to pass through even in production
     const isBusinessError = err.message.includes('Contraseña de aplicación') || 
