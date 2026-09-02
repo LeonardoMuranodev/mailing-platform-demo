@@ -219,7 +219,7 @@ export default function ImportadorVisual({ onClose, onImportComplete }: Props) {
         const val = String(row[m.colOriginal] ?? '').trim();
         if (m.campoDestino === 'email') contact.email = val.toLowerCase().trim();
         else if (m.campoDestino === 'empresa_nombre') contact.empresa_nombre = val || null;
-        else if (m.campoDestino === 'cuit') contact.cuit = val || null;
+        else if (m.campoDestino === 'cuit') contact.cuit = val.replace(/\D/g, '') || null;
         else if (m.campoDestino === 'rubro_id') contact.rubro_id = normalizarRubro(val);
         else if (m.campoDestino === 'tipo') contact.tipo = normalizarTipo(val);
         else if (m.campoDestino === 'estado') contact.estado = normalizarEstado(val);

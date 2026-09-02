@@ -15,8 +15,6 @@ services:
       - NODE_ENV=development
       - TZ=America/Argentina/Buenos_Aires
       # Overrides para servicios internos del compose
-      - SMTP_HOST=mailpit
-      - SMTP_PORT=1025
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     volumes:
@@ -24,8 +22,6 @@ services:
       - ./logs:/app/logs
     depends_on:
       redis:
-        condition: service_started
-      mailpit:
         condition: service_started
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
@@ -78,30 +74,7 @@ services:
     networks:
       - mails-network
 
-  # ─── 4. MAILPIT (SMTP de Pruebas — Intercepta correos) ────
-  mailpit:
-    image: axllent/mailpit:v1.21
-    container_name: mails-mailpit
-    restart: unless-stopped
-    ports:
-      - "8025:8025"   # Dashboard Web para ver correos
-      - "1025:1025"   # Puerto SMTP ficticio
-    environment:
-      - MP_MAX_MESSAGES=500
-      - MP_DATABASE=/data/mailpit.db
-      - MP_SMTP_AUTH_ACCEPT_ANY=true
-      - MP_SMTP_AUTH_ALLOW_INSECURE=true
-      - MP_UI_AUTH_FILE=
-    volumes:
-      - mailpit_data:/data
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8025/"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 5s
-    networks:
-      - mails-network
+
 
   # ─── 5. DB BACKUP (PostgreSQL Dump → Google Drive) ──────
   db-backup:
@@ -122,8 +95,7 @@ services:
 volumes:
   redis_data:
     driver: local
-  mailpit_data:
-    driver: local
+
   uploads_data:
     driver: local
 

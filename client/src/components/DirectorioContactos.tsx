@@ -570,11 +570,13 @@ export default function DirectorioContactos() {
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-dark mb-1">CUIT</label>
                   <input 
-                    type="text" 
+                    type="text"
+                    inputMode="numeric"
                     value={form.cuit || ''}
-                    onChange={e => setForm({...form, cuit: e.target.value})}
+                    onChange={e => setForm({...form, cuit: e.target.value.replace(/\D/g, '')})}
                     className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 h-[42px]"
                     placeholder="Sin guiones (ej: 30709328995)"
+                    maxLength={11}
                   />
                 </div>
 

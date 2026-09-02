@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const crearContactoSchema = z.object({
   email: z.string({ message: 'El email es obligatorio' }).trim().email('Email inválido'),
   empresa_nombre: z.string().trim().optional(),
-  cuit: z.string().trim().optional(),
+  cuit: z.string().trim().regex(/^\d*$/, 'El CUIT debe contener solo números').optional(),
   rubro_id: z.string().optional().nullable(),
   tipo: z.string().default('empresa'),
   estado: z.enum(['funcional', 'inactivo', 'rebotado inexistente', 'rebotado bandeja llena', 'rebotado spam', 'rebotado desconocido']).default('funcional'),
