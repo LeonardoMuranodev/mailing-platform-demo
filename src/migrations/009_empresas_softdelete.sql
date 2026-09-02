@@ -1,4 +1,4 @@
-﻿-- ============================================================
+-- ============================================================
 -- Migración 009: Tabla empresas + Soft Delete en campañas
 -- Fecha: 2026-09-02
 -- ============================================================
@@ -17,7 +17,7 @@ ALTER TABLE contactos
   ADD COLUMN IF NOT EXISTS empresa_id UUID REFERENCES empresas(id) ON DELETE SET NULL;
 
 -- 3. Migrar datos existentes
-DO $
+DO $$
 DECLARE
   r RECORD;
   emp_id UUID;
@@ -44,7 +44,7 @@ BEGIN
     emp_id := NULL;
   END LOOP;
 END;
-$;
+$$;
 
 CREATE INDEX IF NOT EXISTS idx_empresas_cuit ON empresas(cuit);
 CREATE INDEX IF NOT EXISTS idx_contactos_empresa ON contactos(empresa_id);
