@@ -156,3 +156,23 @@ describe('SMTP Rotation — Round-Robin', () => {
     });
   });
 });
+
+describe('resetearContadoresSmtp', () => {
+  beforeEach(() => {
+    resetAllMocks();
+  });
+
+  it('debería ejecutar el UPDATE para resetear contadores y cambiar estado agotado', async () => {
+    mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [] });
+    
+    // resetearContadoresSmtp debe importarse estáticamente arriba
+    const { resetearContadoresSmtp } = await import('../services/smtpAccountService.js');
+    await resetearContadoresSmtp();
+    
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    const queryText = mockQuery.mock.calls[0][0] as string;
+    expect(queryText).toContain('UPDATE cuentas_smtp');
+    expect(queryText).toContain('enviados_hoy = 0');
+    expect(queryText).toContain("estado = CASE WHEN estado = 'agotado' THEN 'activo' ELSE estado END");
+  });
+});

@@ -69,30 +69,21 @@ describe('Queue Service — poblarColaEnvios()', () => {
       rowCount: 3,
     });
 
-    // 4. UPDATE estado
-    mockQuery.mockResolvedValueOnce({
-      rows: [],
-      rowCount: 1,
-    });
-
     const result = await poblarColaEnvios(campanaId);
 
     expect(result.campana_id).toBe(campanaId);
     expect(result.total_insertados).toBe(3);
     expect(result.para_todos_rubros).toBe(true);
 
-    // Verificar que se hicieron las 4 queries
-    expect(mockQuery).toHaveBeenCalledTimes(4);
+    // Verificar que se hicieron las 3 queries
+    expect(mockQuery).toHaveBeenCalledTimes(3);
 
     // Verificar que el INSERT usó unnest con los IDs correctos
     const insertCall = mockQuery.mock.calls[2];
     expect(insertCall[0]).toContain('INSERT INTO cola_envios');
     expect(insertCall[1]).toEqual([campanaId, ['contact-1', 'contact-2', 'contact-3']]);
 
-    // Verificar que el UPDATE cambió el estado a 'en_proceso'
-    const updateCall = mockQuery.mock.calls[3];
-    expect(updateCall[0]).toContain("UPDATE campanas SET estado = 'en_proceso'");
-    expect(updateCall[1]).toEqual([campanaId]);
+    expect(insertCall[1]).toEqual([campanaId, ['contact-1', 'contact-2', 'contact-3']]);
   });
 
   it('debería retornar 0 insertados si no hay contactos para los rubros', async () => {
@@ -127,6 +118,45 @@ describe('Queue Service — poblarColaEnvios()', () => {
     expect(result.rubros_filtrados).toEqual(['rubro-1', 'rubro-2']);
     // No debe hacer INSERT si no hay contactos
     expect(mockQuery).toHaveBeenCalledTimes(2);
+  });
+
+  it('debería incluir contactos sin rubro (NULL) cuando rubros_seleccionados contiene __sin_rubro__', async () => {
+    const campanaId = 'camp-sin-rubro';
+
+    // Campaña con rubro normal y sin rubro
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        id: campanaId,
+        asunto: 'Campaña sin rubro',
+        cuerpo_html: '<p>Test</p>',
+        estado: 'aprobada',
+        para_todos_rubros: false,
+        rubros_seleccionados: '["__sin_rubro__", "comercio"]',
+        prioridad: 'media',
+        fecha_limite_envio: '2024-12-31',
+        creado_en: '2024-01-01T00:00:00Z',
+        actualizado_en: '2024-01-01T00:00:00Z',
+      }],
+      rowCount: 1,
+    });
+
+    // Contactos recuperados
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: 'contacto-1' }, { id: 'contacto-2' }],
+      rowCount: 2,
+    });
+
+    // Resultado de inserción en cola
+    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 2 });
+
+    const result = await poblarColaEnvios(campanaId);
+
+    expect(result.total_insertados).toBe(2);
+    
+    // Verificar que la consulta SQL usa "c.rubro_id IS NULL"
+    const queryText = mockQuery.mock.calls[1][0] as string;
+    expect(queryText).toContain('c.rubro_id IS NULL');
+    expect(queryText).toContain('c.rubro_id = ANY($1)');
   });
 
   it('debería lanzar error si la campaña no existe', async () => {

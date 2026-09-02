@@ -46,7 +46,7 @@
 [x] **Dashboard de Conversión:** Visualizar en el frontend el % de enviados, rebotados, abiertos y clickeados de cada campaña para medir qué copys/textos funcionan mejor.
 
 #### Fase 7: Operatividad y Frontend (Prioridad Media)
-* **Importador Visual de Contactos:** Una sección en el frontend donde subas un CSV/Excel o conectes Google Sheets y puedas mapear columnas visualmente (Ej: "Columna A -> Nombre", "Columna B -> Email").
+[x] * **Importador Visual de Contactos:** Una sección en el frontend donde subas un CSV/Excel o conectes Google Sheets y puedas mapear columnas visualmente (Ej: "Columna A -> Nombre", "Columna B -> Email").
 [x] * **Pausado de Emergencia:** Un botón de "Pausar Campaña" por si te das cuenta 2 minutos después de lanzar que te equivocaste en un link o en el copy, para que el cron job deje de enviar.
 
 #### Fase 8: Infraestructura
@@ -56,11 +56,11 @@
 [x] Confirmar que anda el estado EN proceso y el boton de pausar y reanudar la campaña
 [x] Que se pueda eliminar varias con un 
 
-El estado pausada en el frontend estaria bueno que aparezaca "Pausada" con la P en mayuscula
-El pausada  aparece cuando esta Aprobada
-El estado pausada no pausa nada. Esta mal ese estado
-Luego de que este pausado y se reanude, me marco como en rpcoeso cuando ya deberia estar completada. Es un error que puede deberse al fallo de pausada que sigue enviando, osea, no deberia pasar nunca que tengo lo pauso y no tengo mas para enviar osea completado. Osea quizas es error se solucione, arreglando el estado pausada. Ahi se arreglo a Completada nose porque
+[x] El estado pausada en el frontend estaria bueno que aparezaca "Pausada" con la P en mayuscula
+[x] El pausada  aparece cuando esta Aprobada
+[x] El estado pausada no pausa nada. Esta mal ese estado
+[x] Luego de que este pausado y se reanude, me marco como en rpcoeso cuando ya deberia estar completada. Es un error que puede deberse al fallo de pausada que sigue enviando, osea, no deberia pasar nunca que tengo lo pauso y no tengo mas para enviar osea completado. Osea quizas es error se solucione, arreglando el estado pausada. Ahi se arreglo a Completada nose porque
 Error con los Flyers no cargan y no deberia pasar ya que antes funcionaban. En el mail aparece como que no hay imagen y en upload no aparece archivo alguno
 EN la cola de envios, al tocar el boton "Actualizar", cambie a estado fallido y no se vio nada todo OK. Pero al restablecer el filtro a "Todos los estados" no me aparecia nada 
 
-Reinicie la pagina y me mando al logueo y me da "Demasiado intetnos de login, intenta devuelta en 15 minutos
+[x] Reinicie la pagina y me mando al logueo y me da "Demasiado intetnos de login, intenta devuelta en 15 minutos
