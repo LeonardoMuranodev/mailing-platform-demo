@@ -318,7 +318,7 @@ export default function CuentasSmtp() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {logs.map((log) => (
-                    <tr key={log.id} className="hover:bg-slate-50 transition-colors">
+                    <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                       <td className="px-4 py-3 text-muted">
                         {new Date(log.creado_en).toLocaleString('es-AR')}
                       </td>

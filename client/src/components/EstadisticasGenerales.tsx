@@ -214,7 +214,7 @@ export default function EstadisticasGenerales() {
                 <div key={i} className="flex items-center justify-between p-3 rounded-lg hover:bg-background transition-colors border border-transparent hover:border-border">
                   <span className="text-sm font-medium text-dark flex items-center gap-2">
                     <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs">{i+1}</span>
-                    {RUBROS_LABELS[r.rubro] || r.rubro}
+                    {r.rubro === '__sin_rubro__' ? 'Sin Rubro' : RUBROS_LABELS[r.rubro] || r.rubro}
                   </span>
                   <span className="text-sm font-bold text-primary bg-primary/10 px-3 py-1 rounded-md">{r.cantidad_envios} envíos</span>
                 </div>

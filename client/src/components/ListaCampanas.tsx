@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Filter, RotateCcw, CalendarIcon, Trash2, AlertTriangle } from 'lucide-react';
-import { listarCampanas, eliminarCampana, eliminarCampanasMasivo } from '../services/api';
+import { Plus, Search, Filter, RotateCcw, CalendarIcon, Trash2, AlertTriangle, Archive, Info, HelpCircle, X } from 'lucide-react';
+import { listarCampanas, eliminarCampana, archivarCampana, eliminarCampanasMasivo } from '../services/api';
 import type { CampanaResponse } from '../types/campana';
 import { usePermisos } from '../hooks/usePermisos';
 import { formatDate } from '../utils/formatDate';
@@ -44,12 +44,14 @@ export default function ListaCampanas() {
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
   
-  // Confirm Delete
+  // Confirm Delete / Archive
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [archiveConfirmId, setArchiveConfirmId] = useState<string | null>(null);
 
   // Bulk Delete
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   const fetchCampanas = useCallback(async (currentPage = page) => {
     setLoading(true);
@@ -143,6 +145,19 @@ export default function ListaCampanas() {
     }
   };
 
+  const handleArchive = async () => {
+    if (!archiveConfirmId) return;
+    try {
+      const res = await archivarCampana(archiveConfirmId);
+      if (res.success) {
+        fetchCampanas();
+        setArchiveConfirmId(null);
+      }
+    } catch (error) {
+      console.error('Error al archivar campaña:', error);
+    }
+  };
+
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
   useEffect(() => {
@@ -184,6 +199,13 @@ export default function ListaCampanas() {
               Nueva Campaña
             </button>
           )}
+          <button
+            onClick={() => setShowHelp(true)}
+            className="flex items-center justify-center gap-2 bg-surface text-dark border border-border px-3 py-2.5 rounded-lg hover:bg-background transition-colors font-medium shadow-sm w-full sm:w-auto"
+            title="Ayuda sobre Archivar y Eliminar"
+          >
+            <HelpCircle size={20} className="text-primary" />
+          </button>
         </div>
       </div>
 
@@ -301,8 +323,8 @@ export default function ListaCampanas() {
                 campanas.map((campana) => {
                   const rubrosDisplay = campana.para_todos_rubros
                     ? 'Todos los rubros'
-                    : campana.rubros_seleccionados.length > 0
-                      ? campana.rubros_seleccionados.map((r) => RUBROS_LABELS[r] || r).join(', ')
+                    : Array.isArray(campana.rubros_seleccionados)
+                      ? campana.rubros_seleccionados.map((r) => r === '__sin_rubro__' ? 'Sin Rubro' : RUBROS_LABELS[r] || r).join(', ')
                       : 'Ninguno';
 
                   return (
@@ -337,16 +359,28 @@ export default function ListaCampanas() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteConfirmId(campana.id);
-                          }}
-                          className="p-1.5 text-muted hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Eliminar campaña"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        <div className="flex justify-end gap-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setArchiveConfirmId(campana.id);
+                            }}
+                            className="p-1.5 text-muted hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Archivar campaña (oculta de la lista pero mantiene estadísticas)"
+                          >
+                            <Archive size={16} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteConfirmId(campana.id);
+                            }}
+                            className="p-1.5 text-muted hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Eliminar definitivamente (borra historial y estadísticas)"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -425,9 +459,45 @@ export default function ListaCampanas() {
                 </button>
                 <button
                   onClick={handleDelete}
-                  className="flex-1 py-2.5 px-4 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors shadow-sm"
+                  className="flex-1 py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
                 >
-                  Sí, Eliminar
+                  Sí, Eliminar Físicamente
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmación de Archivar */}
+      {archiveConfirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="flex justify-center mb-4">
+                <div className="bg-blue-100 p-3 rounded-full">
+                  <Info size={32} className="text-blue-600" />
+                </div>
+              </div>
+              <h3 className="text-xl font-bold text-center text-dark mb-2">
+                ¿Archivar campaña?
+              </h3>
+              <p className="text-center text-muted mb-6">
+                La campaña desaparecerá de esta lista, pero <strong>sus envíos seguirán sumando en las estadísticas globales</strong>. Esta acción no se puede deshacer.
+              </p>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setArchiveConfirmId(null)}
+                  className="flex-1 py-2.5 px-4 bg-surface border border-border text-dark rounded-lg font-medium hover:bg-border transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleArchive}
+                  className="flex-1 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                >
+                  Sí, Archivar
                 </button>
               </div>
             </div>
@@ -464,6 +534,62 @@ export default function ListaCampanas() {
                   className="flex-1 py-2.5 px-4 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors shadow-sm"
                 >
                   Sí, Eliminar Todas
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Ayuda */}
+      {showHelp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-5">
+                <h3 className="text-lg font-bold text-dark flex items-center gap-2">
+                  <HelpCircle size={20} className="text-primary" />
+                  Guía de Gestión de Campañas
+                </h3>
+                <button onClick={() => setShowHelp(false)} className="text-muted hover:text-dark transition-colors p-1 rounded-md hover:bg-background">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-4 text-sm">
+                <div className="bg-blue-50/50 border border-blue-200/60 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="bg-blue-100 p-1.5 rounded-md text-blue-700">
+                      <Archive size={16} />
+                    </div>
+                    <p className="font-semibold text-blue-800">¿Qué significa Archivar?</p>
+                  </div>
+                  <p className="text-blue-900/80 leading-relaxed ml-9">
+                    Utilizá esta opción cuando una campaña <strong>ya finalizó sus envíos</strong> y no necesitás verla más en esta lista.
+                    Al archivar, la campaña se oculta, pero <strong>sus métricas (envíos, rebotes, aperturas) se siguen sumando</strong> en los gráficos estadísticos del Dashboard.
+                  </p>
+                </div>
+
+                <div className="bg-red-50/50 border border-red-200/60 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="bg-red-100 p-1.5 rounded-md text-red-700">
+                      <Trash2 size={16} />
+                    </div>
+                    <p className="font-semibold text-red-800">¿Qué significa Eliminar?</p>
+                  </div>
+                  <p className="text-red-900/80 leading-relaxed ml-9">
+                    Utilizá esta opción <strong>solo si te equivocaste al crear la campaña</strong> (por ejemplo, le pifiaste al rubro o al asunto). 
+                    Al eliminarla, <strong>se borra por completo y deja de contar en las estadísticas generales</strong>. ¡Esta acción no se puede deshacer!
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setShowHelp(false)}
+                  className="py-2 px-5 bg-primary hover:bg-primary-dark text-white rounded-lg font-medium transition-colors"
+                >
+                  Entendido
                 </button>
               </div>
             </div>

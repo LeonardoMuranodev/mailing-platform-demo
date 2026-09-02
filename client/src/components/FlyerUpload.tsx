@@ -1,5 +1,5 @@
-import { useCallback, useRef } from 'react';
-import { UploadCloud, X, FileImage } from 'lucide-react';
+import { useCallback, useRef, useState } from 'react';
+import { UploadCloud, X, FileImage, AlertCircle } from 'lucide-react';
 import { useCampanaStore } from '../stores/campanaStore';
 
 export default function FlyerUpload() {
@@ -8,13 +8,19 @@ export default function FlyerUpload() {
   const setFlyer = useCampanaStore((state) => state.setFlyer);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [error, setError] = useState<string | null>(null);
+
+  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setError(null);
     const file = e.target.files?.[0];
     if (file) {
-      if (file.type.startsWith('image/')) {
+      if (ALLOWED_TYPES.includes(file.type)) {
         setFlyer(file);
       } else {
-        alert('Por favor seleccioná un archivo de imagen válido.');
+        setError('Formato no soportado. Por favor, usá JPG, PNG o WEBP.');
+        if (fileInputRef.current) fileInputRef.current.value = '';
       }
     }
   };
@@ -28,11 +34,12 @@ export default function FlyerUpload() {
     (e: React.DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      setError(null);
       const file = e.dataTransfer.files?.[0];
-      if (file && file.type.startsWith('image/')) {
+      if (file && ALLOWED_TYPES.includes(file.type)) {
         setFlyer(file);
       } else if (file) {
-        alert('Por favor seleccioná un archivo de imagen válido.');
+        setError('Formato no soportado. Por favor, usá JPG, PNG o WEBP.');
       }
     },
     [setFlyer],
@@ -55,6 +62,13 @@ export default function FlyerUpload() {
         accept="image/png, image/jpeg, image/webp"
         className="hidden"
       />
+
+      {error && (
+        <div className="mb-4 flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 p-3 rounded-lg animate-in fade-in zoom-in duration-200">
+          <AlertCircle size={16} className="shrink-0" />
+          <p>{error}</p>
+        </div>
+      )}
 
       {!flyerPreview ? (
         <div

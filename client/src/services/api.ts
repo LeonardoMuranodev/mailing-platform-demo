@@ -71,13 +71,24 @@ export async function cambiarEstadoCampana(
 }
 
 /**
- * Elimina una campaña.
+ * Elimina una campaña de forma permanente (Hard Delete).
  */
 export async function eliminarCampana(
   id: string,
 ): Promise<ApiResponse<{ message: string }>> {
   return fetchApi<{ message: string }>(`${API_BASE}/api/campanas/${id}`, {
     method: 'DELETE',
+  });
+}
+
+/**
+ * Archiva una campaña (Soft Delete, mantiene stats).
+ */
+export async function archivarCampana(
+  id: string,
+): Promise<ApiResponse<{ message: string }>> {
+  return fetchApi<{ message: string }>(`${API_BASE}/api/campanas/${id}/archivar`, {
+    method: 'PATCH',
   });
 }
 

@@ -64,3 +64,20 @@ Error con los Flyers no cargan y no deberia pasar ya que antes funcionaban. En e
 EN la cola de envios, al tocar el boton "Actualizar", cambie a estado fallido y no se vio nada todo OK. Pero al restablecer el filtro a "Todos los estados" no me aparecia nada 
 
 [x] Reinicie la pagina y me mando al logueo y me da "Demasiado intetnos de login, intenta devuelta en 15 minutos
+
+No me gusta el HOVER del la tabla de Registro de Alertas e Incidentes en el modo osucro, hace que no se note la cuenta
+
+Corregir que no soporta ..avif, hay que indicar que no se soporta ese formato sea cual sea el que no se acepta, osea que solo se acepten .jpg, .jpeg, .png, .webp
+
+
+Que cuando ponemos Sin Rubro, en el detalle de la campaña aparece __sin_rubro__, lo cual pra el uusario no queda bonito
+
+EN Impacto por rubro no aparece el Sin Rubro, debe ser tratado como un rubro mas
+
+La estadistica Impacto por rubro en madera y electronica dio 3, primero que no se envio nada atodavia asi que esta calculando antes. Segundo campañas totoales dio 5, pero hay 4, esto es porque en una me equivoque y quise ponerle "sin rubro" al de madera y electronica, pero me olivde. Entonces elimine esa campala y cree otra
+
+Por eso me toma un contacto de madera mas del que deberia darme, y una camapañ mas de la que deberia darme
+
+Nose como solucionar esto ultimo porque si hacemos que se elemine todo no cunenta para la estadistica, pero si cuenta y era una campaña de la que me equivoque no quiero que cuente par al a misma ahi
+
+Pop de ayuda sobre diferencia de eliminar y archivar como implementamos en el uso del importador. Osea un boton y que salga una explicacion parecida en cuanto al diseño de la misma, y que el contenido sea hablandole a l usuario que no es tecnico

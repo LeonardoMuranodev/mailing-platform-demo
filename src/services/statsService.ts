@@ -45,11 +45,10 @@ export async function obtenerEstadisticasGlobales(): Promise<GlobalStatsResult> 
   // 3. Distribución por rubros (top rubros)
   // Agrupamos por el rubro_id del contacto.
   const rubrosQuery = await dbPool.query(`
-    SELECT c.rubro_id as rubro, COUNT(ce.id) as cantidad_envios
+    SELECT COALESCE(c.rubro_id, '__sin_rubro__') as rubro, COUNT(ce.id) as cantidad_envios
     FROM cola_envios ce
     JOIN contactos c ON ce.contacto_id = c.id
-    WHERE c.rubro_id IS NOT NULL
-    GROUP BY c.rubro_id
+    GROUP BY COALESCE(c.rubro_id, '__sin_rubro__')
     ORDER BY cantidad_envios DESC
     LIMIT 10
   `);

@@ -8,6 +8,7 @@ import {
   obtenerCampanaConEstadisticas,
   eliminarCampana,
   eliminarCampanasMasivo,
+  archivarCampana,
 } from '../services/campanaService.js';
 import { sendSuccess, sendError } from '../utils/responseHandler.js';
 import type { CrearCampanaBody, CambiarEstadoBody } from '../schemas/campanaSchema.js';
@@ -154,6 +155,20 @@ async function eliminar(req: Request, res: Response, next: NextFunction): Promis
   }
 }
 
+async function archivar(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id } = req.params;
+    const eliminado = await archivarCampana(String(id));
+    if (!eliminado) {
+      sendError(res, 'NOT_FOUND', 'Campaña no encontrada o ya archivada', 404);
+      return;
+    }
+    sendSuccess(res, { message: 'Campaña archivada correctamente' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function eliminarMasivo(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { ids } = req.body;
@@ -177,5 +192,6 @@ export const campanaController = {
   listar,
   detalle,
   eliminar,
+  archivar,
   eliminarMasivo,
 };

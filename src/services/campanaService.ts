@@ -85,11 +85,21 @@ export async function cambiarEstadoCampana(
 }
 
 /**
- * Elimina (soft delete) una campaña marcando eliminado_en.
- * Los datos de tracking y estadísticas se preservan.
+ * Archiva (soft delete) una campaña marcando eliminado_en.
+ * Los datos de tracking y estadísticas se preservan en los Dashboards.
+ */
+export async function archivarCampana(id: string): Promise<boolean> {
+  const query = `UPDATE campanas SET eliminado_en = CURRENT_TIMESTAMP WHERE id = $1 AND eliminado_en IS NULL RETURNING id`;
+  const result = await dbPool.query(query, [id]);
+  return (result.rowCount ?? 0) > 0;
+}
+
+/**
+ * Elimina una campaña y su cola de envíos asociada (Hard Delete).
+ * Usar cuando se crea una campaña por error y no se quiere contabilizar.
  */
 export async function eliminarCampana(id: string): Promise<boolean> {
-  const query = `UPDATE campanas SET eliminado_en = CURRENT_TIMESTAMP WHERE id = $1 AND eliminado_en IS NULL RETURNING id`;
+  const query = `DELETE FROM campanas WHERE id = $1 RETURNING id`;
   const result = await dbPool.query(query, [id]);
   return (result.rowCount ?? 0) > 0;
 }

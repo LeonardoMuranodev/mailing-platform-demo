@@ -41,7 +41,14 @@ campanaRouter.delete(
   campanaController.eliminarMasivo,
 );
 
-// DELETE /api/campanas/:id — Eliminar campaña
+// PATCH /api/campanas/:id/archivar — Archivar campaña (soft delete)
+campanaRouter.patch(
+  '/:id/archivar',
+  requireRole(['desarrollador', 'encargada']),
+  campanaController.archivar,
+);
+
+// DELETE /api/campanas/:id — Eliminar campaña (hard delete)
 campanaRouter.delete(
   '/:id',
   requireRole(['desarrollador', 'encargada']),
