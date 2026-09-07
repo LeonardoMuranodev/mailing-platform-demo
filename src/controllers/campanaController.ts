@@ -10,6 +10,7 @@ import {
   eliminarCampanasMasivo,
   archivarCampana,
 } from '../services/campanaService.js';
+import { enviarMailPrueba } from '../services/notificationService.js';
 import { sendSuccess, sendError } from '../utils/responseHandler.js';
 import type { CrearCampanaBody, CambiarEstadoBody } from '../schemas/campanaSchema.js';
 import { clearCacheByPrefix } from '../middlewares/cache.js';
@@ -185,6 +186,22 @@ async function eliminarMasivo(req: Request, res: Response, next: NextFunction): 
   }
 }
 
+async function enviarPrueba(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { asunto, cuerpo_html } = req.body;
+    if (!asunto || !cuerpo_html) {
+      sendError(res, 'BAD_REQUEST', 'Faltan campos obligatorios para la prueba (asunto, cuerpo_html)', 400);
+      return;
+    }
+
+    const { destinatario } = await enviarMailPrueba(asunto, cuerpo_html);
+    sendSuccess(res, { message: `Email de prueba enviado exitosamente a ${destinatario}`, destinatario });
+  } catch (err: any) {
+    console.error('Error en enviarPrueba:', err);
+    sendError(res, 'INTERNAL_SERVER_ERROR', err.message || 'Error al enviar el mail de prueba', 500);
+  }
+}
+
 export const campanaController = {
   crear,
   obtenerPorId,
@@ -194,4 +211,5 @@ export const campanaController = {
   eliminar,
   archivar,
   eliminarMasivo,
+  enviarPrueba,
 };

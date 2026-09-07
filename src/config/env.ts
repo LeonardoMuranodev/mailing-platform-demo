@@ -10,6 +10,7 @@ export const config = {
     anonKey: process.env.SUPABASE_ANON_KEY || '',
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
   },
+  modoPrueba: process.env.MODO_PRUEBA === 'true',
   smtp: {
     host: process.env.SMTP_HOST || '',
     port: parseInt(process.env.SMTP_PORT || '587', 10),

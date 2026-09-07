@@ -17,6 +17,13 @@ campanaRouter.post(
   campanaController.crear,
 );
 
+// POST /api/campanas/prueba — Enviar email de prueba
+campanaRouter.post(
+  '/prueba',
+  requireRole(['desarrollador', 'encargada']),
+  campanaController.enviarPrueba
+);
+
 // GET /api/campanas — Listar campañas
 campanaRouter.get('/', cache(15), campanaController.listar);
 

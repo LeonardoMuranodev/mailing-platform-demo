@@ -361,3 +361,39 @@ export async function notificarCuentaProblema(email: string, tipo: 'agotada' | '
     }
   }
 }
+
+export async function enviarMailPrueba(asunto: string, cuerpoHtml: string) {
+  const { smtpHost, smtpPort, smtpUser, smtpPass } = config.notifier;
+  const destinatario = config.modoPrueba
+    ? config.imapTest[0]?.user
+    : config.imapProd[0]?.user;
+
+  if (!destinatario) {
+    throw new Error('No se encontró el destinatario (IMAP1_USER o IMAP1_TEST_USER) en la configuración.');
+  }
+
+  if (smtpHost && smtpUser) {
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465,
+      auth: {
+        user: smtpUser,
+        pass: smtpPass,
+      }
+    });
+
+    const mailOptions: any = {
+      from: `"Sistema de Correos (PRUEBA)" <${smtpUser}>`,
+      to: destinatario,
+      subject: `[PRUEBA] ${asunto}`,
+      html: cuerpoHtml
+    };
+
+    await transporter.sendMail(mailOptions);
+    return { destinatario };
+  } else {
+    throw new Error('No está configurado el notificador SMTP.');
+  }
+}
+

@@ -71,6 +71,20 @@ export async function cambiarEstadoCampana(
 }
 
 /**
+ * Envia un mail de prueba con los datos de la campaña actual
+ */
+export async function enviarMailPruebaCampana(
+  asunto: string,
+  cuerpo_html: string
+): Promise<ApiResponse<{ message: string; destinatario: string }>> {
+  return fetchApi<{ message: string; destinatario: string }>(`${API_BASE}/api/campanas/prueba`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ asunto, cuerpo_html }),
+  });
+}
+
+/**
  * Elimina una campaña de forma permanente (Hard Delete).
  */
 export async function eliminarCampana(

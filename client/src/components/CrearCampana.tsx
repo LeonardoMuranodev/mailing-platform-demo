@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, CheckCircle2, Save, Eye, ArrowLeft, Plus, List, FileText } from 'lucide-react';
 import { useCampanaStore } from '../stores/campanaStore';
@@ -6,9 +6,12 @@ import TiptapEditor from './TiptapEditor';
 import FlyerUpload from './FlyerUpload';
 import { RUBROS_LIST, RUBROS_LABELS } from '../data/rubros';
 import AlertMessage from './ui/AlertMessage';
+import { enviarMailPruebaCampana } from '../services/api';
 
 export default function CrearCampana() {
   const navigate = useNavigate();
+  const [isSendingTest, setIsSendingTest] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const {
     form,
     errors,
@@ -75,6 +78,28 @@ export default function CrearCampana() {
     navigate('/');
   };
 
+  const handleMandarPrueba = async () => {
+    if (!form.asunto || !form.cuerpo_html) {
+      setTestResult({ success: false, message: 'El asunto y el cuerpo del correo son requeridos para la prueba.' });
+      return;
+    }
+    
+    setIsSendingTest(true);
+    setTestResult(null);
+    try {
+      const res = await enviarMailPruebaCampana(form.asunto, form.cuerpo_html);
+      if (res.success) {
+        setTestResult({ success: true, message: res.data?.message || 'Mail de prueba enviado con éxito' });
+      } else {
+        setTestResult({ success: false, message: res.error?.message || 'Error al enviar mail de prueba' });
+      }
+    } catch (e: any) {
+      setTestResult({ success: false, message: e.message || 'Error de red' });
+    } finally {
+      setIsSendingTest(false);
+    }
+  };
+
   // Bloquear formulario si ya se envió exitosamente
   const isSubmittedSuccessfully = submitResult?.success === true;
 
@@ -107,6 +132,17 @@ export default function CrearCampana() {
             type="error"
             message={submitResult.message}
             onClose={clearResult}
+          />
+        </div>
+      )}
+
+      {/* Test result message */}
+      {testResult && (
+        <div className="mb-6">
+          <AlertMessage
+            type={testResult.success ? "success" : "error"}
+            message={testResult.message}
+            onClose={() => setTestResult(null)}
           />
         </div>
       )}
@@ -343,8 +379,8 @@ export default function CrearCampana() {
         </div>
 
         {/* Footer Actions */}
-        <div className="bg-background p-6 sm:px-8 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex w-full sm:w-auto gap-4">
+        <div className="bg-background p-5 sm:px-8 border-t border-border flex flex-col xl:flex-row items-center justify-between gap-4 flex-wrap">
+          <div className="flex w-full xl:w-auto flex-col sm:flex-row gap-3">
             <button
               type="button"
               onClick={() => {
@@ -352,24 +388,37 @@ export default function CrearCampana() {
                 window.scrollTo(0, 0);
               }}
               disabled={isSubmittedSuccessfully}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-surface border border-border text-muted font-medium rounded-lg hover:bg-background hover:text-dark focus:outline-none focus:ring-2 focus:ring-border transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-surface border border-border text-muted text-sm font-medium rounded-lg hover:bg-background hover:text-dark focus:outline-none focus:ring-2 focus:ring-border transition-colors disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
             >
-              <Eye size={20} />
-              Ver Vista Previa
+              <Eye size={18} />
+              Vista Previa
+            </button>
+            <button
+              type="button"
+              onClick={handleMandarPrueba}
+              disabled={isSubmitting || isSubmittedSuccessfully || isSendingTest}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-yellow-500/10 border border-yellow-500/30 text-yellow-600 dark:text-yellow-500 text-sm font-medium rounded-lg hover:bg-yellow-500/20 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              {isSendingTest ? (
+                <div className="w-4 h-4 border-2 border-yellow-500/30 border-t-yellow-500 rounded-full animate-spin"></div>
+              ) : (
+                <Mail size={18} />
+              )}
+              Mail de Prueba
             </button>
           </div>
           
-          <div className="flex w-full sm:w-auto flex-col sm:flex-row gap-3">
+          <div className="flex w-full xl:w-auto flex-col sm:flex-row gap-3">
             <button
               type="button"
               onClick={guardarBorrador}
               disabled={isSubmitting || isSubmittedSuccessfully}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-70 disabled:cursor-not-allowed transition-colors shadow-sm"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-70 disabled:cursor-not-allowed transition-colors shadow-sm whitespace-nowrap"
             >
               {isSubmitting ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
               ) : (
-                <Save size={20} />
+                <Save size={18} />
               )}
               Guardar Borrador
             </button>
@@ -377,14 +426,14 @@ export default function CrearCampana() {
               type="button"
               onClick={aprobarCampana}
               disabled={isSubmitting || isSubmittedSuccessfully}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-secondary text-white font-medium rounded-lg hover:bg-secondary-dark focus:outline-none focus:ring-2 focus:ring-secondary/50 disabled:opacity-70 disabled:cursor-not-allowed transition-colors shadow-sm"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-secondary text-white text-sm font-medium rounded-lg hover:bg-secondary-dark focus:outline-none focus:ring-2 focus:ring-secondary/50 disabled:opacity-70 disabled:cursor-not-allowed transition-colors shadow-sm whitespace-nowrap"
             >
               {isSubmitting ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
               ) : (
-                <CheckCircle2 size={20} />
+                <CheckCircle2 size={18} />
               )}
-              Aprobar y Enviar Campaña
+              Aprobar y Enviar
             </button>
           </div>
         </div>

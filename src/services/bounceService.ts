@@ -153,7 +153,6 @@ async function procesarCuenta(cuenta: any): Promise<ReboteProcesado[]> {
 
     const carpetasAChequear: { nombre: string; query: any }[] = [
       { nombre: 'rebotes', query: { unseen: true } },
-      { nombre: 'INBOX', query: { unseen: true, from: 'mailer-daemon' } },
     ];
 
     for (const { nombre, query } of carpetasAChequear) {
