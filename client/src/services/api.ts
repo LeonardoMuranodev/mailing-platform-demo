@@ -180,15 +180,27 @@ export async function forzarEnvioCola(): Promise<ApiResponse<{ message: string }
 /**
  * Obtiene las estadísticas globales del sistema de mailing.
  */
-export async function obtenerEstadisticasGlobales(): Promise<ApiResponse<GlobalStatsResult>> {
-  return fetchApi<GlobalStatsResult>(`${API_BASE}/api/stats/global`);
+export async function obtenerEstadisticasGlobales(startDate?: string, endDate?: string): Promise<ApiResponse<GlobalStatsResult>> {
+  let url = `${API_BASE}/api/stats/global`;
+  const params = new URLSearchParams();
+  if (startDate) params.append('startDate', startDate);
+  if (endDate) params.append('endDate', endDate);
+  const qs = params.toString();
+  if (qs) url += `?${qs}`;
+  return fetchApi<GlobalStatsResult>(url);
 }
 
 /**
  * Obtiene la lista de campañas con sus estadísticas para exportar.
  */
-export async function exportarEstadisticasCampanas(): Promise<ApiResponse<any[]>> {
-  return fetchApi<any[]>(`${API_BASE}/api/stats/export-campanas`);
+export async function exportarEstadisticasCampanas(startDate?: string, endDate?: string): Promise<ApiResponse<any[]>> {
+  let url = `${API_BASE}/api/stats/export-campanas`;
+  const params = new URLSearchParams();
+  if (startDate) params.append('startDate', startDate);
+  if (endDate) params.append('endDate', endDate);
+  const qs = params.toString();
+  if (qs) url += `?${qs}`;
+  return fetchApi<any[]>(url);
 }
 
 // ── Cuentas SMTP ─────────────────────────────────────────────────────────────

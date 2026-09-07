@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Send, Clock, CheckCircle2, Mail, RefreshCw, Download } from 'lucide-react';
+import { Send, Clock, CheckCircle2, Mail, RefreshCw, Download, Calendar, FilterX } from 'lucide-react';
 import { obtenerEstadisticasGlobales, exportarEstadisticasCampanas } from '../services/api';
 import type { GlobalStatsResult } from '../types/stats';
 import { RUBROS_LABELS } from '../data/rubros';
@@ -8,11 +8,14 @@ export default function EstadisticasGenerales() {
   const [stats, setStats] = useState<GlobalStatsResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastSync, setLastSync] = useState(new Date());
+  
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
 
   const fetchStats = async () => {
     setLoading(true);
     try {
-      const res = await obtenerEstadisticasGlobales();
+      const res = await obtenerEstadisticasGlobales(startDate || undefined, endDate || undefined);
       if (res.success && res.data) {
         setStats(res.data);
         setLastSync(new Date());
@@ -26,7 +29,7 @@ export default function EstadisticasGenerales() {
 
   const handleExportCsv = async () => {
     try {
-      const res = await exportarEstadisticasCampanas();
+      const res = await exportarEstadisticasCampanas(startDate || undefined, endDate || undefined);
       if (!res.success || !res.data) {
         alert('Error al obtener datos para exportar');
         return;
@@ -34,7 +37,7 @@ export default function EstadisticasGenerales() {
       
       const campanas = res.data;
       if (campanas.length === 0) {
-        alert('No hay campañas para exportar');
+        alert('No hay campañas para exportar en este periodo');
         return;
       }
       
@@ -60,7 +63,7 @@ export default function EstadisticasGenerales() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', 'estadisticas_campanas.csv');
+      link.setAttribute('download', `estadisticas_campanas_${new Date().toISOString().split('T')[0]}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -70,9 +73,31 @@ export default function EstadisticasGenerales() {
     }
   };
 
+  const handleMesActual = () => {
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    setStartDate(firstDay.toISOString().split('T')[0]);
+    setEndDate(lastDay.toISOString().split('T')[0]);
+  };
+
+  const handleAnoActual = () => {
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), 0, 1);
+    const lastDay = new Date(today.getFullYear(), 11, 31);
+    setStartDate(firstDay.toISOString().split('T')[0]);
+    setEndDate(lastDay.toISOString().split('T')[0]);
+  };
+
+  const handleLimpiarFiltros = () => {
+    setStartDate('');
+    setEndDate('');
+  };
+
   useEffect(() => {
     fetchStats();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startDate, endDate]);
 
   if (loading && !stats) {
     return (
@@ -101,16 +126,17 @@ export default function EstadisticasGenerales() {
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between mb-8 gap-4">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between mb-6 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
-            Métricas y Rendimiento Global
+            Métricas y Rendimiento
           </h1>
           <p className="text-muted mt-1 text-sm">
             Última sincronización: {lastSync.toLocaleTimeString()}
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
           <button
             onClick={handleExportCsv}
             disabled={loading}
@@ -125,8 +151,74 @@ export default function EstadisticasGenerales() {
             className="flex items-center justify-center gap-2 bg-surface border border-border text-dark px-4 py-2 rounded-lg hover:bg-background transition-colors font-medium shadow-sm w-full sm:w-auto"
           >
             <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-            Actualizar datos
+            Actualizar
           </button>
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-8 gap-3 bg-surface p-4 rounded-xl border border-border shadow-sm flex-wrap">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => {
+              const today = new Date();
+              const past = new Date(today);
+              past.setDate(today.getDate() - 7);
+              setStartDate(past.toISOString().split('T')[0]);
+              setEndDate(today.toISOString().split('T')[0]);
+            }}
+            className="px-3 py-1.5 text-sm bg-primary/10 text-primary font-medium rounded-lg hover:bg-primary/20 transition-colors"
+          >
+            Últimos 7 días
+          </button>
+          <button
+            onClick={handleMesActual}
+            className="px-3 py-1.5 text-sm bg-primary/10 text-primary font-medium rounded-lg hover:bg-primary/20 transition-colors"
+          >
+            Mes Actual
+          </button>
+          <button
+            onClick={handleAnoActual}
+            className="px-3 py-1.5 text-sm bg-primary/10 text-primary font-medium rounded-lg hover:bg-primary/20 transition-colors"
+          >
+            Año Actual
+          </button>
+        </div>
+        
+        <div className="hidden lg:block w-px h-6 bg-border mx-2"></div>
+        
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="pl-8 pr-3 py-1.5 text-sm bg-background border border-border text-dark rounded-lg outline-none focus:border-primary transition-colors w-[150px]"
+              title="Fecha desde"
+            />
+            <Calendar size={14} className="absolute left-2.5 top-2.5 text-muted" />
+          </div>
+          <span className="text-muted text-sm">-</span>
+          <div className="relative">
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="pl-8 pr-3 py-1.5 text-sm bg-background border border-border text-dark rounded-lg outline-none focus:border-primary transition-colors w-[150px]"
+              title="Fecha hasta"
+            />
+            <Calendar size={14} className="absolute left-2.5 top-2.5 text-muted" />
+          </div>
+          
+          {(startDate || endDate) && (
+            <button
+              onClick={handleLimpiarFiltros}
+              className="p-1.5 text-danger bg-danger/10 rounded-lg hover:bg-danger/20 transition-colors ml-1"
+              title="Limpiar filtros"
+            >
+              <FilterX size={18} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -208,7 +300,7 @@ export default function EstadisticasGenerales() {
           <h2 className="text-lg font-bold text-dark mb-6 border-b border-border pb-2">Impacto por Rubro (Top 10)</h2>
           <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
             {stats.rubros.length === 0 ? (
-              <p className="text-muted text-sm text-center py-4">No hay datos de rubros registrados.</p>
+              <p className="text-muted text-sm text-center py-4">No hay datos de rubros registrados en este periodo.</p>
             ) : (
               stats.rubros.map((r, i) => (
                 <div key={i} className="flex items-center justify-between p-3 rounded-lg hover:bg-background transition-colors border border-transparent hover:border-border">

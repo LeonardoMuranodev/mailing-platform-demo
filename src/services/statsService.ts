@@ -27,40 +27,63 @@ export interface GlobalStatsResult {
   historico: HistoricoStat[];
 }
 
-export async function obtenerEstadisticasGlobales(): Promise<GlobalStatsResult> {
+export async function obtenerEstadisticasGlobales(startDate?: string, endDate?: string): Promise<GlobalStatsResult> {
+  const params: any[] = [];
+  let whereClause = '';
+  
+  if (startDate && endDate) {
+    params.push(startDate, endDate);
+    whereClause = 'WHERE DATE(COALESCE(c.fecha_limite_envio, c.creado_en)) >= $1 AND DATE(COALESCE(c.fecha_limite_envio, c.creado_en)) <= $2';
+  } else if (startDate) {
+    params.push(startDate);
+    whereClause = 'WHERE DATE(COALESCE(c.fecha_limite_envio, c.creado_en)) >= $1';
+  } else if (endDate) {
+    params.push(endDate);
+    whereClause = 'WHERE DATE(COALESCE(c.fecha_limite_envio, c.creado_en)) <= $1';
+  }
+
   // 1. Total de campañas y desglose por estado
   const campanasQuery = await dbPool.query(`
-    SELECT estado, COUNT(*) as count 
-    FROM campanas 
-    GROUP BY estado
-  `);
+    SELECT c.estado, COUNT(*) as count 
+    FROM campanas c
+    ${whereClause}
+    GROUP BY c.estado
+  `, params);
   
   // 2. Total global de correos en cola_envios por estado
   const colaQuery = await dbPool.query(`
-    SELECT estado, COUNT(*) as count 
-    FROM cola_envios 
-    GROUP BY estado
-  `);
+    SELECT ce.estado, COUNT(*) as count 
+    FROM cola_envios ce
+    JOIN campanas c ON ce.campana_id = c.id
+    ${whereClause}
+    GROUP BY ce.estado
+  `, params);
 
   // 3. Distribución por rubros (top rubros)
-  // Agrupamos por el rubro_id del contacto.
   const rubrosQuery = await dbPool.query(`
-    SELECT COALESCE(c.rubro_id, '__sin_rubro__') as rubro, COUNT(ce.id) as cantidad_envios
+    SELECT COALESCE(co.rubro_id, '__sin_rubro__') as rubro, COUNT(ce.id) as cantidad_envios
     FROM cola_envios ce
-    JOIN contactos c ON ce.contacto_id = c.id
-    GROUP BY COALESCE(c.rubro_id, '__sin_rubro__')
+    JOIN contactos co ON ce.contacto_id = co.id
+    JOIN campanas c ON ce.campana_id = c.id
+    ${whereClause}
+    GROUP BY COALESCE(co.rubro_id, '__sin_rubro__')
     ORDER BY cantidad_envios DESC
     LIMIT 10
-  `);
+  `, params);
   
-  // 4. Histórico Temporal (últimos 30 días)
+  // 4. Histórico Temporal
+  const historicoWhere = whereClause 
+    ? whereClause + ' AND ce.fecha_envio IS NOT NULL'
+    : "WHERE ce.fecha_envio IS NOT NULL AND ce.fecha_envio >= CURRENT_DATE - INTERVAL '30 days'";
+
   const historicoQuery = await dbPool.query(`
-    SELECT DATE(fecha_envio) as fecha, COUNT(*) as envios
-    FROM cola_envios
-    WHERE fecha_envio IS NOT NULL AND fecha_envio >= CURRENT_DATE - INTERVAL '30 days'
-    GROUP BY DATE(fecha_envio)
-    ORDER BY DATE(fecha_envio) ASC
-  `);
+    SELECT DATE(ce.fecha_envio) as fecha, COUNT(*) as envios
+    FROM cola_envios ce
+    JOIN campanas c ON ce.campana_id = c.id
+    ${historicoWhere}
+    GROUP BY DATE(ce.fecha_envio)
+    ORDER BY DATE(ce.fecha_envio) ASC
+  `, params);
 
   return {
     campanas: campanasQuery.rows.map(row => ({
@@ -96,7 +119,21 @@ export interface CampanaExportRow {
   clicks: number;
 }
 
-export async function obtenerCampanasParaExportar(): Promise<CampanaExportRow[]> {
+export async function obtenerCampanasParaExportar(startDate?: string, endDate?: string): Promise<CampanaExportRow[]> {
+  const params: any[] = [];
+  let whereClause = '';
+
+  if (startDate && endDate) {
+    params.push(startDate, endDate);
+    whereClause = 'WHERE DATE(COALESCE(c.fecha_limite_envio, c.creado_en)) >= $1 AND DATE(COALESCE(c.fecha_limite_envio, c.creado_en)) <= $2';
+  } else if (startDate) {
+    params.push(startDate);
+    whereClause = 'WHERE DATE(COALESCE(c.fecha_limite_envio, c.creado_en)) >= $1';
+  } else if (endDate) {
+    params.push(endDate);
+    whereClause = 'WHERE DATE(COALESCE(c.fecha_limite_envio, c.creado_en)) <= $1';
+  }
+
   const query = await dbPool.query(`
     SELECT 
       c.id, c.asunto, c.estado, c.fecha_limite_envio, c.creado_en,
@@ -108,9 +145,10 @@ export async function obtenerCampanasParaExportar(): Promise<CampanaExportRow[]>
       COUNT(ce.id) FILTER (WHERE ce.fecha_click IS NOT NULL)::int as clicks
     FROM campanas c
     LEFT JOIN cola_envios ce ON c.id = ce.campana_id
+    ${whereClause}
     GROUP BY c.id
     ORDER BY c.creado_en DESC;
-  `);
+  `, params);
   
   return query.rows;
 }
