@@ -384,9 +384,9 @@ export async function enviarMailPrueba(asunto: string, cuerpoHtml: string) {
     });
 
     const mailOptions: any = {
-      from: `"Sistema de Correos (PRUEBA)" <${smtpUser}>`,
+      from: `"Dirección de Producción - 3F" <${smtpUser}>`,
       to: destinatario,
-      subject: `[PRUEBA] ${asunto}`,
+      subject: asunto,
       html: cuerpoHtml
     };
 

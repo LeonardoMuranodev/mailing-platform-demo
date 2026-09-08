@@ -75,12 +75,14 @@ export async function cambiarEstadoCampana(
  */
 export async function enviarMailPruebaCampana(
   asunto: string,
-  cuerpo_html: string
+  cuerpo_html: string,
+  flyer_url?: string,
+  link_inscripcion?: string
 ): Promise<ApiResponse<{ message: string; destinatario: string }>> {
   return fetchApi<{ message: string; destinatario: string }>(`${API_BASE}/api/campanas/prueba`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ asunto, cuerpo_html }),
+    body: JSON.stringify({ asunto, cuerpo_html, flyer_url, link_inscripcion }),
   });
 }
 

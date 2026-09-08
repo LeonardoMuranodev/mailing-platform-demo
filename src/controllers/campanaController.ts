@@ -186,15 +186,35 @@ async function eliminarMasivo(req: Request, res: Response, next: NextFunction): 
   }
 }
 
+import { generarHtmlDesdeCampana } from '../services/emailTemplate.js';
+import type { Campana } from '../types/campana.js';
+
 async function enviarPrueba(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { asunto, cuerpo_html } = req.body;
+    const { asunto, cuerpo_html, link_inscripcion, flyer_url } = req.body;
     if (!asunto || !cuerpo_html) {
       sendError(res, 'BAD_REQUEST', 'Faltan campos obligatorios para la prueba (asunto, cuerpo_html)', 400);
       return;
     }
 
-    const { destinatario } = await enviarMailPrueba(asunto, cuerpo_html);
+    const campanaMock: Campana = {
+      id: 'mock-id',
+      asunto,
+      cuerpo_html,
+      link_inscripcion: link_inscripcion || null,
+      flyer_url: flyer_url || null,
+      estado: 'borrador',
+      fecha_limite_envio: '',
+      prioridad: 'media',
+      para_todos_rubros: true,
+      rubros_seleccionados: [],
+      creado_en: '',
+      actualizado_en: ''
+    };
+
+    const htmlRenderizado = generarHtmlDesdeCampana(campanaMock);
+
+    const { destinatario } = await enviarMailPrueba(asunto, htmlRenderizado);
     sendSuccess(res, { message: `Email de prueba enviado exitosamente a ${destinatario}`, destinatario });
   } catch (err: any) {
     console.error('Error en enviarPrueba:', err);
