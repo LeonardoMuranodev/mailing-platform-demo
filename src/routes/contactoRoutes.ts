@@ -34,7 +34,9 @@ contactoRouter.post('/bulk-delete', requireRole(['desarrollador', 'encargada']),
 contactoRouter.delete('/:id', requireRole(['desarrollador', 'encargada']), contactoController.eliminar);
 
 contactoRouter.patch('/:id/toggle', requireRole(['desarrollador', 'encargada']), contactoController.toggleEstado);
-
 contactoRouter.post('/importar-csv', requireRole(['desarrollador', 'encargada']), upload.single('file'), contactoController.importarCsv);
 
 contactoRouter.post('/import-json', requireRole(['desarrollador', 'encargada']), contactoController.importarJson);
+
+contactoRouter.post('/sync-sheets', requireRole(['desarrollador', 'encargada']), contactoController.sincronizarConSheets);
+contactoRouter.get('/sync-status', requireRole(['desarrollador', 'encargada']), contactoController.obtenerSyncStatus);

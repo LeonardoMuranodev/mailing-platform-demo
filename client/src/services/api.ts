@@ -333,6 +333,18 @@ export async function importarContactosCsv(formData: FormData): Promise<ApiRespo
   });
 }
 
+export async function syncContactosSheets(): Promise<ApiResponse<{ message: string; procesados: number; insertados_o_actualizados: number }>> {
+  return fetchApi<{ message: string; procesados: number; insertados_o_actualizados: number }>(`${API_BASE}/api/contactos/sync-sheets`, {
+    method: 'POST',
+  });
+}
+
+export const checkSyncStatus = async () => {
+  return await fetchApi(`${API_BASE}/api/contactos/sync-status`, {
+    method: 'GET',
+  });
+};
+
 // ── USUARIOS ───────────────────────────────────────────────
 
 export async function obtenerUsuarios(): Promise<ApiResponse<any>> {

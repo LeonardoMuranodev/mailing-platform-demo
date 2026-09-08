@@ -6,6 +6,9 @@ import {
   actualizarContacto,
   eliminarContacto,
   eliminarContactosBulk,
+  toggleEstadoContacto,
+  syncContactosSheets,
+  checkSyncStatus
 } from '../services/api';
 import type { ContactoConRubro, CrearContactoInput } from '../types/contacto';
 import { RUBROS_LABELS, RUBROS_LIST } from '../data/rubros';
@@ -64,6 +67,10 @@ export default function DirectorioContactos() {
 
   // Confirm Delete
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Sync Sheets
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const fetchContactosData = async (currentPage = page) => {
     setLoading(true);
@@ -146,6 +153,65 @@ export default function DirectorioContactos() {
     link.click();
     document.body.removeChild(link);
   };
+
+  const handleSyncSheets = async () => {
+    setIsSyncing(true);
+    setSyncResult(null);
+    try {
+      const res = await syncContactosSheets();
+      if (!res.success) {
+        setSyncResult({ success: false, message: res.error?.message || 'Error al iniciar sincronización' });
+        setIsSyncing(false);
+      }
+      // If success, the polling useEffect will take over
+    } catch (e: any) {
+      setSyncResult({ success: false, message: e.message || 'Error de red al sincronizar' });
+      setIsSyncing(false);
+    }
+  };
+
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+
+    const checkStatus = async () => {
+      try {
+        const res = await checkSyncStatus();
+        if (res.success && res.data) {
+          const data = res.data as any;
+          if (data.isSyncing) {
+            setIsSyncing(true);
+          } else {
+            // Terminó la sincronización o no hay ninguna en curso
+            setIsSyncing(false);
+            if (data.lastResult) {
+               setSyncResult({ 
+                 success: data.lastResult.success, 
+                 message: data.lastResult.message 
+               });
+               if (data.lastResult.success) {
+                 fetchContactosData(1);
+                 setPage(1);
+               }
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error al consultar estado de sincronización', err);
+      }
+    };
+
+    // Check status inmediately on mount
+    checkStatus();
+
+    // Setup polling every 3 seconds if syncing
+    if (isSyncing) {
+      interval = setInterval(checkStatus, 3000);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isSyncing]);
 
   const openCrearModal = () => {
     setEditingId(null);
@@ -258,15 +324,27 @@ export default function DirectorioContactos() {
             Gestioná la base de datos de empresas, filtrá por rubro y exportá contactos.
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto flex-wrap justify-end">
           {puedeCrear && (
             <>
+              <button
+                onClick={handleSyncSheets}
+                disabled={isSyncing}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-500 rounded-lg hover:bg-green-500/20 transition-colors font-medium shadow-sm w-full sm:w-auto disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isSyncing ? (
+                  <div className="w-4 h-4 border-2 border-green-500/30 border-t-green-500 rounded-full animate-spin"></div>
+                ) : (
+                  <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                )}
+                Sincronizar con Sheets
+              </button>
               <button
                 onClick={() => setIsImportModalOpen(true)}
                 className="flex items-center justify-center gap-2 px-4 py-2 bg-surface border border-border text-dark rounded-lg hover:bg-background transition-colors font-medium shadow-sm w-full sm:w-auto"
               >
                 <Upload size={18} />
-                Importar CSV / Excel
+                Importar CSV
               </button>
               <button
                 onClick={openCrearModal}
@@ -282,10 +360,20 @@ export default function DirectorioContactos() {
             className="flex items-center justify-center gap-2 px-4 py-2 bg-surface border border-border text-dark rounded-lg hover:bg-background transition-colors font-medium shadow-sm w-full sm:w-auto"
           >
             <Download size={18} />
-            Exportar Contactos
+            Exportar
           </button>
         </div>
       </div>
+
+      {syncResult && (
+        <div className="mb-6">
+          <AlertMessage
+            type={syncResult.success ? "success" : "error"}
+            message={syncResult.message}
+            onClose={() => setSyncResult(null)}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-surface border border-border rounded-xl p-4 shadow-sm flex items-center justify-between">

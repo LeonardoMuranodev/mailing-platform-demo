@@ -137,6 +137,36 @@ async function importarJson(req: Request, res: Response, next: NextFunction): Pr
   }
 }
 
+import { syncContactosFromSheets, getSyncStatus, resetSyncStatus } from '../services/googleSheetsService.js';
+
+async function sincronizarConSheets(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const status = getSyncStatus();
+    if (status.isSyncing) {
+      sendError(res, 'CONFLICT', 'Ya hay una sincronización en curso.', 409);
+      return;
+    }
+    
+    // Iniciar en segundo plano
+    syncContactosFromSheets().catch(err => console.error('Fallo asíncrono en syncContactosFromSheets:', err));
+    
+    sendSuccess(res, {
+      message: 'La sincronización se está ejecutando en segundo plano.',
+    });
+  } catch (err: any) {
+    next(err);
+  }
+}
+
+async function obtenerSyncStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const status = getSyncStatus();
+    sendSuccess(res, status);
+  } catch (err: any) {
+    next(err);
+  }
+}
+
 export const contactoController = {
   listar,
   crear,
@@ -146,4 +176,6 @@ export const contactoController = {
   toggleEstado,
   importarCsv,
   importarJson,
+  sincronizarConSheets,
+  obtenerSyncStatus
 };

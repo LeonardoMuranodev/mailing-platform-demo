@@ -16,14 +16,17 @@ import { trackRouter } from './trackRoutes.js';
 import { apiLimiter, authLimiter, queueLimiter } from '../middlewares/rateLimiter.js';
 
 export function registerRoutes(app: Application): void {
-  // Rate limiter general para toda la API
-  app.use('/api', apiLimiter);
+  // Rate limiter general para toda la API — excluye /api/auth para no bloquear la validación de sesión
+  app.use('/api', (req, res, next) => {
+    if (req.path.startsWith('/auth')) return next();
+    return apiLimiter(req, res, next);
+  });
 
   // Health check — sin auth (para Docker healthchecks y monitoreo)
   app.use('/api/health', healthRouter);
 
-  // Auth — con limiter estricto adicional
-  app.use('/api/auth', authLimiter, authRouter);
+  // Auth — el loginLimiter ya se aplica directamente en authRoutes.ts
+  app.use('/api/auth', authRouter);
 
   // DNS Check
   app.use('/api/dns', dnsRouter);
