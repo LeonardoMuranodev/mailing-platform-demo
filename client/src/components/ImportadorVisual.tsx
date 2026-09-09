@@ -184,34 +184,49 @@ export default function ImportadorVisual({ onClose, onImportComplete }: Props) {
       reader.onload = (e) => {
         try {
           const wb = XLSX.read(e.target?.result, { type: 'array' });
-          const ws = wb.Sheets[wb.SheetNames[0]];
           
-          // Detectar la fila de encabezados analizando las primeras 20 filas
-          const rawData = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, defval: '' });
-          let headerRowIndex = 0;
-          let maxMatches = 0;
+          let bestSheetName = wb.SheetNames[0];
+          let maxTotalMatches = -1;
+          let bestHeaderRowIndex = 0;
+          
           const knownKeywords = ['email', 'mail', 'empresa', 'cuit', 'rubro', 'estado', 'tipo'];
-          
-          for (let i = 0; i < Math.min(rawData.length, 20); i++) {
-             const row = rawData[i];
-             if (!Array.isArray(row)) continue;
-             
-             let matches = 0;
-             row.forEach(cell => {
-               const str = String(cell).toLowerCase();
-               if (knownKeywords.some(kw => str.includes(kw))) matches++;
-             });
-             
-             if (matches > maxMatches) {
-               maxMatches = matches;
-               headerRowIndex = i;
-             }
+
+          // Buscar en todas las hojas cuál es la que tiene más columnas conocidas (la verdadera base de datos)
+          for (const sheetName of wb.SheetNames) {
+            const ws = wb.Sheets[sheetName];
+            const rawData = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, defval: '' });
+            
+            let currentSheetMaxMatches = 0;
+            let currentSheetHeaderIndex = 0;
+
+            for (let i = 0; i < Math.min(rawData.length, 20); i++) {
+               const row = rawData[i];
+               if (!Array.isArray(row)) continue;
+               
+               let matches = 0;
+               row.forEach(cell => {
+                 const str = String(cell).toLowerCase();
+                 if (knownKeywords.some(kw => str.includes(kw))) matches++;
+               });
+               
+               if (matches > currentSheetMaxMatches) {
+                 currentSheetMaxMatches = matches;
+                 currentSheetHeaderIndex = i;
+               }
+            }
+
+            if (currentSheetMaxMatches > maxTotalMatches) {
+               maxTotalMatches = currentSheetMaxMatches;
+               bestSheetName = sheetName;
+               bestHeaderRowIndex = currentSheetHeaderIndex;
+            }
           }
 
-          // Volver a parsear usando la fila detectada como cabecera (range salta N filas)
-          const jsonData = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { range: headerRowIndex, defval: '' });
+          // Parsear la mejor hoja encontrada usando la fila detectada como cabecera
+          const ws = wb.Sheets[bestSheetName];
+          const jsonData = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { range: bestHeaderRowIndex, defval: '' });
           
-          if (!jsonData.length) { setErrorMsg('El archivo Excel está vacío o no se encontraron datos válidos.'); return; }
+          if (!jsonData.length) { setErrorMsg('El archivo Excel está vacío o no se encontraron datos válidos en ninguna hoja.'); return; }
           const cols = Object.keys(jsonData[0]);
           setRows(jsonData);
           setMappings(cols.map(c => ({ colOriginal: c, campoDestino: autoDetect(c) })));
