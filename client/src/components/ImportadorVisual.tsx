@@ -185,8 +185,33 @@ export default function ImportadorVisual({ onClose, onImportComplete }: Props) {
         try {
           const wb = XLSX.read(e.target?.result, { type: 'array' });
           const ws = wb.Sheets[wb.SheetNames[0]];
-          const jsonData = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: '' });
-          if (!jsonData.length) { setErrorMsg('El archivo Excel está vacío.'); return; }
+          
+          // Detectar la fila de encabezados analizando las primeras 20 filas
+          const rawData = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, defval: '' });
+          let headerRowIndex = 0;
+          let maxMatches = 0;
+          const knownKeywords = ['email', 'mail', 'empresa', 'cuit', 'rubro', 'estado', 'tipo'];
+          
+          for (let i = 0; i < Math.min(rawData.length, 20); i++) {
+             const row = rawData[i];
+             if (!Array.isArray(row)) continue;
+             
+             let matches = 0;
+             row.forEach(cell => {
+               const str = String(cell).toLowerCase();
+               if (knownKeywords.some(kw => str.includes(kw))) matches++;
+             });
+             
+             if (matches > maxMatches) {
+               maxMatches = matches;
+               headerRowIndex = i;
+             }
+          }
+
+          // Volver a parsear usando la fila detectada como cabecera (range salta N filas)
+          const jsonData = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { range: headerRowIndex, defval: '' });
+          
+          if (!jsonData.length) { setErrorMsg('El archivo Excel está vacío o no se encontraron datos válidos.'); return; }
           const cols = Object.keys(jsonData[0]);
           setRows(jsonData);
           setMappings(cols.map(c => ({ colOriginal: c, campoDestino: autoDetect(c) })));
