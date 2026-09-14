@@ -74,6 +74,8 @@ export const cambiarEstadoSchema = z.object({
   }),
 });
 
+export const actualizarCampanaSchema = crearCampanaSchema.partial();
+
 /** Esquema para validar params con UUID */
 export const uuidParamSchema = z.object({
   id: z.string().uuid('El ID debe ser un UUID válido'),
@@ -82,3 +84,4 @@ export const uuidParamSchema = z.object({
 // ── Tipos inferidos desde Zod ────────────────────────────
 export type CrearCampanaBody = z.infer<typeof crearCampanaSchema>;
 export type CambiarEstadoBody = z.infer<typeof cambiarEstadoSchema>;
+export type ActualizarCampanaBody = z.infer<typeof actualizarCampanaSchema>;

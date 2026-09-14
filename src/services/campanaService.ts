@@ -52,6 +52,67 @@ export async function crearCampana(data: CrearCampanaInput): Promise<Campana> {
 }
 
 /**
+ * Actualiza una campaña existente.
+ * Solo debe permitirse si la campaña está en estado 'borrador'.
+ */
+export async function actualizarCampana(id: string, data: Partial<CrearCampanaInput>): Promise<Campana | null> {
+  // Construimos el query dinámicamente según los campos que vengan
+  const updates: string[] = [];
+  const values: any[] = [];
+  let paramIdx = 1;
+
+  if (data.asunto !== undefined) {
+    updates.push(`asunto = $${paramIdx++}`);
+    values.push(data.asunto);
+  }
+  if (data.cuerpo_html !== undefined) {
+    updates.push(`cuerpo_html = $${paramIdx++}`);
+    values.push(data.cuerpo_html);
+  }
+  if (data.link_inscripcion !== undefined) {
+    updates.push(`link_inscripcion = $${paramIdx++}`);
+    values.push(data.link_inscripcion);
+  }
+  if (data.flyer_url !== undefined) {
+    updates.push(`flyer_url = $${paramIdx++}`);
+    values.push(data.flyer_url);
+  }
+  if (data.fecha_limite_envio !== undefined) {
+    updates.push(`fecha_limite_envio = $${paramIdx++}`);
+    values.push(data.fecha_limite_envio);
+  }
+  if (data.prioridad !== undefined) {
+    updates.push(`prioridad = $${paramIdx++}`);
+    values.push(data.prioridad);
+  }
+  if (data.para_todos_rubros !== undefined) {
+    updates.push(`para_todos_rubros = $${paramIdx++}`);
+    values.push(data.para_todos_rubros);
+  }
+  if (data.rubros_seleccionados !== undefined) {
+    updates.push(`rubros_seleccionados = $${paramIdx++}`);
+    values.push(JSON.stringify(data.rubros_seleccionados));
+  }
+
+  if (updates.length === 0) {
+    return obtenerCampanaPorId(id);
+  }
+
+  updates.push(`actualizado_en = CURRENT_TIMESTAMP`);
+
+  values.push(id);
+  const query = `
+    UPDATE campanas
+    SET ${updates.join(', ')}
+    WHERE id = $${paramIdx} AND estado = 'borrador'
+    RETURNING *;
+  `;
+
+  const result = await dbPool.query<Campana>(query, values);
+  return result.rows[0] ?? null;
+}
+
+/**
  * Cambia el estado de una campaña existente.
  * Actualiza el estado de una campaña
  */

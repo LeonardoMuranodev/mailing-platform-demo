@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Filter, RotateCcw, CalendarIcon, Trash2, AlertTriangle, Archive, Info, HelpCircle, X } from 'lucide-react';
-import { listarCampanas, eliminarCampana, archivarCampana, eliminarCampanasMasivo } from '../services/api';
+import { Plus, Search, Filter, RotateCcw, CalendarIcon, Trash2, AlertTriangle, Archive, Info, HelpCircle, X, Edit3, CheckCircle2, Play, Pause } from 'lucide-react';
+import { listarCampanas, eliminarCampana, archivarCampana, eliminarCampanasMasivo, cambiarEstadoCampana } from '../services/api';
 import type { CampanaResponse } from '../types/campana';
 import { usePermisos } from '../hooks/usePermisos';
 import { formatDate } from '../utils/formatDate';
@@ -155,6 +155,17 @@ export default function ListaCampanas() {
       }
     } catch (error) {
       console.error('Error al archivar campaña:', error);
+    }
+  };
+
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    try {
+      const res = await cambiarEstadoCampana(id, newStatus);
+      if (res.success) {
+        fetchCampanas();
+      }
+    } catch (error) {
+      console.error('Error al cambiar el estado de la campaña:', error);
     }
   };
 
@@ -360,6 +371,54 @@ export default function ListaCampanas() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-1">
+                          {campana.estado === 'borrador' && (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/campanas/editar/${campana.id}`);
+                                }}
+                                className="p-1.5 text-muted hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                                title="Editar campaña"
+                              >
+                                <Edit3 size={16} />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleStatusChange(campana.id, 'aprobada');
+                                }}
+                                className="p-1.5 text-muted hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                title="Aprobar campaña"
+                              >
+                                <CheckCircle2 size={16} />
+                              </button>
+                            </>
+                          )}
+                          {campana.estado === 'en_proceso' && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStatusChange(campana.id, 'pausada');
+                              }}
+                              className="p-1.5 text-muted hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                              title="Pausar envíos"
+                            >
+                              <Pause size={16} />
+                            </button>
+                          )}
+                          {campana.estado === 'pausada' && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStatusChange(campana.id, 'en_proceso');
+                              }}
+                              className="p-1.5 text-muted hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Reanudar envíos"
+                            >
+                              <Play size={16} />
+                            </button>
+                          )}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();

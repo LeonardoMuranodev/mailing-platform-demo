@@ -129,6 +129,7 @@ function App() {
           <Route path="/" element={<ListaCampanas />} />
           <Route path="/nueva" element={<CrearCampana />} />
           <Route path="/campanas/:id" element={<DetalleCampana />} />
+          <Route path="/campanas/editar/:id" element={<CrearCampana />} />
           <Route path="/preview" element={<VistaPrevia />} />
           <Route path="/estadisticas" element={<EstadisticasGenerales />} />
           <Route path="/cuentas" element={<CuentasSmtp />} />

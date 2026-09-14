@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Mail, CheckCircle2, Save, Eye, ArrowLeft, Plus, List, FileText } from 'lucide-react';
 import { useCampanaStore } from '../stores/campanaStore';
 import TiptapEditor from './TiptapEditor';
 import FlyerUpload from './FlyerUpload';
 import { RUBROS_LIST, RUBROS_LABELS } from '../data/rubros';
 import AlertMessage from './ui/AlertMessage';
-import { enviarMailPruebaCampana } from '../services/api';
+import { enviarMailPruebaCampana, obtenerCampanaPorId } from '../services/api';
 
 export default function CrearCampana() {
   const navigate = useNavigate();
@@ -16,6 +16,7 @@ export default function CrearCampana() {
     form,
     errors,
     setField,
+    setHtmlContent,
     toggleRubro,
     guardarBorrador,
     aprobarCampana,
@@ -34,22 +35,40 @@ export default function CrearCampana() {
     }
   }, [clearResult, reset]);
 
-  // Cargar borrador de localStorage
+  const { id } = useParams<{ id: string }>();
+
+  // Cargar borrador de localStorage o desde la API si estamos editando
   useEffect(() => {
-    const savedDraft = localStorage.getItem('draft_campana_data');
-    if (savedDraft) {
-      try {
-        const parsed = JSON.parse(savedDraft);
-        Object.entries(parsed).forEach(([k, v]) => {
-          if (k !== 'flyer_url' && k !== 'flyer') { // Evitamos cargar archivos por seguridad
-            setField(k as any, v);
-          }
-        });
-      } catch (err) {
-        console.error('Error parsing draft data', err);
+    if (id) {
+      obtenerCampanaPorId(id).then(res => {
+        if (res.success && res.data) {
+          const campana = res.data;
+          setField('asunto', campana.asunto);
+          setHtmlContent(campana.cuerpo_html);
+          if (campana.link_inscripcion) setField('link_inscripcion', campana.link_inscripcion);
+          if (campana.fecha_limite_envio) setField('fecha_limite_envio', campana.fecha_limite_envio.split('T')[0]);
+          setField('prioridad', campana.prioridad);
+          setField('para_todos_rubros', campana.para_todos_rubros);
+          setField('rubros_seleccionados', campana.rubros_seleccionados);
+        }
+      }).catch(err => console.error('Error loading campaign:', err));
+    } else {
+      const savedDraft = localStorage.getItem('draft_campana_data');
+      if (savedDraft) {
+        try {
+          const parsed = JSON.parse(savedDraft);
+          Object.entries(parsed).forEach(([k, v]) => {
+            if (k !== 'flyer_url' && k !== 'flyer') { // Evitamos cargar archivos por seguridad
+              if (k === 'cuerpo_html') setHtmlContent(v as string);
+              else setField(k as any, v);
+            }
+          });
+        } catch (err) {
+          console.error('Error parsing draft data', err);
+        }
       }
     }
-  }, [setField]);
+  }, [id, setField, setHtmlContent]);
 
   // Guardar en localStorage cada vez que cambie 'form'
   useEffect(() => {
@@ -118,7 +137,7 @@ export default function CrearCampana() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
           <Mail className="text-primary" />
-          Nueva Campaña de Correo
+          {id ? 'Editar Campaña' : 'Nueva Campaña de Correo'}
         </h1>
         <p className="text-muted mt-1">
           Completá los datos para armar el comunicado.
@@ -411,7 +430,7 @@ export default function CrearCampana() {
           <div className="flex w-full xl:w-auto flex-col sm:flex-row gap-2">
             <button
               type="button"
-              onClick={guardarBorrador}
+              onClick={() => guardarBorrador(id)}
               disabled={isSubmitting || isSubmittedSuccessfully}
               className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-70 disabled:cursor-not-allowed transition-colors shadow-sm whitespace-nowrap"
             >
@@ -420,11 +439,11 @@ export default function CrearCampana() {
               ) : (
                 <Save size={18} />
               )}
-              Guardar Borrador
+              {id ? 'Actualizar Borrador' : 'Guardar Borrador'}
             </button>
             <button
               type="button"
-              onClick={aprobarCampana}
+              onClick={() => aprobarCampana(id)}
               disabled={isSubmitting || isSubmittedSuccessfully}
               className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 bg-secondary text-white text-sm font-medium rounded-lg hover:bg-secondary-dark focus:outline-none focus:ring-2 focus:ring-secondary/50 disabled:opacity-70 disabled:cursor-not-allowed transition-colors shadow-sm whitespace-nowrap"
             >

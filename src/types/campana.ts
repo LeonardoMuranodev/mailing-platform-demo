@@ -42,3 +42,6 @@ export interface CrearCampanaInput {
 export interface CambiarEstadoInput {
   estado: EstadoCampana;
 }
+
+/** Payload para actualizar una campaña (solo en borrador) */
+export type ActualizarCampanaInput = Partial<CrearCampanaInput>;

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { upload } from '../config/multerConfig.js';
 import { validateSchema } from '../middlewares/validateSchema.js';
-import { crearCampanaSchema, cambiarEstadoSchema } from '../schemas/campanaSchema.js';
+import { crearCampanaSchema, cambiarEstadoSchema, actualizarCampanaSchema } from '../schemas/campanaSchema.js';
 import { campanaController } from '../controllers/campanaController.js';
 import { requireRole } from '../middlewares/requireRole.js';
 import { cache } from '../middlewares/cache.js';
@@ -15,6 +15,15 @@ campanaRouter.post(
   upload.single('flyer'),
   validateSchema(crearCampanaSchema),
   campanaController.crear,
+);
+
+// PUT /api/campanas/:id — Actualizar campaña (solo borrador)
+campanaRouter.put(
+  '/:id',
+  requireRole(['desarrollador', 'encargada']),
+  upload.single('flyer'),
+  validateSchema(actualizarCampanaSchema),
+  campanaController.actualizar,
 );
 
 // POST /api/campanas/prueba — Enviar email de prueba

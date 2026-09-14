@@ -57,6 +57,20 @@ export async function crearCampana(
 }
 
 /**
+ * Actualiza una campaña existente (solo borrador).
+ * Envía multipart/form-data.
+ */
+export async function actualizarCampana(
+  id: string,
+  formData: FormData,
+): Promise<ApiResponse<CampanaResponse>> {
+  return fetchApi<CampanaResponse>(`${API_BASE}/api/campanas/${id}`, {
+    method: 'PUT',
+    body: formData,
+  });
+}
+
+/**
  * Cambia el estado de una campaña existente.
  */
 export async function cambiarEstadoCampana(
@@ -159,6 +173,15 @@ export async function obtenerCampanaDetalle(
   id: string,
 ): Promise<ApiResponse<CampanaConStats>> {
   return fetchApi<CampanaConStats>(`${API_BASE}/api/campanas/${id}/detalle`);
+}
+
+/**
+ * Obtiene una campaña por ID (sin estadísticas, ideal para edición).
+ */
+export async function obtenerCampanaPorId(
+  id: string,
+): Promise<ApiResponse<CampanaResponse>> {
+  return fetchApi<CampanaResponse>(`${API_BASE}/api/campanas/${id}`);
 }
 
 /**

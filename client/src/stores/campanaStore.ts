@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { CampanaFormData } from '../types/campana';
 import { CAMPANA_FORM_INITIAL } from '../types/campana';
-import { crearCampana, cambiarEstadoCampana } from '../services/api';
+import { crearCampana, actualizarCampana, cambiarEstadoCampana } from '../services/api';
 import { validarFormulario, validarBorrador } from '../schemas/campanaSchema';
 
 const STORAGE_KEY = 'draft_campana_data';
@@ -26,8 +26,8 @@ interface CampanaStore {
   clearResult: () => void;
 
   // ── Submit ─────────────────────────────────────
-  guardarBorrador: () => Promise<void>;
-  aprobarCampana: () => Promise<void>;
+  guardarBorrador: (id?: string) => Promise<void>;
+  aprobarCampana: (id?: string) => Promise<void>;
 }
 
 export const useCampanaStore = create<CampanaStore>((set, get) => ({
@@ -95,7 +95,7 @@ export const useCampanaStore = create<CampanaStore>((set, get) => ({
   clearResult: () => set({ submitResult: null }),
 
   // ── Submit ──────────────────────────────────────
-  guardarBorrador: async () => {
+  guardarBorrador: async (id?: string) => {
     const { form, flyer } = get();
 
     // Validar con Zod de forma laxa
@@ -109,14 +109,19 @@ export const useCampanaStore = create<CampanaStore>((set, get) => ({
 
     try {
       const fd = buildFormData(form, flyer);
-      const res = await crearCampana(fd);
+      let res;
+      if (id) {
+        res = await actualizarCampana(id, fd);
+      } else {
+        res = await crearCampana(fd);
+      }
 
       if (res.success && res.data) {
         localStorage.removeItem(STORAGE_KEY);
         set({
           submitResult: {
             success: true,
-            message: 'Campaña guardada como borrador exitosamente.',
+            message: id ? 'Borrador actualizado exitosamente.' : 'Campaña guardada como borrador exitosamente.',
             id: res.data.id,
             mode: 'borrador',
           },
@@ -137,7 +142,7 @@ export const useCampanaStore = create<CampanaStore>((set, get) => ({
     }
   },
 
-  aprobarCampana: async () => {
+  aprobarCampana: async (id?: string) => {
     const { form, flyer } = get();
 
     // Validar con Zod
@@ -150,15 +155,20 @@ export const useCampanaStore = create<CampanaStore>((set, get) => ({
     set({ isSubmitting: true, errors: {}, submitResult: null });
 
     try {
-      // 1. Crear la campaña como borrador
+      // 1. Crear o actualizar la campaña como borrador
       const fd = buildFormData(form, flyer);
-      const createRes = await crearCampana(fd);
+      let createRes;
+      if (id) {
+        createRes = await actualizarCampana(id, fd);
+      } else {
+        createRes = await crearCampana(fd);
+      }
 
       if (!createRes.success || !createRes.data) {
         set({
           submitResult: {
             success: false,
-            message: createRes.error?.message ?? 'Error al crear la campaña.',
+            message: createRes.error?.message ?? 'Error al guardar la campaña.',
           },
         });
         return;

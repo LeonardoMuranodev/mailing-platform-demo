@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import DOMPurify from 'isomorphic-dompurify';
 import {
   crearCampana,
+  actualizarCampana,
   cambiarEstadoCampana,
   obtenerCampanaPorId,
   listarCampanas,
@@ -12,7 +13,7 @@ import {
 } from '../services/campanaService.js';
 import { enviarMailPrueba } from '../services/notificationService.js';
 import { sendSuccess, sendError } from '../utils/responseHandler.js';
-import type { CrearCampanaBody, CambiarEstadoBody } from '../schemas/campanaSchema.js';
+import type { CrearCampanaBody, CambiarEstadoBody, ActualizarCampanaBody } from '../schemas/campanaSchema.js';
 import { clearCacheByPrefix } from '../middlewares/cache.js';
 
 /**
@@ -222,8 +223,44 @@ async function enviarPrueba(req: Request, res: Response, next: NextFunction): Pr
   }
 }
 
+/**
+ * PUT /api/campanas/:id
+ * Body ya validado por Zod middleware (actualizarCampanaSchema).
+ */
+async function actualizar(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const id = req.params.id as string;
+    const body = req.body as ActualizarCampanaBody;
+
+    const flyer_url = req.file
+      ? `/uploads/${req.file.filename}`
+      : body.flyer_url;
+
+    const cuerpo_html = body.cuerpo_html ? DOMPurify.sanitize(body.cuerpo_html) : undefined;
+    
+    const campanaData = { ...body };
+    if (flyer_url !== undefined) campanaData.flyer_url = flyer_url;
+    if (cuerpo_html) campanaData.cuerpo_html = cuerpo_html;
+
+    const campana = await actualizarCampana(id, campanaData);
+    
+    if (!campana) {
+      sendError(res, 'BAD_REQUEST', 'Campaña no encontrada o no está en estado borrador', 400);
+      return;
+    }
+    
+    // Invalidamos el caché de campañas
+    await clearCacheByPrefix('/api/campanas');
+    
+    sendSuccess(res, campana, 200);
+  } catch (err) {
+    next(err);
+  }
+}
+
 export const campanaController = {
   crear,
+  actualizar,
   obtenerPorId,
   cambiarEstado,
   listar,
