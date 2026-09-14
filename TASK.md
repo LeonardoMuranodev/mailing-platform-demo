@@ -81,3 +81,16 @@ Por eso me toma un contacto de madera mas del que deberia darme, y una camapañ 
 Nose como solucionar esto ultimo porque si hacemos que se elemine todo no cunenta para la estadistica, pero si cuenta y era una campaña de la que me equivoque no quiero que cuente par al a misma ahi
 
 Pop de ayuda sobre diferencia de eliminar y archivar como implementamos en el uso del importador. Osea un boton y que salga una explicacion parecida en cuanto al diseño de la misma, y que el contenido sea hablandole a l usuario que no es tecnico
+
+Checklist para el Paso a Producción 🚀
+Una vez que hagas tus pruebas de envío y estés satisfecho, esto es lo que debés tener en cuenta para pasarlo a producción con un dominio real:
+
+Dominio y HTTPS (SSL):
+El docker-compose.prod.yml que armamos levanta la app en el puerto 80. Una vez que le apuntes el dominio en tu servidor VPS, deberás instalar Certbot (Let's Encrypt) para tener el candadito verde (HTTPS). Es fundamental porque navegadores modernos y proveedores de correo bloquean links HTTP sin seguridad.
+Variable PUBLIC_API_URL:
+En tu archivo .env del servidor de producción, acordate de cambiar esta variable (y en el front VITE_API_BASE_URL) para que apunte a tu nuevo dominio (https://tu-dominio.com), así el Tracking de clicks/aperturas se genera con las URLs correctas.
+Credenciales Finales de Google Drive y Sheets:
+Si vas a usar cuentas definitivas distintas a las de desarrollo, recordá actualizar los Tokens de GDrive y el email de la Service Account en el servidor.
+Warm-up de cuentas SMTP (Opcional pero recomendado):
+Cuando pases a producción real, tratá de no disparar 500 mails de golpe el primer día si las cuentas de Gmail son muy nuevas. El sistema ya tiene sleeps y rotación para evitar el spam, pero Gmail evalúa la reputación del remitente.
+¡Vía libre para testear campañas! Mandá una campaña de prueba a un par de correos tuyos y fijate que los contadores de aperturas y clicks sumen bien en el dashboard. ¡Cualquier cosa acá estoy para los detalles finos!

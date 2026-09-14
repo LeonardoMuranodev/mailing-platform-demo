@@ -30,7 +30,7 @@ interface ReboteProcesado {
  * Función principal que lee IMAP, procesa rebotes, actualiza BD y envía alerta consolidada.
  */
 export async function procesarRebotes() {
-  const cuentasImap = MODO_PRUEBA ? config.imapTest : config.imapProd;
+  const cuentasImap = config.modoPrueba ? config.imapTest : config.imapProd;
 
   if (!cuentasImap || cuentasImap.length === 0) {
     console.log('BounceService: No hay cuentas IMAP configuradas para el modo actual, saltando procesamiento de rebotes.');

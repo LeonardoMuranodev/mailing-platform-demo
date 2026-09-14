@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Send, AlertTriangle, CheckCircle2, Clock, Mail, Search, RefreshCw, BarChart2, Download, MousePointerClick, Pause, Play, Trash2 } from 'lucide-react';
+import { ArrowLeft, Send, AlertTriangle, CheckCircle2, Clock, Mail, Search, RefreshCw, BarChart2, Download, MousePointerClick, Pause, Play, Trash2, Edit3 } from 'lucide-react';
 import { obtenerCampanaDetalle, obtenerColaCampana, cambiarEstadoCampana, eliminarCampana } from '../services/api';
 import type { CampanaConStats, ColaEnvioItem } from '../types/campana';
 import { formatDate } from '../utils/formatDate';
@@ -202,6 +202,31 @@ export default function DetalleCampana() {
             <span className={`px-3 py-1.5 text-sm font-semibold border rounded-full ${ESTADO_BADGE_CLASSES[campana.estado] || 'bg-slate-100'}`}>
               {ESTADO_LABELS[campana.estado] || campana.estado}
             </span>
+            {campana.estado === 'borrador' && (
+              <>
+                <button
+                  onClick={() => navigate(`/campanas/editar/${campana.id}`)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border text-dark rounded-lg hover:text-primary hover:border-primary/30 transition-colors text-sm font-medium"
+                >
+                  <Edit3 size={16} /> Editar
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await cambiarEstadoCampana(campana.id, 'aprobada');
+                      if (res.success && res.data) {
+                        setCampana(prev => prev ? { ...prev, estado: res.data!.estado } : prev);
+                      }
+                    } catch (err) {
+                      console.error('Error al aprobar campaña:', err);
+                    }
+                  }}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
+                >
+                  <CheckCircle2 size={16} /> Aprobar
+                </button>
+              </>
+            )}
             {['en_proceso', 'aprobada'].includes(campana.estado) && (
               <>
                 <button onClick={async () => {
