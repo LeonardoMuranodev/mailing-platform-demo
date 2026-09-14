@@ -388,21 +388,21 @@ export default function CrearCampana() {
                 window.scrollTo(0, 0);
               }}
               disabled={isSubmittedSuccessfully}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-surface border border-border text-muted text-xs font-medium rounded-lg hover:bg-background hover:text-dark focus:outline-none focus:ring-2 focus:ring-border transition-colors disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 bg-surface border border-border text-muted text-sm font-medium rounded-lg hover:bg-background hover:text-dark focus:outline-none focus:ring-2 focus:ring-border transition-colors disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
             >
-              <Eye size={16} />
+              <Eye size={18} />
               Vista Previa
             </button>
             <button
               type="button"
               onClick={handleMandarPrueba}
               disabled={isSubmitting || isSubmittedSuccessfully || isSendingTest}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-yellow-500/10 border border-yellow-500/30 text-yellow-600 dark:text-yellow-500 text-xs font-medium rounded-lg hover:bg-yellow-500/20 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 bg-yellow-500/10 border border-yellow-500/30 text-yellow-600 dark:text-yellow-500 text-sm font-medium rounded-lg hover:bg-yellow-500/20 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
             >
               {isSendingTest ? (
-                <div className="w-3.5 h-3.5 border-2 border-yellow-500/30 border-t-yellow-500 rounded-full animate-spin"></div>
+                <div className="w-4 h-4 border-2 border-yellow-500/30 border-t-yellow-500 rounded-full animate-spin"></div>
               ) : (
-                <Mail size={16} />
+                <Mail size={18} />
               )}
               Mail de Prueba
             </button>
@@ -413,12 +413,12 @@ export default function CrearCampana() {
               type="button"
               onClick={guardarBorrador}
               disabled={isSubmitting || isSubmittedSuccessfully}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-medium rounded-lg hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-70 disabled:cursor-not-allowed transition-colors shadow-sm whitespace-nowrap"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-70 disabled:cursor-not-allowed transition-colors shadow-sm whitespace-nowrap"
             >
               {isSubmitting ? (
-                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
               ) : (
-                <Save size={16} />
+                <Save size={18} />
               )}
               Guardar Borrador
             </button>
@@ -426,12 +426,12 @@ export default function CrearCampana() {
               type="button"
               onClick={aprobarCampana}
               disabled={isSubmitting || isSubmittedSuccessfully}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-secondary text-white text-xs font-medium rounded-lg hover:bg-secondary-dark focus:outline-none focus:ring-2 focus:ring-secondary/50 disabled:opacity-70 disabled:cursor-not-allowed transition-colors shadow-sm whitespace-nowrap"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 bg-secondary text-white text-sm font-medium rounded-lg hover:bg-secondary-dark focus:outline-none focus:ring-2 focus:ring-secondary/50 disabled:opacity-70 disabled:cursor-not-allowed transition-colors shadow-sm whitespace-nowrap"
             >
               {isSubmitting ? (
-                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
               ) : (
-                <CheckCircle2 size={16} />
+                <CheckCircle2 size={18} />
               )}
               Aprobar y Enviar
             </button>
