@@ -468,11 +468,11 @@ export default function DetalleCampana() {
 
                         fallidos.forEach(f => {
                           const msg = (f.respuesta_smtp || '').toLowerCase();
-                          if (msg.includes('domain not found') || msg.includes('nxdomain') || msg.includes('no such domain')) categorias['Dominio Inexistente']++;
-                          else if (msg.includes('login') || msg.includes('auth') || msg.includes('password')) categorias['Credenciales/Login SMTP']++;
+                          if (msg.includes('domain not found') || msg.includes('nxdomain') || msg.includes('no such domain') || msg.includes('el correo o dominio no existe')) categorias['Dominio Inexistente']++;
+                          else if (msg.includes('login') || msg.includes('auth') || msg.includes('password') || msg.includes('webloginrequired')) categorias['Credenciales/Login SMTP']++;
                           else if (msg.includes('daily sending limit') || msg.includes('quota exceeded') && !msg.includes('mailbox')) categorias['Cuota Excedida (Remitente)']++;
-                          else if (msg.includes('mailbox full') || msg.includes('storage full') || msg.includes('quota') && msg.includes('mailbox')) categorias['Casilla Llena (Destinatario)']++;
-                          else if (msg.includes('spam') || msg.includes('blocked') || msg.includes('blacklisted')) categorias['Rechazado por Spam']++;
+                          else if (msg.includes('mailbox full') || msg.includes('storage full') || msg.includes('bandeja de entrada llena') || (msg.includes('quota') && msg.includes('mailbox'))) categorias['Casilla Llena (Destinatario)']++;
+                          else if (msg.includes('spam') || msg.includes('blocked') || msg.includes('blacklisted') || msg.includes('política del servidor')) categorias['Rechazado por Spam']++;
                           else categorias['Otros']++;
                         });
 
