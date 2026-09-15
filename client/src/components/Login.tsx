@@ -34,11 +34,17 @@ export default function Login() {
         if (data.error?.details && data.error.details.length > 0) {
           setError(data.error.details.map((d: any) => d.message).join('. '));
         } else {
-          setError(data.error?.message || 'Error al iniciar sesión');
+          // Si el mensaje parece un error de base de datos o técnico crudo, mostramos algo genérico
+          const rawMessage = data.error?.message || '';
+          if (rawMessage.toLowerCase().includes('connect') || rawMessage.toLowerCase().includes('pool') || rawMessage.toLowerCase().includes('error')) {
+            setError('Servicio temporalmente no disponible. Por favor, reintente más tarde.');
+          } else {
+            setError(rawMessage || 'Credenciales inválidas o error al iniciar sesión.');
+          }
         }
       }
     } catch (err) {
-      setError('No se pudo conectar con el servidor');
+      setError('Servicio temporalmente no disponible. Por favor, reintente más tarde.');
     } finally {
       setLoading(false);
     }
