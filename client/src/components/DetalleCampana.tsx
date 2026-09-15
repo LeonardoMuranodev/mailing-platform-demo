@@ -445,6 +445,54 @@ export default function DetalleCampana() {
                     <div className="bg-amber-500 h-3 rounded-full transition-all duration-500" style={{ width: `${campana.stats.total > 0 ? (campana.stats.pendientes / campana.stats.total) * 100 : 0}%` }}></div>
                   </div>
                 </div>
+
+                {campana.stats.fallidos > 0 && (
+                  <div className="mt-8 pt-6 border-t border-border">
+                    <h4 className="text-md font-bold text-dark mb-4 flex items-center gap-2">
+                      <AlertTriangle className="text-red-500" size={18} />
+                      Análisis de Fallos
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {(() => {
+                        const fallidos = cola.filter(c => c.estado === 'fallido' || (c.estado === 'pendiente' && c.respuesta_smtp));
+                        if (fallidos.length === 0) return <p className="text-sm text-muted">Buscando datos...</p>;
+                        
+                        const categorias = {
+                          'Dominio Inexistente': 0,
+                          'Credenciales/Login SMTP': 0,
+                          'Cuota Excedida (Remitente)': 0,
+                          'Casilla Llena (Destinatario)': 0,
+                          'Rechazado por Spam': 0,
+                          'Otros': 0
+                        };
+
+                        fallidos.forEach(f => {
+                          const msg = (f.respuesta_smtp || '').toLowerCase();
+                          if (msg.includes('domain not found') || msg.includes('nxdomain') || msg.includes('no such domain')) categorias['Dominio Inexistente']++;
+                          else if (msg.includes('login') || msg.includes('auth') || msg.includes('password')) categorias['Credenciales/Login SMTP']++;
+                          else if (msg.includes('daily sending limit') || msg.includes('quota exceeded') && !msg.includes('mailbox')) categorias['Cuota Excedida (Remitente)']++;
+                          else if (msg.includes('mailbox full') || msg.includes('storage full') || msg.includes('quota') && msg.includes('mailbox')) categorias['Casilla Llena (Destinatario)']++;
+                          else if (msg.includes('spam') || msg.includes('blocked') || msg.includes('blacklisted')) categorias['Rechazado por Spam']++;
+                          else categorias['Otros']++;
+                        });
+
+                        return Object.entries(categorias)
+                          .filter(([_, count]) => count > 0)
+                          .map(([label, count]) => (
+                            <div key={label} className="bg-background border border-border p-3 rounded-lg flex justify-between items-center">
+                              <span className="text-sm font-medium text-dark">{label}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-muted">{count}</span>
+                                <span className="text-xs px-2 py-1 bg-surface rounded-md font-bold text-slate-600">
+                                  {((count / fallidos.length) * 100).toFixed(0)}%
+                                </span>
+                              </div>
+                            </div>
+                          ));
+                      })()}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
