@@ -375,16 +375,18 @@ export default function DetalleCampana() {
                             {item.cuenta_smtp_email || '-'}
                           </td>
                           <td className="px-4 py-3">
-                            {item.respuesta_smtp ? (
-                              item.estado === 'fallido' ? (
-                                <span className="text-xs font-medium text-red-600 cursor-help underline decoration-red-300 underline-offset-2" title={item.respuesta_smtp}>
-                                  Error
-                                </span>
-                              ) : (
-                                <span className="text-xs font-medium text-green-600 cursor-help" title={item.respuesta_smtp}>
-                                  OK
-                                </span>
-                              )
+                            {item.estado === 'enviado' ? (
+                              <span className="text-xs font-medium text-green-600 cursor-help" title={item.respuesta_smtp || 'Enviado correctamente'}>
+                                OK
+                              </span>
+                            ) : item.estado === 'fallido' ? (
+                              <span className="text-xs font-medium text-red-600 cursor-help underline decoration-red-300 underline-offset-2" title={item.respuesta_smtp || 'Error desconocido'}>
+                                Error
+                              </span>
+                            ) : item.respuesta_smtp ? (
+                              <span className="text-xs font-medium text-amber-600 cursor-help underline decoration-amber-300 underline-offset-2" title={item.respuesta_smtp}>
+                                Reintentando
+                              </span>
                             ) : (
                               '-'
                             )}
