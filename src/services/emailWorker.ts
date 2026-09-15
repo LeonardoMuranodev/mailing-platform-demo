@@ -280,7 +280,10 @@ async function verificarCampanasCompletadas() {
   const query = `
     SELECT c.id, c.asunto
     FROM campanas c
-    WHERE c.estado = 'en_proceso'
+    WHERE c.estado IN ('en_proceso', 'aprobada')
+      AND EXISTS (
+        SELECT 1 FROM cola_envios ce WHERE ce.campana_id = c.id
+      )
       AND NOT EXISTS (
         SELECT 1 FROM cola_envios ce 
         WHERE ce.campana_id = c.id AND ce.estado = 'pendiente'
