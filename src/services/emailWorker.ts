@@ -235,9 +235,11 @@ export async function procesarCola(): Promise<void> {
             // Actualizar ultimo_uso para que la cuenta pase al final de la cola (Round-Robin) y se intente con otra
             await dbPool.query(`UPDATE cuentas_smtp SET ultimo_uso = CURRENT_TIMESTAMP WHERE id = $1`, [cuentaSmtp.id]);
           }
-
-          intentosCirculares++;
+        } finally {
+          transporter.close();
         }
+
+        intentosCirculares++;
       } // fin while intentosCirculares
 
       if (!enviadoExitoso) {
