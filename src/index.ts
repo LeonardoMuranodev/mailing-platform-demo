@@ -19,6 +19,9 @@ import cron from 'node-cron';
 import rateLimit from 'express-rate-limit';
 const app = express();
 
+// Confiar en Nginx (Proxy Inverso) para Rate Limiting
+app.set('trust proxy', 1);
+
 // ── Security Middlewares ─────────────────────────────────
 app.use(securityHeaders);
 app.use(corsMiddleware);
