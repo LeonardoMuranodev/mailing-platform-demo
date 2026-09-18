@@ -25,9 +25,9 @@ export default function Login() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
-      
+
       const data = await res.json();
-      
+
       if (res.ok && data.success) {
         setAuth(data.data.token, data.data.user);
       } else {
@@ -84,7 +84,7 @@ export default function Login() {
                 {error}
               </div>
             )}
-            
+
             <div>
               <label className="block text-sm font-semibold text-muted mb-1.5">
                 Correo Electrónico
@@ -96,7 +96,7 @@ export default function Login() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@3f.com"
+                  placeholder="ejemplo@tresdefebrero.gob.ar"
                   className="w-full pl-10 pr-3.5 py-2.5 text-sm bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors h-[42px]"
                 />
               </div>

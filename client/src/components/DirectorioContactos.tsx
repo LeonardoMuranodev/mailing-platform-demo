@@ -6,7 +6,6 @@ import {
   actualizarContacto,
   eliminarContacto,
   eliminarContactosBulk,
-  toggleEstadoContacto,
   syncContactosSheets,
   checkSyncStatus
 } from '../services/api';
@@ -49,7 +48,7 @@ export default function DirectorioContactos() {
   const [errorMsg, setErrorMsg] = useState('');
 
   // Autocompletado empresa
-  const [empresasSugeridas, setEmpresasSugeridas] = useState<Array<{id: string; nombre: string; cuit: string | null}>>([]);
+  const [empresasSugeridas, setEmpresasSugeridas] = useState<Array<{ id: string; nombre: string; cuit: string | null }>>([]);
   const [showEmpresaSugeridas, setShowEmpresaSugeridas] = useState(false);
   const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -138,7 +137,7 @@ export default function DirectorioContactos() {
       c.estado,
       new Date(c.creado_en).toLocaleDateString()
     ]);
-    
+
     const csvContent = [
       header.join(','),
       ...rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
@@ -184,14 +183,14 @@ export default function DirectorioContactos() {
             // Terminó la sincronización o no hay ninguna en curso
             setIsSyncing(false);
             if (data.lastResult) {
-               setSyncResult({ 
-                 success: data.lastResult.success, 
-                 message: data.lastResult.message 
-               });
-               if (data.lastResult.success) {
-                 fetchContactosData(1);
-                 setPage(1);
-               }
+              setSyncResult({
+                success: data.lastResult.success,
+                message: data.lastResult.message
+              });
+              if (data.lastResult.success) {
+                fetchContactosData(1);
+                setPage(1);
+              }
             }
           }
         }
@@ -238,11 +237,11 @@ export default function DirectorioContactos() {
     e.preventDefault();
     setErrorMsg('');
     setSaving(true);
-    
+
     try {
       const payload = { ...form };
       if (!payload.rubro_id) payload.rubro_id = null;
-      
+
       if (editingId) {
         const res = await actualizarContacto(editingId, payload);
         if (res.success && res.data) {
@@ -287,7 +286,7 @@ export default function DirectorioContactos() {
 
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
-    
+
     setBulkDeleting(true);
     try {
       const res = await eliminarContactosBulk(selectedIds);
@@ -335,7 +334,7 @@ export default function DirectorioContactos() {
                 {isSyncing ? (
                   <div className="w-4 h-4 border-2 border-green-500/30 border-t-green-500 rounded-full animate-spin"></div>
                 ) : (
-                  <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                  <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
                 )}
                 Sincronizar con Sheets
               </button>
@@ -494,11 +493,11 @@ export default function DirectorioContactos() {
                 </tr>
               ) : (
                 contactos.map((c) => {
-                  const estadoBadge = 
+                  const estadoBadge =
                     c.estado === 'funcional' ? 'bg-[#16A34A] text-white' :
-                    c.estado === 'inactivo' ? 'bg-gray-500 text-white' :
-                    c.estado.includes('rebotado') ? 'bg-[#DC2626] text-white' :
-                    'bg-gray-500 text-white';
+                      c.estado === 'inactivo' ? 'bg-gray-500 text-white' :
+                        c.estado.includes('rebotado') ? 'bg-[#DC2626] text-white' :
+                          'bg-gray-500 text-white';
 
                   return (
                     <tr key={c.id} className={`hover:bg-background/50 transition-colors ${selectedIds.includes(c.id) ? 'bg-primary/5' : ''}`}>
@@ -537,7 +536,7 @@ export default function DirectorioContactos() {
                         <td className="px-6 py-4 text-right">
                           <div className="flex justify-end gap-2">
                             {puedeEditar && (
-                              <button 
+                              <button
                                 onClick={() => openEditarModal(c)}
                                 className="p-1.5 text-muted hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
                                 title="Editar contacto"
@@ -546,7 +545,7 @@ export default function DirectorioContactos() {
                               </button>
                             )}
                             {puedeEliminar && (
-                              <button 
+                              <button
                                 onClick={() => setDeleteConfirmId(c.id)}
                                 className="p-1.5 text-muted hover:text-danger hover:bg-danger/10 rounded-md transition-colors"
                                 title="Eliminar contacto"
@@ -589,14 +588,14 @@ export default function DirectorioContactos() {
               </div>
             </div>
             <div className="flex justify-center gap-2 w-full sm:w-auto">
-              <button 
+              <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
                 className="flex-1 sm:flex-none px-3 py-1.5 border border-border rounded-md text-sm font-medium text-dark disabled:opacity-50 hover:bg-surface transition-colors text-center"
               >
                 Anterior
               </button>
-              <button 
+              <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
                 className="flex-1 sm:flex-none px-3 py-1.5 border border-border rounded-md text-sm font-medium text-dark disabled:opacity-50 hover:bg-surface transition-colors text-center"
@@ -641,7 +640,7 @@ export default function DirectorioContactos() {
                 <X size={20} />
               </button>
             </div>
-            
+
             <form onSubmit={handleGuardar} className="p-6 space-y-4" noValidate>
               <AlertMessage type="error" message={errorMsg} />
 
@@ -649,10 +648,10 @@ export default function DirectorioContactos() {
                 {/* Email - full width */}
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-dark mb-1">Email <span className="text-danger">*</span></label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={form.email}
-                    onChange={e => setForm({...form, email: e.target.value})}
+                    onChange={e => setForm({ ...form, email: e.target.value })}
                     className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 h-[42px]"
                     placeholder="ejemplo@empresa.com"
                   />
@@ -661,12 +660,12 @@ export default function DirectorioContactos() {
                 {/* Empresa - full width con autocompletado */}
                 <div className="sm:col-span-2" style={{ position: 'relative' }}>
                   <label className="block text-sm font-medium text-dark mb-1">Empresa / Razón Social</label>
-                  <input 
+                  <input
                     type="text"
                     autoComplete="off"
                     value={form.empresa_nombre || ''}
                     onChange={e => {
-                      setForm({...form, empresa_nombre: e.target.value});
+                      setForm({ ...form, empresa_nombre: e.target.value });
                       buscarEmpresasSugeridas(e.target.value);
                     }}
                     onBlur={() => setTimeout(() => setShowEmpresaSugeridas(false), 150)}
@@ -695,11 +694,11 @@ export default function DirectorioContactos() {
                 {/* CUIT - full width */}
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-dark mb-1">CUIT</label>
-                  <input 
+                  <input
                     type="text"
                     inputMode="numeric"
                     value={form.cuit || ''}
-                    onChange={e => setForm({...form, cuit: e.target.value.replace(/\D/g, '')})}
+                    onChange={e => setForm({ ...form, cuit: e.target.value.replace(/\D/g, '') })}
                     className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 h-[42px]"
                     placeholder="Sin guiones (ej: 30709328995)"
                     maxLength={11}
@@ -711,7 +710,7 @@ export default function DirectorioContactos() {
                   <label className="block text-sm font-medium text-dark mb-1">Estado</label>
                   <select
                     value={form.estado}
-                    onChange={e => setForm({...form, estado: e.target.value as any})}
+                    onChange={e => setForm({ ...form, estado: e.target.value as any })}
                     className="w-full pl-3 pr-10 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 h-[42px]"
                   >
                     <option value="funcional">Funcional</option>
@@ -727,7 +726,7 @@ export default function DirectorioContactos() {
                   <label className="block text-sm font-medium text-dark mb-1">Tipo de Contacto</label>
                   <select
                     value={form.tipo || ''}
-                    onChange={e => setForm({...form, tipo: e.target.value})}
+                    onChange={e => setForm({ ...form, tipo: e.target.value })}
                     className="w-full pl-3 pr-10 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 h-[42px]"
                   >
                     <option value="">Sin tipo asignado</option>
@@ -741,7 +740,7 @@ export default function DirectorioContactos() {
                   <label className="block text-sm font-medium text-dark mb-1">Rubro</label>
                   <select
                     value={form.rubro_id || ''}
-                    onChange={e => setForm({...form, rubro_id: e.target.value})}
+                    onChange={e => setForm({ ...form, rubro_id: e.target.value })}
                     className="w-full pl-3 pr-10 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 h-[42px]"
                   >
                     <option value="">Sin rubro asignado</option>
@@ -753,15 +752,15 @@ export default function DirectorioContactos() {
               </div>
 
               <div className="pt-4 flex justify-end gap-3">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setIsModalOpen(false)}
                   className="px-4 py-2 border border-border bg-background text-dark rounded-lg hover:bg-surface font-medium transition-colors"
                 >
                   Cancelar
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={saving}
                   className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark font-medium transition-colors disabled:opacity-70 flex items-center gap-2"
                 >
