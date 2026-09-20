@@ -6,8 +6,7 @@ import { formatDate } from '../utils/formatDate';
 import { RUBROS_LABELS } from '../data/rubros';
 
 /** URL del header subido a Supabase */
-const HEADER_URL =
-  'https://via.placeholder.com/600x150/f0f4f8/333333?text=Banner+Generico';
+const HEADER_URL = '/banner-vista-previa.png';
 
 /** Iconos de contacto (Flaticon) */
 const WHATSAPP_ICON = 'https://cdn-icons-png.flaticon.com/512/733/733585.png';
