@@ -42,50 +42,51 @@ export async function runSeed() {
       );
     }
 
-    // Obtener rubro_id de Tecnología
-    const rubroRes = await client.query('SELECT id FROM rubros WHERE nombre = $1', ['Tecnología']);
-    const rubroId = rubroRes.rows.length > 0 ? rubroRes.rows[0].id : null;
-
-    // 3. Empresas y Contactos
-    console.log('🏢 Creando empresas y contactos...');
-    let empresaId = null;
-    const empRes = await client.query(
-      `INSERT INTO empresas (nombre, cuit) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING id`,
-      ['Empresa Genérica S.A.', '30709328995']
-    );
-    if (empRes.rows.length > 0) {
-      empresaId = empRes.rows[0].id;
-    } else {
-      const getEmp = await client.query(`SELECT id FROM empresas WHERE cuit = '30709328995'`);
-      empresaId = getEmp.rows.length > 0 ? getEmp.rows[0].id : null;
+    // Obtener mapa de rubros para asignarlos dinámicamente
+    const rubrosMap = new Map();
+    const rubrosQuery = await client.query('SELECT id, nombre FROM rubros');
+    for (const r of rubrosQuery.rows) {
+      rubrosMap.set(r.nombre, r.id);
     }
 
     const contactos = [
-      { email: 'valido1@genmailer.com', estado: 'funcional' },
-      { email: 'valido2@genmailer.com', estado: 'funcional' },
-      { email: 'rebotado@inexistente.com', estado: 'rebotado inexistente' },
-      { email: 'lleno@dominio.com', estado: 'rebotado bandeja llena' },
+      { email: 'contacto_tech1@empresa.com', estado: 'funcional', rubro: 'Tecnología' },
+      { email: 'contacto_tech2@empresa.com', estado: 'funcional', rubro: 'Tecnología' },
+      { email: 'rrhh@salud-clinica.com', estado: 'funcional', rubro: 'Salud' },
+      { email: 'directora@escuela-primaria.edu', estado: 'funcional', rubro: 'Educación' },
+      { email: 'rebotado@inexistente.com', estado: 'rebotado inexistente', rubro: 'Tecnología' },
+      { email: 'lleno@dominio.com', estado: 'rebotado bandeja llena', rubro: 'Salud' },
+      { email: 'spam_trap@catchall.com', estado: 'rebotado spam', rubro: null },
+      { email: 'viejo_contacto@empresa.com', estado: 'inactivo', rubro: 'Educación' },
+      { email: 'ceo@startup-tech.com', estado: 'funcional', rubro: 'Tecnología' },
+      { email: 'ventas@distribuidora.com', estado: 'funcional', rubro: null },
+      { email: 'info@salud-clinica.com', estado: 'funcional', rubro: 'Salud' },
+      { email: 'contacto@escuela-secundaria.edu', estado: 'funcional', rubro: 'Educación' },
     ];
 
     for (const c of contactos) {
+      const cRubroId = c.rubro ? rubrosMap.get(c.rubro) : null;
       await client.query(
         `INSERT INTO contactos (email, empresa_id, rubro_id, estado) 
          VALUES ($1, $2, $3, $4)
          ON CONFLICT (email) DO NOTHING`,
-        [c.email, empresaId, rubroId, c.estado]
+        [c.email, empresaId, cRubroId, c.estado]
       );
     }
 
     // 4. Campañas
     console.log('📧 Creando campañas y envíos en cola...');
     const campanas = [
-      { asunto: 'Campaña Completada de Prueba', estado: 'completada', enviados: 2, fallidos: 1, pendientes: 0 },
-      { asunto: 'Campaña En Proceso', estado: 'en_proceso', enviados: 1, fallidos: 0, pendientes: 1 },
-      { asunto: 'Campaña Pausada', estado: 'pausada', enviados: 0, fallidos: 0, pendientes: 2 },
+      { asunto: 'Lanzamiento Nueva Plataforma', estado: 'completada', enviados: 5, fallidos: 1, pendientes: 0 },
+      { asunto: 'Actualización de Términos', estado: 'completada', enviados: 8, fallidos: 0, pendientes: 0 },
+      { asunto: 'Promoción de Invierno', estado: 'completada', enviados: 4, fallidos: 2, pendientes: 0 },
+      { asunto: 'Boletín Mensual - Septiembre', estado: 'en_proceso', enviados: 3, fallidos: 0, pendientes: 5 },
+      { asunto: 'Aviso de Mantenimiento', estado: 'pausada', enviados: 1, fallidos: 0, pendientes: 8 },
+      { asunto: 'Borrador de Evento Anual', estado: 'borrador', enviados: 0, fallidos: 0, pendientes: 0 },
     ];
 
     // Obtener IDs de contactos reales para la cola
-    const todosContactos = await client.query('SELECT id FROM contactos LIMIT 5');
+    const todosContactos = await client.query('SELECT id FROM contactos');
     const contactosIds = todosContactos.rows.map(r => r.id);
 
     for (const camp of campanas) {
@@ -99,23 +100,30 @@ export async function runSeed() {
       const campId = cRes.rows[0].id;
 
       // Cola de envíos simulada (solo si hay contactos)
-      if (contactosIds.length >= 3) {
-        if (camp.enviados > 0) {
+      if (contactosIds.length > 0) {
+        // Distribuir equitativamente los contactos aleatorios
+        let cIndex = 0;
+        const getNextContacto = () => contactosIds[(cIndex++) % contactosIds.length];
+
+        for (let i = 0; i < camp.enviados; i++) {
           await client.query(
-            `INSERT INTO cola_envios (campana_id, contacto_id, estado) VALUES ($1, $2, $3)`,
-            [campId, contactosIds[0], 'enviado']
+            `INSERT INTO cola_envios (campana_id, contacto_id, estado, fecha_envio) 
+             VALUES ($1, $2, $3, CURRENT_TIMESTAMP - (random() * 7 || ' days')::interval)`,
+            [campId, getNextContacto(), 'enviado']
           );
         }
-        if (camp.fallidos > 0) {
+        for (let i = 0; i < camp.fallidos; i++) {
           await client.query(
-            `INSERT INTO cola_envios (campana_id, contacto_id, estado) VALUES ($1, $2, $3)`,
-            [campId, contactosIds[1], 'fallido']
+            `INSERT INTO cola_envios (campana_id, contacto_id, estado, fecha_envio) 
+             VALUES ($1, $2, $3, CURRENT_TIMESTAMP - (random() * 7 || ' days')::interval)`,
+            [campId, getNextContacto(), 'fallido']
           );
         }
-        if (camp.pendientes > 0) {
+        for (let i = 0; i < camp.pendientes; i++) {
           await client.query(
-            `INSERT INTO cola_envios (campana_id, contacto_id, estado) VALUES ($1, $2, $3)`,
-            [campId, contactosIds[2], 'pendiente']
+            `INSERT INTO cola_envios (campana_id, contacto_id, estado) 
+             VALUES ($1, $2, $3)`,
+            [campId, getNextContacto(), 'pendiente']
           );
         }
       }
@@ -153,12 +161,22 @@ export async function runSeed() {
     await client.query(
       `INSERT INTO reportes_soporte (asunto, descripcion, estado)
        VALUES ($1, $2, $3)`,
-      ['Problema visual en Safari', 'El botón no se alinea correctamente', 'abierto']
+      ['Problema visual en Safari', 'El botón de enviar no se alinea correctamente en dispositivos móviles', 'abierto']
     );
     await client.query(
       `INSERT INTO reportes_soporte (asunto, descripcion, estado)
        VALUES ($1, $2, $3)`,
-      ['Importación CSV', 'La importación de CSV dio error en la línea 40', 'en_progreso']
+      ['Importación CSV', 'La importación de CSV dio error en la línea 40 porque faltaba el arroba en un correo.', 'en_progreso']
+    );
+    await client.query(
+      `INSERT INTO reportes_soporte (asunto, descripcion, estado)
+       VALUES ($1, $2, $3)`,
+      ['Duda sobre el límite diario', 'Quería consultar qué pasa si supero los 400 envíos por día, se pausa la campaña automáticamente?', 'cerrado']
+    );
+    await client.query(
+      `INSERT INTO reportes_soporte (asunto, descripcion, estado)
+       VALUES ($1, $2, $3)`,
+      ['Sugerencia: Editor de templates', 'Sería genial poder guardar templates HTML favoritos para reutilizarlos en vez de armarlos desde cero cada vez.', 'abierto']
     );
 
     await client.query('COMMIT');
