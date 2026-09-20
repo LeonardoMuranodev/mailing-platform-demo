@@ -89,17 +89,21 @@ El proyecto está 100% dockerizado para que su ejecución sea trivial sin import
 
 Para visualizar la interfaz, revisa las siguientes capturas del sistema en funcionamiento:
 
-| Campañas e Historial | Dashboard Estadístico |
+| Dashboard y Estadísticas | Creación de Campañas |
 | :---: | :---: |
-| ![Campañas](docs/assets/campana-id-vista.png) | ![Estadísticas](docs/assets/estadisticas.png) |
+| ![Estadísticas](docs/assets/estadisticas.png) | ![Nueva Campaña](docs/assets/nueva-campana.png) |
 
-| Gestión de Cuentas SMTP | Directorio de Contactos |
+| Historial de Campaña | Directorio de Contactos |
 | :---: | :---: |
-| ![Cuentas SMTP](docs/assets/cuentas.png) | ![Contactos](docs/assets/contactos.png) |
+| ![Campaña ID](docs/assets/campana-id-vista.png) | ![Contactos](docs/assets/contactos.png) |
 
-| Gestión de Usuarios (RBAC) | Sistema de Soporte |
+| Gestión de Cuentas SMTP | Gestión de Usuarios (RBAC) |
 | :---: | :---: |
-| ![Usuarios](docs/assets/usuarios.png) | ![Soporte](docs/assets/soporte.png) |
+| ![Cuentas SMTP](docs/assets/cuentas.png) | ![Usuarios](docs/assets/gestion-usuarios.png) |
+
+| Sistema de Soporte (Admin) | Sistema de Soporte (Usuario) |
+| :---: | :---: |
+| ![Soporte Admin](docs/assets/soporte-admin.png) | ![Soporte Usuario](docs/assets/soporte-usuario.png) |
 
 ---
 
