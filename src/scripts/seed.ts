@@ -164,9 +164,9 @@ export async function runSeed() {
     const cuentaQuemaRes = await client.query(`SELECT id FROM cuentas_smtp WHERE email = 'quemada@genmailer.com'`);
     if (cuentaQuemaRes.rows.length > 0) {
       await client.query(
-        `INSERT INTO smtp_logs (cuenta_id, tipo_error, mensaje, contexto)
-         VALUES ($1, $2, $3, $4)`,
-        [cuentaQuemaRes.rows[0].id, 'limite_alcanzado', 'Limit Exceeded: Daily quota reached', '{"code": "454", "command": "DATA"}']
+        `INSERT INTO smtp_logs (cuenta_smtp_id, tipo, mensaje)
+         VALUES ($1, $2, $3)`,
+        [cuentaQuemaRes.rows[0].id, 'agotada', 'Limit Exceeded: Daily quota reached']
       );
     }
 
