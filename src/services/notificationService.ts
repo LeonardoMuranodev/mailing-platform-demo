@@ -4,57 +4,30 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 export async function notificarSoporte(tipo: string, descripcion: string, usuario: { nombre: string; email: string }, adjuntoUrl?: string) {
-  const { smtpHost, smtpPort, smtpUser, smtpPass, telegramChatId, telegramToken } = config.notifier;
+  const { telegramChatId, telegramToken } = config.notifier;
 
   let msg = `🛠 *Nuevo Reporte de Soporte*\n\n`;
   msg += `*Usuario:* ${usuario.nombre} (${usuario.email})\n`;
   msg += `*Tipo:* ${tipo.toUpperCase()}\n`;
   msg += `*Descripción:* ${descripcion}\n`;
+  if (adjuntoUrl) {
+    msg += `*Ruta de Adjunto en Servidor:* ${adjuntoUrl}\n`;
+  }
 
-  // Enviar a Telegram si está configurado
-  // Enviar Email si está configurado
-  if (smtpHost && smtpUser) {
+  // Enviar EXCLUSIVAMENTE a Telegram (Para el desarrollador)
+  if (telegramChatId && telegramToken) {
     try {
-      const transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpPort === 465,
-        auth: {
-          user: smtpUser,
-          pass: smtpPass,
-        }
+      await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: telegramChatId,
+          text: msg,
+          parse_mode: 'Markdown'
+        })
       });
-      
-      const htmlMsg = `
-        <h2>Nuevo Reporte de Soporte</h2>
-        <p><strong>Usuario:</strong> ${usuario.nombre} (${usuario.email})</p>
-        <p><strong>Tipo:</strong> ${tipo.toUpperCase()}</p>
-        <p><strong>Descripción:</strong><br/>${descripcion.replace(/\\n/g, '<br/>')}</p>
-        ${adjuntoUrl ? `<p><strong>Adjunto:</strong> <a href="${adjuntoUrl}">${adjuntoUrl}</a></p>` : ''}
-      `;
-
-      const mailOptions: any = {
-        from: `"Soporte Sistema" <${smtpUser}>`,
-        to: smtpUser, // Enviarlo al mismo destino
-        subject: `Nuevo Ticket: ${tipo.toUpperCase()} de ${usuario.nombre}`,
-        html: htmlMsg
-      };
-
-      if (adjuntoUrl) {
-        const filePath = path.join(process.cwd(), adjuntoUrl);
-        if (fs.existsSync(filePath)) {
-          mailOptions.attachments = [
-            {
-              filename: path.basename(filePath),
-              path: filePath
-            }
-          ];
-        }
-      }
-
-      await transporter.sendMail(mailOptions);
     } catch (e) {
-      console.error('Error enviando email de soporte', e);
+      console.error('Error enviando telegram de soporte', e);
     }
   }
 }
@@ -80,7 +53,7 @@ export async function notificarCampanaTerminada(campanaId: string, asunto: strin
           pass: smtpPass,
         }
       });
-      
+
       const htmlMsg = `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -228,7 +201,7 @@ export async function notificarCuotaGlobalAgotada() {
           pass: smtpPass,
         }
       });
-      
+
       const htmlMsg = `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -342,7 +315,7 @@ export async function notificarCuentaProblema(email: string, tipo: 'agotada' | '
 
   const emoji = tipo === 'agotada' ? '⚠️' : '🚨';
   const accion = tipo === 'agotada' ? 'alcanzó su cuota diaria' : 'fue BLOQUEADA por excesos de rebotes';
-  
+
   const msg = `${emoji} *Atención - Cuenta SMTP*\n\nLa cuenta \`${email}\` ${accion}.\n\n*Detalle:* ${detalle}`;
 
   if (telegramChatId && telegramToken) {
