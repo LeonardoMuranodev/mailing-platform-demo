@@ -49,6 +49,20 @@ export async function runSeed() {
       rubrosMap.set(r.nombre, r.id);
     }
 
+    // 3. Empresas y Contactos
+    console.log('🏢 Creando empresas y contactos...');
+    let empresaId = null;
+    const empRes = await client.query(
+      `INSERT INTO empresas (nombre, cuit) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING id`,
+      ['Empresa Genérica S.A.', '30709328995']
+    );
+    if (empRes.rows.length > 0) {
+      empresaId = empRes.rows[0].id;
+    } else {
+      const getEmp = await client.query(`SELECT id FROM empresas WHERE cuit = '30709328995'`);
+      empresaId = getEmp.rows.length > 0 ? getEmp.rows[0].id : null;
+    }
+
     const contactos = [
       { email: 'contacto_tech1@empresa.com', estado: 'funcional', rubro: 'Tecnología' },
       { email: 'contacto_tech2@empresa.com', estado: 'funcional', rubro: 'Tecnología' },
