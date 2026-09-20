@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Routes, Route, useLocation, Link, Navigate } from 'react-router-dom';
-import { Mail, BarChart3, Users, Settings, LogOut, UserCircle2, AlertTriangle, LifeBuoy, Menu, X } from 'lucide-react';
+import { Mail, BarChart3, Users, Settings, LogOut, UserCircle2, AlertTriangle, LifeBuoy, Menu, X, Github, Linkedin } from 'lucide-react';
 import { useAuthStore } from './stores/authStore';
 import Login from './components/Login';
 import ListaCampanas from './components/ListaCampanas';
@@ -177,11 +177,22 @@ function App() {
 
       {/* ── Footer ────────────────────────────────────── */}
       <footer className="border-t border-border mt-auto py-6">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 text-center text-muted text-sm font-medium flex flex-wrap items-center justify-center gap-2">
-          <span>Desarrollado por</span>
-          <a href="https://www.linkedin.com/in/leonardo-murano" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
-            Leonardo Murano
-          </a>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-center gap-4 text-muted text-sm font-medium">
+          <div className="flex items-center gap-1.5">
+            <span>Desarrollado por</span>
+            <a href="https://github.com/LeonardoMuranodev" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold flex items-center gap-1">
+              Leonardo Murano
+            </a>
+          </div>
+          <div className="hidden sm:block w-1.5 h-1.5 rounded-full bg-border"></div>
+          <div className="flex items-center gap-4">
+            <a href="https://github.com/LeonardoMuranodev/mailing-platform-demo" target="_blank" rel="noopener noreferrer" className="text-muted hover:text-dark transition-colors" title="Código Fuente en GitHub">
+              <Github size={20} />
+            </a>
+            <a href="https://www.linkedin.com/in/leonardo-murano" target="_blank" rel="noopener noreferrer" className="text-muted hover:text-[#0a66c2] transition-colors" title="Perfil de LinkedIn">
+              <Linkedin size={20} />
+            </a>
+          </div>
         </div>
       </footer>
     </div>
