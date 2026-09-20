@@ -347,6 +347,7 @@ export default function EstadisticasGenerales() {
               ))
             )}
           </div>
+          </div>
         </div>
       </>
       )}
