@@ -89,7 +89,7 @@ Para visualizar la interfaz, revisa las siguientes capturas del sistema en funci
 
 | Campañas e Historial | Dashboard Estadístico |
 | :---: | :---: |
-| ![Campañas](docs/assets/campanas.png) | ![Estadísticas](docs/assets/estadisticas.png) |
+| ![Campañas](docs/assets/campana-id-vista.png) | ![Estadísticas](docs/assets/estadisticas.png) |
 
 | Gestión de Cuentas SMTP | Directorio de Contactos |
 | :---: | :---: |
