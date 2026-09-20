@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import { dbPool } from '../config/db.js';
+import { encrypt } from '../utils/encryption.js';
 
 export async function runSeed() {
   const client = await dbPool.connect();
@@ -105,8 +106,8 @@ export async function runSeed() {
 
     for (const camp of campanas) {
       const cRes = await client.query(
-        `INSERT INTO campanas (asunto, cuerpo_html, para_todos_rubros, estado)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO campanas (asunto, cuerpo_html, para_todos_rubros, estado, creado_en)
+         VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP - (random() * 7 || ' days')::interval)
          RETURNING id`,
         [camp.asunto, '<h1>Hola Mundo</h1>', true, camp.estado]
       );
@@ -149,14 +150,14 @@ export async function runSeed() {
       `INSERT INTO cuentas_smtp (email, usuario, password_encrypted, host, puerto, limite_diario, estado)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (email) DO NOTHING`,
-      ['noreply1@genmailer.com', 'noreply1@genmailer.com', 'dummy_pass', 'smtp.gmail.com', 465, 400, 'activo']
+      ['noreply1@genmailer.com', 'noreply1@genmailer.com', encrypt('dummy_pass'), 'smtp.gmail.com', 465, 400, 'activo']
     );
 
     await client.query(
       `INSERT INTO cuentas_smtp (email, usuario, password_encrypted, host, puerto, limite_diario, estado)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (email) DO NOTHING`,
-      ['quemada@genmailer.com', 'quemada@genmailer.com', 'dummy_pass2', 'smtp.gmail.com', 465, 400, 'bloqueado']
+      ['quemada@genmailer.com', 'quemada@genmailer.com', encrypt('dummy_pass2'), 'smtp.gmail.com', 465, 400, 'bloqueado']
     );
 
     // 6. Logs SMTP
