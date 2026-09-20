@@ -16,9 +16,11 @@ Esta versión (GenMailer) es una **adaptación genérica y mejorada** de ese sof
 
 - **Gestor Inteligente de Colas SMTP (Round Robin):** Rotación automática y balanceo de carga entre múltiples cuentas SMTP. Si una cuenta agota su límite de envíos diarios, el sistema salta automáticamente a la siguiente cuenta disponible sin interrumpir la campaña.
 - **Procesamiento Asíncrono (Workers & Redis):** Tareas en segundo plano (Cron Jobs) que manejan el despacho progresivo de correos y la lectura de bandejas IMAP para detectar rebotes. Se apoyan en colas de alto rendimiento para garantizar que ningún correo se pierda.
-- **Dashboard Estadístico:** Gráficos interactivos de altas y bajas, tasas de entrega, y estadísticas por rubro, impulsados por consultas SQL optimizadas.
+- **Dashboard Estadístico y Exportación:** Gráficos interactivos de altas y bajas, tasas de entrega, y estadísticas por rubro, impulsados por consultas SQL optimizadas, con capacidad de exportar métricas.
+- **Autenticación y Permisos (RBAC):** Acceso asegurado mediante **JWT (JSON Web Tokens)** con control de acceso basado en roles. La interfaz y las operaciones permitidas mutan según si el usuario es "desarrollador", "encargado" o "invitado".
+- **Gestor de Contactos y Rubros:** Importación/Exportación masiva de bases de datos mediante CSV o Excel, validaciones estrictas (impulsadas por esquemas) y categorización dinámica, filtrando automáticamente los correos rebotados.
 - **Seguridad y Trazabilidad:** Las credenciales SMTP se cifran nativamente con **AES-256-GCM**. Todo el sistema cuenta con **Logs estructurados** (alertas de errores, monitoreo de cuentas quemadas) y scripts de **Backups** automatizados para resguardar la base de datos.
-- **Gestor de Contactos y Rubros:** Importación masiva, validaciones estrictas (impulsadas por esquemas) y categorización dinámica, filtrando automáticamente rebotados.
+- **Sistema Integrado de Soporte:** Módulo de ticketing (Soporte) donde los usuarios regulares pueden reportar errores o enviar sugerencias directamente al rol desarrollador.
 
 
 
@@ -94,6 +96,10 @@ Para visualizar la interfaz, revisa las siguientes capturas del sistema en funci
 | Gestión de Cuentas SMTP | Directorio de Contactos |
 | :---: | :---: |
 | ![Cuentas SMTP](docs/assets/cuentas.png) | ![Contactos](docs/assets/contactos.png) |
+
+| Gestión de Usuarios (RBAC) | Sistema de Soporte |
+| :---: | :---: |
+| ![Usuarios](docs/assets/usuarios.png) | ![Soporte](docs/assets/soporte.png) |
 
 ---
 
