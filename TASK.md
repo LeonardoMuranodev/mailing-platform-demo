@@ -16,15 +16,8 @@
 * [] **Despliegue Final:** Subir al repositorio Git corporativo (con VPN) y levantar el `docker-compose.yml` en el servidor de producción. Ya tengo el dominio disponible, tengo que configurar todo eso.
 * [] **Importar los contactos de la base de datos de Google Sheets:** al sistema
 
-Checklist para el Paso a Producción 🚀
-Una vez que hagas tus pruebas de envío y estés satisfecho, esto es lo que debés tener en cuenta para pasarlo a producción con un dominio real:
+Se tienen que borrar del rol de invitado los botones de Eliminar campaña, y archivar, tanto en la lista de campañas, como al entrar en una especifica: no deberia ni poder reanudarse, pausarse forzar envio eliminar nada, solo leer el estado y exportar CSV. Da error 403 osea esta bien, pero el FRONT no esta preparado para eso
 
-Dominio y HTTPS (SSL):
-El docker-compose.prod.yml que armamos levanta la app en el puerto 80. Una vez que le apuntes el dominio en tu servidor VPS, deberás instalar Certbot (Let's Encrypt) para tener el candadito verde (HTTPS). Es fundamental porque navegadores modernos y proveedores de correo bloquean links HTTP sin seguridad.
-Variable PUBLIC_API_URL:
-En tu archivo .env del servidor de producción, acordate de cambiar esta variable (y en el front VITE_API_BASE_URL) para que apunte a tu nuevo dominio (https://tu-dominio.com), así el Tracking de clicks/aperturas se genera con las URLs correctas.
-Credenciales Finales de Google Drive y Sheets:
-Si vas a usar cuentas definitivas distintas a las de desarrollo, recordá actualizar los Tokens de GDrive y el email de la Service Account en el servidor.
-Warm-up de cuentas SMTP (Opcional pero recomendado):
-Cuando pases a producción real, tratá de no disparar 500 mails de golpe el primer día si las cuentas de Gmail son muy nuevas. El sistema ya tiene sleeps y rotación para evitar el spam, pero Gmail evalúa la reputación del remitente.
-¡Vía libre para testear campañas! Mandá una campaña de prueba a un par de correos tuyos y fijate que los contadores de aperturas y clicks sumen bien en el dashboard. ¡Cualquier cosa acá estoy para los detalles finos!
+Al Forzar el envio, deberia salir un POP UP o modal como siempre, mismo estilo que siempre. Si se confirma el envio, ahi se hace, para mas seguridad de que no lo toquen por error. Ademas cuando se haya forzado el envio esa opcion deberia desaparecer. No recuero como funciona, si envia todos los mails (entonces desaparecer ya que no tiene sentido), si es solo una ejecucion entonces deberia desaparecer hasta que termine. Si no hay manera de saber cuando termina un envio, entonces que desaparezca 10 min. Ahi lo vi y solo fuerza una sola ejecucion
+
+Sigue pasando que a veces toco actualizar la campaña para ver la cola de envios, y se queda sin nada, incluso le doy al f5 y sigue pasnado, la manera para sacar eso es que ponga algo en los filtros y le de a Limpiar, debe haber un problema con el cache. FIjate que es lo que hace limpiar que lo soluciona para que lo hagan actualizar o por lo menos el f5

@@ -10,12 +10,18 @@ async function fetchApi<T>(url: string, options: RequestInit = {}): Promise<ApiR
   try {
     const token = localStorage.getItem('auth_token');
     const headers = new Headers(options.headers || {});
+
+    // Evitar caché persistente en llamadas GET
+    headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    headers.set('Pragma', 'no-cache');
+    headers.set('Expires', '0');
+
     if (token) {
       headers.set('Authorization', `Bearer ${token}`);
     }
 
     const res = await fetch(url, { ...options, headers });
-    
+
     if (res.status === 401) {
       localStorage.removeItem('auth_token');
       window.location.reload();
@@ -26,19 +32,19 @@ async function fetchApi<T>(url: string, options: RequestInit = {}): Promise<ApiR
     }
 
     const contentType = res.headers.get('content-type');
-    
+
     if (!contentType || !contentType.includes('application/json')) {
-      return { 
-        success: false, 
-        error: { code: 'SERVER_ERROR', message: 'El servidor respondió con un formato inválido. Por favor, intente nuevamente más tarde.' } 
+      return {
+        success: false,
+        error: { code: 'SERVER_ERROR', message: 'El servidor respondió con un formato inválido. Por favor, intente nuevamente más tarde.' }
       };
     }
-    
+
     return (await res.json()) as ApiResponse<T>;
   } catch (error) {
-    return { 
-      success: false, 
-      error: { code: 'NETWORK_ERROR', message: 'No se pudo conectar con el servidor. Verifique su conexión y vuelva a intentar.' } 
+    return {
+      success: false,
+      error: { code: 'NETWORK_ERROR', message: 'No se pudo conectar con el servidor. Verifique su conexión y vuelva a intentar.' }
     };
   }
 }

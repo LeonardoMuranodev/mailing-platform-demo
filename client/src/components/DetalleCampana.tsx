@@ -5,6 +5,7 @@ import { obtenerCampanaDetalle, obtenerColaCampana, cambiarEstadoCampana, elimin
 import type { CampanaConStats, ColaEnvioItem } from '../types/campana';
 import { formatDate } from '../utils/formatDate';
 import { RUBROS_LABELS } from '../data/rubros';
+import { usePermisos } from '../hooks/usePermisos';
 
 const ESTADO_BADGE_CLASSES: Record<string, string> = {
   borrador: 'bg-slate-100 text-slate-600 border-slate-200',
@@ -33,10 +34,12 @@ const COLA_BADGE_CLASSES: Record<string, string> = {
 
 export default function DetalleCampana() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  
+  const [forzarConfirm, setForzarConfirm] = useState(false);
+
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  
+
+  const { puedeEditar, puedeEliminar } = usePermisos();
   const [campana, setCampana] = useState<CampanaConStats | null>(null);
   const [cola, setCola] = useState<ColaEnvioItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,12 +55,12 @@ export default function DetalleCampana() {
     try {
       const emailToUse = overrideEmail !== undefined ? overrideEmail : emailFiltro;
       const estadoToUse = overrideEstado !== undefined ? overrideEstado : estadoFiltro;
-      
+
       const [campanaRes, colaRes] = await Promise.all([
         obtenerCampanaDetalle(id),
         obtenerColaCampana(id, { email: emailToUse, estado: estadoToUse })
       ]);
-      
+
       if (campanaRes.success && campanaRes.data) {
         setCampana(campanaRes.data);
       }
@@ -87,7 +90,7 @@ export default function DetalleCampana() {
       if (campana.estado === 'pausada') {
         nuevoEstado = campana.stats.pendientes === 0 ? 'completada' : 'en_proceso';
       }
-      
+
       const res = await cambiarEstadoCampana(campana.id, nuevoEstado);
       if (res.success && res.data) {
         setCampana(prev => prev ? { ...prev, estado: res.data!.estado } : prev);
@@ -109,9 +112,23 @@ export default function DetalleCampana() {
     }
   };
 
+  const handleForzarEnvio = async () => {
+    if (!campana) return;
+    setForzarConfirm(false);
+    try {
+      const { forzarEnvioCola } = await import('../services/api');
+      await forzarEnvioCola();
+      // Bloquear el botón por 10 minutos (600000ms)
+      localStorage.setItem(`forzado_${campana.id}`, Date.now().toString());
+      fetchData(); // Refresca stats
+    } catch (err) {
+      console.error('Error al forzar envio:', err);
+    }
+  };
+
   const exportarCSV = () => {
     if (!campana) return;
-    
+
     const headers = ['Email', 'Estado', 'Fecha Envio', 'Fecha Apertura', 'Fecha Clic', 'Cuenta SMTP', 'Respuesta SMTP'];
     const rows = cola.map(item => [
       item.contacto_email,
@@ -123,8 +140,8 @@ export default function DetalleCampana() {
       item.respuesta_smtp || ''
     ]);
 
-    const rubrosStr = campana.para_todos_rubros 
-      ? 'Todos los rubros' 
+    const rubrosStr = campana.para_todos_rubros
+      ? 'Todos los rubros'
       : campana.rubros_seleccionados.map((r: string) => r === '__sin_rubro__' ? 'Sin Rubro' : RUBROS_LABELS[r as keyof typeof RUBROS_LABELS] || r).join(' - ');
 
     const csvContent = [
@@ -202,7 +219,7 @@ export default function DetalleCampana() {
             <span className={`px-3 py-1.5 text-sm font-semibold border rounded-full ${ESTADO_BADGE_CLASSES[campana.estado] || 'bg-slate-100'}`}>
               {ESTADO_LABELS[campana.estado] || campana.estado}
             </span>
-            {campana.estado === 'borrador' && (
+            {puedeEditar && campana.estado === 'borrador' && (
               <>
                 <button
                   onClick={() => navigate(`/campanas/editar/${campana.id}`)}
@@ -227,16 +244,21 @@ export default function DetalleCampana() {
                 </button>
               </>
             )}
-            {['en_proceso', 'aprobada'].includes(campana.estado) && (
+            {puedeEditar && ['en_proceso', 'aprobada'].includes(campana.estado) && (
               <>
-                <button onClick={async () => {
-                  import('../services/api').then(m => {
-                    m.forzarEnvioCola();
-                    fetchData(); // Refresca los stats
-                  });
-                }} className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors text-sm font-medium" title="Ignorar cron y procesar la cola de envíos ahora mismo">
-                  <Send size={16} /> Forzar Envío
-                </button>
+                {(() => {
+                  const stamp = localStorage.getItem(`forzado_${campana.id}`);
+                  const isBlocked = stamp && (Date.now() - parseInt(stamp) < 600000); // 10 mins
+                  if (!isBlocked) {
+                    return (
+                      <button onClick={() => setForzarConfirm(true)} className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors text-sm font-medium" title="Ignorar cron y procesar la cola de envíos ahora mismo">
+                        <Send size={16} /> Forzar Envío
+                      </button>
+                    );
+                  }
+                  return null;
+                })()}
+
                 {campana.estado === 'en_proceso' && (
                   <button onClick={handleTogglePausa} className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors text-sm font-medium">
                     <Pause size={16} /> Pausar
@@ -244,7 +266,7 @@ export default function DetalleCampana() {
                 )}
               </>
             )}
-            {campana.estado === 'pausada' && (
+            {puedeEditar && campana.estado === 'pausada' && (
               <button onClick={handleTogglePausa} className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium">
                 <Play size={16} /> Reanudar
               </button>
@@ -252,9 +274,11 @@ export default function DetalleCampana() {
             <button onClick={exportarCSV} className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border text-dark rounded-lg hover:bg-border transition-colors text-sm font-medium">
               <Download size={16} /> Exportar CSV
             </button>
-            <button onClick={() => setDeleteConfirm(true)} className="flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-200 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium">
-              <Trash2 size={16} /> Eliminar
-            </button>
+            {puedeEliminar && (
+              <button onClick={() => setDeleteConfirm(true)} className="flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-200 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium">
+                <Trash2 size={16} /> Eliminar
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -273,18 +297,16 @@ export default function DetalleCampana() {
         <div className="flex border-b border-border">
           <button
             onClick={() => setActiveTab('cola')}
-            className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-colors ${
-              activeTab === 'cola' ? 'border-b-2 border-primary text-primary' : 'text-muted hover:text-dark'
-            }`}
+            className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-colors ${activeTab === 'cola' ? 'border-b-2 border-primary text-primary' : 'text-muted hover:text-dark'
+              }`}
           >
             <Send size={18} />
             Cola de Envíos
           </button>
           <button
             onClick={() => setActiveTab('stats')}
-            className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-colors ${
-              activeTab === 'stats' ? 'border-b-2 border-primary text-primary' : 'text-muted hover:text-dark'
-            }`}
+            className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-colors ${activeTab === 'stats' ? 'border-b-2 border-primary text-primary' : 'text-muted hover:text-dark'
+              }`}
           >
             <BarChart2 size={18} />
             Estadísticas
@@ -347,7 +369,7 @@ export default function DetalleCampana() {
                     {cola.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="px-4 py-8 text-center text-muted">
-                          {campana.stats.total === 0 
+                          {campana.stats.total === 0
                             ? 'La cola de envíos está vacía.'
                             : 'No se encontraron resultados para los filtros aplicados.'}
                         </td>
@@ -404,7 +426,7 @@ export default function DetalleCampana() {
                 <BarChart2 className="text-primary" />
                 Métricas de Envío
               </h3>
-              
+
               <div className="space-y-6">
                 <div>
                   <div className="flex justify-between text-sm font-medium mb-1">
@@ -456,7 +478,7 @@ export default function DetalleCampana() {
                       {(() => {
                         const fallidos = cola.filter(c => c.estado === 'fallido' || (c.estado === 'pendiente' && c.respuesta_smtp));
                         if (fallidos.length === 0) return <p className="text-sm text-muted">Buscando datos...</p>;
-                        
+
                         const categorias = {
                           'Dominio Inexistente': 0,
                           'Credenciales/Login SMTP': 0,
@@ -515,7 +537,7 @@ export default function DetalleCampana() {
               <p className="text-center text-muted mb-6">
                 Estás a punto de eliminar la campaña <strong>{campana.asunto}</strong>. Esta acción también eliminará todo su historial y métricas y no se puede deshacer.
               </p>
-              
+
               <div className="flex gap-3">
                 <button
                   onClick={() => setDeleteConfirm(false)}

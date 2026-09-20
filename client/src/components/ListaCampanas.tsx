@@ -28,11 +28,11 @@ const ESTADO_LABELS: Record<string, string> = {
 
 export default function ListaCampanas() {
   const navigate = useNavigate();
-  const { puedeCrear } = usePermisos();
+  const { puedeCrear, puedeEditar, puedeEliminar } = usePermisos();
   const [campanas, setCampanas] = useState<CampanaResponse[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  
+
   // Paginación
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
@@ -43,7 +43,7 @@ export default function ListaCampanas() {
   const [rubro, setRubro] = useState('');
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
-  
+
   // Confirm Delete / Archive
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [archiveConfirmId, setArchiveConfirmId] = useState<string | null>(null);
@@ -56,8 +56,8 @@ export default function ListaCampanas() {
   const fetchCampanas = useCallback(async (currentPage = page) => {
     setLoading(true);
     try {
-      const res = await listarCampanas({ 
-        asunto, estado, rubro, fecha_desde: fechaDesde, fecha_hasta: fechaHasta, page: currentPage, limit 
+      const res = await listarCampanas({
+        asunto, estado, rubro, fecha_desde: fechaDesde, fecha_hasta: fechaHasta, page: currentPage, limit
       });
       if (res.success && res.data) {
         setCampanas(res.data.data || []);
@@ -177,7 +177,7 @@ export default function ListaCampanas() {
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 w-full">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 w-full">
         <div className="flex items-start gap-4">
           <div className="w-11 h-11 overflow-hidden rounded-[14px] shadow-sm shrink-0 mt-0.5">
             <img src={logo3f} alt="Logo 3F" className="w-full h-full object-cover scale-[1.15]" />
@@ -339,8 +339,8 @@ export default function ListaCampanas() {
                       : 'Ninguno';
 
                   return (
-                    <tr 
-                      key={campana.id} 
+                    <tr
+                      key={campana.id}
                       onClick={() => navigate(`/campanas/${campana.id}`)}
                       className="hover:bg-background/50 transition-colors cursor-pointer"
                     >
@@ -371,7 +371,7 @@ export default function ListaCampanas() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-1">
-                          {campana.estado === 'borrador' && (
+                          {puedeEditar && campana.estado === 'borrador' && (
                             <>
                               <button
                                 onClick={(e) => {
@@ -395,7 +395,7 @@ export default function ListaCampanas() {
                               </button>
                             </>
                           )}
-                          {campana.estado === 'en_proceso' && (
+                          {puedeEditar && campana.estado === 'en_proceso' && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -407,7 +407,7 @@ export default function ListaCampanas() {
                               <Pause size={16} />
                             </button>
                           )}
-                          {campana.estado === 'pausada' && (
+                          {puedeEditar && campana.estado === 'pausada' && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -419,26 +419,30 @@ export default function ListaCampanas() {
                               <Play size={16} />
                             </button>
                           )}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setArchiveConfirmId(campana.id);
-                            }}
-                            className="p-1.5 text-muted hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Archivar campaña (oculta de la lista pero mantiene estadísticas)"
-                          >
-                            <Archive size={16} />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteConfirmId(campana.id);
-                            }}
-                            className="p-1.5 text-muted hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Eliminar definitivamente (borra historial y estadísticas)"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          {puedeEliminar && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setArchiveConfirmId(campana.id);
+                              }}
+                              className="p-1.5 text-muted hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Archivar campaña (oculta de la lista pero mantiene estadísticas)"
+                            >
+                              <Archive size={16} />
+                            </button>
+                          )}
+                          {puedeEliminar && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteConfirmId(campana.id);
+                              }}
+                              className="p-1.5 text-muted hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Eliminar definitivamente (borra historial y estadísticas)"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -473,14 +477,14 @@ export default function ListaCampanas() {
               </div>
             </div>
             <div className="flex justify-center gap-2 w-full sm:w-auto">
-              <button 
+              <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
                 className="flex-1 sm:flex-none px-3 py-1.5 border border-border rounded-md text-sm font-medium text-dark disabled:opacity-50 hover:bg-surface transition-colors text-center"
               >
                 Anterior
               </button>
-              <button 
+              <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
                 className="flex-1 sm:flex-none px-3 py-1.5 border border-border rounded-md text-sm font-medium text-dark disabled:opacity-50 hover:bg-surface transition-colors text-center"
@@ -508,7 +512,7 @@ export default function ListaCampanas() {
               <p className="text-center text-muted mb-6">
                 Estás a punto de eliminar esta campaña. Se borrará todo su historial y estadísticas. Esta acción no se puede deshacer.
               </p>
-              
+
               <div className="flex gap-3">
                 <button
                   onClick={() => setDeleteConfirmId(null)}
@@ -544,7 +548,7 @@ export default function ListaCampanas() {
               <p className="text-center text-muted mb-6">
                 La campaña desaparecerá de esta lista, pero <strong>sus envíos seguirán sumando en las estadísticas globales</strong>. Esta acción no se puede deshacer.
               </p>
-              
+
               <div className="flex gap-3">
                 <button
                   onClick={() => setArchiveConfirmId(null)}
@@ -580,7 +584,7 @@ export default function ListaCampanas() {
               <p className="text-center text-muted mb-6">
                 Estás a punto de eliminar {selectedIds.size} campañas seleccionadas. Se borrará todo su historial y estadísticas. Esta acción no se puede deshacer.
               </p>
-              
+
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowBulkDeleteConfirm(false)}
@@ -637,7 +641,7 @@ export default function ListaCampanas() {
                     <p className="font-semibold text-red-800">¿Qué significa Eliminar?</p>
                   </div>
                   <p className="text-red-900/80 leading-relaxed ml-9">
-                    Utilizá esta opción <strong>solo si te equivocaste al crear la campaña</strong> (por ejemplo, le pifiaste al rubro o al asunto). 
+                    Utilizá esta opción <strong>solo si te equivocaste al crear la campaña</strong> (por ejemplo, le pifiaste al rubro o al asunto).
                     Al eliminarla, <strong>se borra por completo y deja de contar en las estadísticas generales</strong>. ¡Esta acción no se puede deshacer!
                   </p>
                 </div>
