@@ -70,7 +70,7 @@ dbPool.on('error', async (err) => {
   await notifyDbError(err);
 });
 
-import { seedUsuarios } from './scripts/seedUsuarios.js';
+import { runSeed } from './scripts/seed.js';
 import fs from 'node:fs';
 
 async function runMigrations(): Promise<void> {
@@ -107,7 +107,31 @@ app.listen(config.port, async () => {
   logger.info(`🚀 Server listening on http://localhost:${config.port}`);
   await testDbConnection();
   await runMigrations();
-  await seedUsuarios();
+  // Auto-seeding solo si la DB está vacía (sin usuarios)
+  try {
+    const { rows } = await dbPool.query('SELECT COUNT(*) FROM usuarios');
+    if (parseInt(rows[0].count) === 0) {
+      logger.info('DB vacía detectada, corriendo seed de prueba completo...');
+      await runSeed();
+    }
+
+    // Asegurar siempre que el admin del .env exista y tenga la clave actualizada
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@genmailer.com';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'Admin123!';
+    const bcrypt = await import('bcrypt');
+    const hash = await bcrypt.hash(adminPassword, 10);
+    
+    await dbPool.query(
+      `INSERT INTO usuarios (nombre, email, password_hash, rol)
+       VALUES ('Admin', $1, $2, 'desarrollador')
+       ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash`,
+      [adminEmail, hash]
+    );
+    logger.info(`✅ Credenciales de admin actualizadas desde .env: ${adminEmail}`);
+    
+  } catch(e) {
+    logger.error('Error al chequear DB o asegurar admin', e);
+  }
 
   // Iniciar worker SMTP con Cron (Lunes a Viernes de 9 a 17 hs, o cada 1 min en TEST)
   const cronSmtp = MODO_PRUEBA ? '* * * * *' : '0 9-17 * * 1-5';

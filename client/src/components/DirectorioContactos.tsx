@@ -326,7 +326,7 @@ export default function DirectorioContactos() {
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto flex-wrap justify-end">
           {puedeCrear && (
             <>
-              <button
+              {/* <button
                 onClick={handleSyncSheets}
                 disabled={isSyncing}
                 className="flex items-center justify-center gap-2 px-4 py-2 bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-500 rounded-lg hover:bg-green-500/20 transition-colors font-medium shadow-sm w-full sm:w-auto disabled:opacity-60 disabled:cursor-not-allowed"
@@ -337,7 +337,7 @@ export default function DirectorioContactos() {
                   <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
                 )}
                 Sincronizar con Sheets
-              </button>
+              </button> */}
               <button
                 onClick={() => setIsImportModalOpen(true)}
                 className="flex items-center justify-center gap-2 px-4 py-2 bg-surface border border-border text-dark rounded-lg hover:bg-background transition-colors font-medium shadow-sm w-full sm:w-auto"

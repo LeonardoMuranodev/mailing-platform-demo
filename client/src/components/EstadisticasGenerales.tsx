@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Send, Clock, CheckCircle2, Mail, RefreshCw, Download, Calendar, FilterX } from 'lucide-react';
+import { Send, Clock, CheckCircle2, Mail, RefreshCw, Download, Calendar, FilterX, BarChart3, Plus } from 'lucide-react';
 import { obtenerEstadisticasGlobales, exportarEstadisticasCampanas } from '../services/api';
 import type { GlobalStatsResult } from '../types/stats';
 import { RUBROS_LABELS } from '../data/rubros';
@@ -122,6 +122,29 @@ export default function EstadisticasGenerales() {
   const successRate = totalColaProcessed > 0 ? ((colaEnviados / totalColaProcessed) * 100).toFixed(1) : '0.0';
 
   const totalCampanas = stats.campanas.reduce((acc, curr) => acc + curr.count, 0);
+
+  if (totalCampanas === 0 && totalColaProcessed === 0 && colaPendientes === 0) {
+    return (
+      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 animate-fade-in">
+        <div className="bg-surface border border-border rounded-xl shadow-sm p-12 text-center flex flex-col items-center justify-center min-h-[60vh]">
+          <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-6">
+            <BarChart3 size={48} />
+          </div>
+          <h2 className="text-2xl font-bold text-dark mb-3">Aún no hay estadísticas</h2>
+          <p className="text-muted max-w-md mx-auto mb-8 text-lg">
+            Aquí podrás visualizar métricas clave sobre el rendimiento de tus correos masivos. Comienza creando tu primera campaña para ver los datos en acción.
+          </p>
+          <a
+            href="/nueva"
+            className="inline-flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary-dark transition-colors font-medium shadow-sm"
+          >
+            <Plus size={20} />
+            Crear Primera Campaña
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 animate-fade-in">

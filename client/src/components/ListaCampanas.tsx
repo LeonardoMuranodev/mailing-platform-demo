@@ -1,12 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Filter, RotateCcw, CalendarIcon, Trash2, AlertTriangle, Archive, Info, HelpCircle, X, Edit3, CheckCircle2, Play, Pause } from 'lucide-react';
+import { Plus, Search, Filter, RotateCcw, CalendarIcon, Trash2, AlertTriangle, Archive, Info, HelpCircle, X, Edit3, CheckCircle2, Play, Pause, Mail } from 'lucide-react';
 import { listarCampanas, eliminarCampana, archivarCampana, eliminarCampanasMasivo, cambiarEstadoCampana } from '../services/api';
 import type { CampanaResponse } from '../types/campana';
 import { usePermisos } from '../hooks/usePermisos';
 import { formatDate } from '../utils/formatDate';
 import { RUBROS_LABELS, RUBROS_LIST } from '../data/rubros';
-import logo3f from '../assets/logo-3f.png';
+
 
 const ESTADO_BADGE_CLASSES: Record<string, string> = {
   borrador: 'bg-slate-100 text-slate-600 border border-slate-200',
@@ -179,12 +179,12 @@ export default function ListaCampanas() {
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 w-full">
         <div className="flex items-start gap-4">
-          <div className="w-11 h-11 overflow-hidden rounded-[14px] shadow-sm shrink-0 mt-0.5">
-            <img src={logo3f} alt="Logo 3F" className="w-full h-full object-cover scale-[1.15]" />
+          <div className="w-11 h-11 overflow-hidden rounded-[14px] shadow-sm shrink-0 mt-0.5 bg-primary/10 flex items-center justify-center text-primary">
+            <Mail size={24} />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
-              Dirección de Producción: Campañas de Correo
+              Campañas de Correo
             </h1>
             <p className="text-muted mt-1">
               Gestioná y monitoreá el estado de los envíos masivos.

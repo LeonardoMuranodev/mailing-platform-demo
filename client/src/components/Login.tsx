@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
-import logo3f from '../assets/logo-3f.png';
+
 import ThemeToggle from './ThemeToggle';
 
 export default function Login() {
@@ -64,15 +64,15 @@ export default function Login() {
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
-          <div className="w-20 h-20 overflow-hidden rounded-[20px] shadow-sm bg-white p-2">
-            <img src={logo3f} alt="Logo 3F" className="w-full h-full object-contain" />
+          <div className="w-20 h-20 overflow-hidden rounded-[20px] shadow-sm bg-white p-2 flex items-center justify-center">
+            <Mail size={40} className="text-primary" />
           </div>
         </div>
         <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-dark">
           Acceso al Sistema
         </h2>
         <p className="mt-2 text-center text-sm text-muted">
-          Dirección de Producción - Campañas de Correo
+          Sistema de Envío de Correos Masivos
         </p>
       </div>
 
@@ -96,7 +96,7 @@ export default function Login() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="ejemplo@tresdefebrero.gob.ar"
+                  placeholder="ejemplo@empresa.com"
                   className="w-full pl-10 pr-3.5 py-2.5 text-sm bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors h-[42px]"
                 />
               </div>

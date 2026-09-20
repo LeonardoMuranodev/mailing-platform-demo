@@ -10,6 +10,26 @@ import type {
   ContactosResponse
 } from '../types/contacto.js';
 
+/**
+ * Helper para resolver un rubro_id enviado desde el cliente (que suele ser un slug/nombre)
+ * a un UUID válido en la base de datos.
+ */
+async function resolveRubroId(rubro: string | null | undefined): Promise<string | null> {
+  if (!rubro) return null;
+  // Si ya es un UUID válido, retornarlo
+  const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+  if (uuidRegex.test(rubro)) return rubro;
+
+  // Si es un nombre (slug), insertarlo si no existe (ON CONFLICT no aplica fácil porque nombre no era UNIQUE en algunas versiones, pero sí lo hicimos UNIQUE).
+  // Haremos un SELECT primero.
+  let res = await dbPool.query('SELECT id FROM rubros WHERE nombre ILIKE $1', [rubro]);
+  if (res.rows.length > 0) return res.rows[0].id;
+
+  // Si no existe, lo creamos
+  res = await dbPool.query('INSERT INTO rubros (nombre) VALUES ($1) ON CONFLICT (nombre) DO UPDATE SET nombre = EXCLUDED.nombre RETURNING id', [rubro]);
+  return res.rows[0].id;
+}
+
 export interface ContactoImportRow {
   email: string;
   empresa_nombre?: string | null;
@@ -52,8 +72,9 @@ export async function listarContactos(filtros: ListarContactosQuery): Promise<Co
   const total = parseInt(countResult.rows[0].count, 10);
 
   const query = `
-    SELECT c.*, c.rubro_id AS rubro_nombre
+    SELECT c.*, r.nombre AS rubro_nombre
     FROM contactos c
+    LEFT JOIN rubros r ON c.rubro_id = r.id
     ${whereClause}
     ORDER BY c.creado_en DESC
     LIMIT $${paramCount} OFFSET $${paramCount + 1}
@@ -76,6 +97,9 @@ export async function crearContacto(data: CrearContactoInput): Promise<Contacto 
   // Upsert empresa (crea o reutiliza)
   const empresa_id = await upsertEmpresa(empresa_nombre, cuit);
 
+  // Resolver el ID del rubro a partir del string enviado
+  const resolvedRubroId = await resolveRubroId(rubro_id);
+
   const query = `
     INSERT INTO contactos (email, empresa_nombre, cuit, rubro_id, tipo, estado, empresa_id)
     VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -87,7 +111,7 @@ export async function crearContacto(data: CrearContactoInput): Promise<Contacto 
     email,
     empresa_nombre ?? null,
     cuit ?? null,
-    rubro_id ?? null,
+    resolvedRubroId,
     tipo,
     estado,
     empresa_id,
@@ -108,8 +132,14 @@ export async function actualizarContacto(id: string, data: ActualizarContactoInp
 
   for (const [key, value] of Object.entries(data)) {
     if (value !== undefined && ALLOWED_FIELDS.has(key)) {
-      fields.push(`${key} = $${paramIndex}`);
-      values.push(value);
+      if (key === 'rubro_id') {
+        const resolvedRubroId = await resolveRubroId(value as string | null | undefined);
+        fields.push(`rubro_id = $${paramIndex}`);
+        values.push(resolvedRubroId);
+      } else {
+        fields.push(`${key} = $${paramIndex}`);
+        values.push(value);
+      }
       paramIndex++;
     }
   }
@@ -203,6 +233,9 @@ export async function importarContactosJson(
 
     // Upsert empresa
     const empresa_id = await upsertEmpresa(row.empresa_nombre, row.cuit);
+
+    // Resolver rubro_id
+    const resolvedRubroId = await resolveRubroId(row.rubro_id);
 
     const query = `
       INSERT INTO contactos (email, empresa_nombre, cuit, rubro_id, tipo, estado, empresa_id)

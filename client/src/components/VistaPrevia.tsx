@@ -7,7 +7,7 @@ import { RUBROS_LABELS } from '../data/rubros';
 
 /** URL del header subido a Supabase */
 const HEADER_URL =
-  'https://mhzdgavtkwafhvbntrsy.supabase.co/storage/v1/object/public/assets-muni/direccion%20de%20produccion.png';
+  'https://via.placeholder.com/600x150/f0f4f8/333333?text=Banner+Generico';
 
 /** Iconos de contacto (Flaticon) */
 const WHATSAPP_ICON = 'https://cdn-icons-png.flaticon.com/512/733/733585.png';
@@ -54,7 +54,7 @@ export default function VistaPrevia() {
         <div className="email-template-header">
           <img
             src={HEADER_URL}
-            alt="Dirección de Producción - 3F"
+            alt="Banner Generico"
           />
         </div>
 
@@ -99,7 +99,7 @@ export default function VistaPrevia() {
         {/* ── Footer: Comunicate con la Dirección de Producción ── */}
         <div className="email-template-footer">
           <div className="email-footer-text">
-            Comunicate: con la Dirección de Producción
+            Comunicate:
           </div>
           <div className="email-footer-icons">
             <a
@@ -115,7 +115,7 @@ export default function VistaPrevia() {
               />
             </a>
             <a
-              href="mailto:dpim3f@gmail.com"
+              href="mailto:contacto@genmailer.com"
               title="Mail"
             >
               <img

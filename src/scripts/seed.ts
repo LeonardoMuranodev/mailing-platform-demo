@@ -1,146 +1,176 @@
+import bcrypt from 'bcrypt';
 import { dbPool } from '../config/db.js';
 
-async function seed() {
-  console.log('Iniciando seed de campañas y cola de envíos...');
+export async function runSeed() {
+  const client = await dbPool.connect();
+  console.log('🌱 Iniciando seeding de datos de prueba para GenMailer...');
   
   try {
-    console.log('Verificando/Creando tabla contactos si no existe...');
-    await dbPool.query(`
-      CREATE TABLE IF NOT EXISTS contactos (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-        empresa_nombre TEXT,
-        email TEXT UNIQUE NOT NULL,
-        tipo TEXT,
-        estado VARCHAR(50) DEFAULT 'activo',
-        rubro_id TEXT,
-        creado_en TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-        actualizado_en TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    // 1. Crear campañas de prueba con distintos estados
-    const campanas = [
-      {
-        asunto: '🚀 ¡Lanzamiento de nuevo programa para Pymes!',
-        cuerpo_html: '<h1>Nuevo Programa</h1><p>Te invitamos a sumarte a nuestro nuevo plan de financiamiento.</p>',
-        estado: 'borrador',
-        fecha_limite_envio: '2026-10-01',
-        para_todos_rubros: true,
-        rubros_seleccionados: '[]',
-      },
-      {
-        asunto: '📊 Reporte Mensual de Industria - Agosto',
-        cuerpo_html: '<h1>Reporte de Agosto</h1><p>Adjuntamos el informe estadístico del mes pasado.</p>',
-        estado: 'en_proceso',
-        fecha_limite_envio: '2026-08-30',
-        para_todos_rubros: false,
-        rubros_seleccionados: '["metalmecanica", "industria", "fundicion"]',
-      },
-      {
-        asunto: '🎉 Invitación: Cena de Fin de Año de Comerciantes',
-        cuerpo_html: '<h1>¡Festejamos el cierre del año!</h1><p>Reserva tu lugar antes del 15 de diciembre.</p>',
-        estado: 'completada',
-        fecha_limite_envio: '2025-12-10',
-        para_todos_rubros: false,
-        rubros_seleccionados: '["comercio", "servicios"]',
-      },
-      {
-        asunto: '⚠️ Aviso Importante: Mantenimiento del Sistema',
-        cuerpo_html: '<h1>Corte programado</h1><p>El próximo fin de semana habrá una ventana de mantenimiento en AFIP.</p>',
-        estado: 'aprobada',
-        fecha_limite_envio: '2026-09-15',
-        para_todos_rubros: true,
-        rubros_seleccionados: '[]',
-      },
-      {
-        asunto: '❌ Cancelado: Taller de Robótica Industrial',
-        cuerpo_html: '<h1>Taller Cancelado</h1><p>Lamentamos informar que el evento fue suspendido por fuerza mayor.</p>',
-        estado: 'cancelada',
-        fecha_limite_envio: '2026-07-20',
-        para_todos_rubros: false,
-        rubros_seleccionados: '["electronica", "informatica"]',
-      }
+    await client.query('BEGIN');
+
+    // 1. Usuarios
+    console.log('👤 Creando usuarios...');
+    const saltRounds = 10;
+    const adminPassword = process.env.ADMIN_PASSWORD || 'Admin123!';
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@genmailer.com';
+    const adminHash = await bcrypt.hash(adminPassword, saltRounds);
+    
+    const genericHash = await bcrypt.hash('Usuario123!', saltRounds);
+
+    const usuarios = [
+      { nombre: 'Admin', email: adminEmail, rol: 'desarrollador', hash: adminHash },
+      { nombre: 'Operador', email: 'operador@genmailer.com', rol: 'encargada', hash: genericHash },
+      { nombre: 'Visor', email: 'visor@genmailer.com', rol: 'invitado', hash: genericHash },
     ];
 
-    console.log('Insertando campañas...');
-    const insertedCampanas = [];
-    for (const c of campanas) {
-      const res = await dbPool.query(
-        `INSERT INTO campanas (asunto, cuerpo_html, estado, fecha_limite_envio, para_todos_rubros, rubros_seleccionados) 
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-        [c.asunto, c.cuerpo_html, c.estado, c.fecha_limite_envio, c.para_todos_rubros, c.rubros_seleccionados]
+    for (const u of usuarios) {
+      await client.query(
+        `INSERT INTO usuarios (nombre, email, password_hash, rol) 
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (email) DO NOTHING`,
+        [u.nombre, u.email, u.hash, u.rol]
       );
-      insertedCampanas.push(res.rows[0].id);
     }
 
-    // 2. Insertar algunos contactos falsos si no existen
-    console.log('Insertando contactos de prueba...');
+    // 2. Rubros
+    console.log('🏷️ Creando rubros...');
+    const rubros = ['Tecnología', 'Salud', 'Educación'];
+    for (const r of rubros) {
+      await client.query(
+        `INSERT INTO rubros (nombre) VALUES ($1) ON CONFLICT (nombre) DO NOTHING`,
+        [r]
+      );
+    }
+
+    // Obtener rubro_id de Tecnología
+    const rubroRes = await client.query('SELECT id FROM rubros WHERE nombre = $1', ['Tecnología']);
+    const rubroId = rubroRes.rows.length > 0 ? rubroRes.rows[0].id : null;
+
+    // 3. Empresas y Contactos
+    console.log('🏢 Creando empresas y contactos...');
+    let empresaId = null;
+    const empRes = await client.query(
+      `INSERT INTO empresas (nombre, cuit) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING id`,
+      ['Empresa Genérica S.A.', '30709328995']
+    );
+    if (empRes.rows.length > 0) {
+      empresaId = empRes.rows[0].id;
+    } else {
+      const getEmp = await client.query(`SELECT id FROM empresas WHERE cuit = '30709328995'`);
+      empresaId = getEmp.rows.length > 0 ? getEmp.rows[0].id : null;
+    }
+
     const contactos = [
-      'empresaA@test.com', 'proveedorB@test.com', 'comercioC@test.com', 
-      'industriaD@test.com', 'serviciosE@test.com', 'tecnologiaF@test.com',
-      'logisticaG@test.com', 'ventasH@test.com', 'marketingI@test.com',
-      'consultoraJ@test.com'
+      { email: 'valido1@genmailer.com', estado: 'funcional' },
+      { email: 'valido2@genmailer.com', estado: 'funcional' },
+      { email: 'rebotado@inexistente.com', estado: 'rebotado inexistente' },
+      { email: 'lleno@dominio.com', estado: 'rebotado bandeja llena' },
     ];
 
-    const insertedContactos = [];
-    for (const email of contactos) {
-      const res = await dbPool.query(
-        `INSERT INTO contactos (email, empresa_nombre, tipo, estado, rubro_id) 
-         VALUES ($1, $2, 'empresa', 'activo', null) 
-         ON CONFLICT (email) DO UPDATE SET estado = 'activo'
+    for (const c of contactos) {
+      await client.query(
+        `INSERT INTO contactos (email, empresa_id, rubro_id, estado) 
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (email) DO NOTHING`,
+        [c.email, empresaId, rubroId, c.estado]
+      );
+    }
+
+    // 4. Campañas
+    console.log('📧 Creando campañas y envíos en cola...');
+    const campanas = [
+      { asunto: 'Campaña Completada de Prueba', estado: 'completada', enviados: 2, fallidos: 1, pendientes: 0 },
+      { asunto: 'Campaña En Proceso', estado: 'en_proceso', enviados: 1, fallidos: 0, pendientes: 1 },
+      { asunto: 'Campaña Pausada', estado: 'pausada', enviados: 0, fallidos: 0, pendientes: 2 },
+    ];
+
+    // Obtener IDs de contactos reales para la cola
+    const todosContactos = await client.query('SELECT id FROM contactos LIMIT 5');
+    const contactosIds = todosContactos.rows.map(r => r.id);
+
+    for (const camp of campanas) {
+      const cRes = await client.query(
+        `INSERT INTO campanas (asunto, cuerpo_html, para_todos_rubros, estado)
+         VALUES ($1, $2, $3, $4)
          RETURNING id`,
-        [email, `Empresa ${email.split('@')[0]}`]
+        [camp.asunto, '<h1>Hola Mundo</h1>', true, camp.estado]
       );
-      insertedContactos.push(res.rows[0].id);
-    }
+      
+      const campId = cRes.rows[0].id;
 
-    // 3. Crear registros en la cola de envíos para la campaña "en_proceso" (índice 1)
-    const campanaEnProcesoId = insertedCampanas[1];
-    console.log(`Poblando cola de envíos para la campaña: ${campanaEnProcesoId}`);
-    
-    // Asignaremos distintos estados a la cola
-    const estados = ['enviado', 'enviado', 'enviado', 'enviado', 'fallido', 'pendiente', 'pendiente', 'procesando', 'pendiente', 'fallido'];
-    
-    for (let i = 0; i < insertedContactos.length; i++) {
-      const contactoId = insertedContactos[i];
-      const estado = estados[i];
-      
-      let fecha_envio = null;
-      let respuesta_smtp = null;
-      
-      if (estado === 'enviado') {
-        fecha_envio = new Date().toISOString();
-        respuesta_smtp = '250 2.0.0 OK';
-      } else if (estado === 'fallido') {
-        fecha_envio = new Date().toISOString();
-        respuesta_smtp = '550 5.1.1 The email account that you tried to reach does not exist.';
+      // Cola de envíos simulada (solo si hay contactos)
+      if (contactosIds.length >= 3) {
+        if (camp.enviados > 0) {
+          await client.query(
+            `INSERT INTO cola_envios (campana_id, contacto_id, estado) VALUES ($1, $2, $3)`,
+            [campId, contactosIds[0], 'enviado']
+          );
+        }
+        if (camp.fallidos > 0) {
+          await client.query(
+            `INSERT INTO cola_envios (campana_id, contacto_id, estado) VALUES ($1, $2, $3)`,
+            [campId, contactosIds[1], 'fallido']
+          );
+        }
+        if (camp.pendientes > 0) {
+          await client.query(
+            `INSERT INTO cola_envios (campana_id, contacto_id, estado) VALUES ($1, $2, $3)`,
+            [campId, contactosIds[2], 'pendiente']
+          );
+        }
       }
-      
-      await dbPool.query(
-        `INSERT INTO cola_envios (campana_id, contacto_id, estado, intentos, fecha_envio, respuesta_smtp)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [campanaEnProcesoId, contactoId, estado, estado === 'enviado' || estado === 'fallido' ? 1 : 0, fecha_envio, respuesta_smtp]
+    }
+
+    // 5. Cuentas SMTP
+    console.log('⚙️ Creando cuentas SMTP falsas...');
+    await client.query(
+      `INSERT INTO cuentas_smtp (email, usuario, password_encrypted, host, puerto, limite_diario, estado)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (email) DO NOTHING`,
+      ['noreply1@genmailer.com', 'noreply1@genmailer.com', 'dummy_pass', 'smtp.gmail.com', 465, 400, 'activo']
+    );
+
+    await client.query(
+      `INSERT INTO cuentas_smtp (email, usuario, password_encrypted, host, puerto, limite_diario, estado)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (email) DO NOTHING`,
+      ['quemada@genmailer.com', 'quemada@genmailer.com', 'dummy_pass2', 'smtp.gmail.com', 465, 400, 'bloqueado']
+    );
+
+    // 6. Logs SMTP
+    console.log('📝 Creando logs de cuentas quemadas...');
+    const cuentaQuemaRes = await client.query(`SELECT id FROM cuentas_smtp WHERE email = 'quemada@genmailer.com'`);
+    if (cuentaQuemaRes.rows.length > 0) {
+      await client.query(
+        `INSERT INTO smtp_logs (cuenta_id, tipo_error, mensaje, contexto)
+         VALUES ($1, $2, $3, $4)`,
+        [cuentaQuemaRes.rows[0].id, 'limite_alcanzado', 'Limit Exceeded: Daily quota reached', '{"code": "454", "command": "DATA"}']
       );
     }
 
-    // 4. Crear registros en la cola para la campaña completada (índice 2)
-    const campanaCompletadaId = insertedCampanas[2];
-    console.log(`Poblando cola de envíos para la campaña completada: ${campanaCompletadaId}`);
+    // 7. Reportes de Soporte
+    console.log('🎫 Creando tickets de soporte...');
+    await client.query(
+      `INSERT INTO reportes_soporte (asunto, descripcion, estado)
+       VALUES ($1, $2, $3)`,
+      ['Problema visual en Safari', 'El botón no se alinea correctamente', 'abierto']
+    );
+    await client.query(
+      `INSERT INTO reportes_soporte (asunto, descripcion, estado)
+       VALUES ($1, $2, $3)`,
+      ['Importación CSV', 'La importación de CSV dio error en la línea 40', 'en_progreso']
+    );
+
+    await client.query('COMMIT');
+    console.log('✅ Seeding completado exitosamente!');
     
-    for (let i = 0; i < 5; i++) {
-      const contactoId = insertedContactos[i];
-      await dbPool.query(
-        `INSERT INTO cola_envios (campana_id, contacto_id, estado, intentos, fecha_envio, respuesta_smtp)
-         VALUES ($1, $2, 'enviado', 1, $3, '250 2.0.0 OK')`,
-        [campanaCompletadaId, contactoId, new Date(Date.now() - 86400000 * 2).toISOString()]
-      );
-    }
-
-    console.log('✅ Seed completado con éxito.');
   } catch (err) {
-    console.error('❌ Error en el seed:', err);
+    await client.query('ROLLBACK');
+    console.error('❌ Error durante el seeding:', err);
   } finally {
-    await dbPool.end();
+    client.release();
+    // pool.end(); ya no lo llamamos porque cerramos el pool principal
   }
 }
-
-seed();
+// Ya no se ejecuta automáticamente al importar
+// runSeed();

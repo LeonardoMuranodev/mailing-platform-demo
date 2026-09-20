@@ -11,7 +11,7 @@ export async function seedUsuarios(): Promise<void> {
 
     if (count === 0) {
       console.log('[Seed] No hay usuarios. Creando usuario desarrollador...');
-      const email = process.env.ADMIN_EMAIL || 'admin@3f.com';
+      const email = process.env.ADMIN_EMAIL || 'admin@gmail.com';
       const password = process.env.ADMIN_PASSWORD || 'admin123';
       const rol: Rol = 'desarrollador';
 

@@ -61,12 +61,13 @@ export async function obtenerEstadisticasGlobales(startDate?: string, endDate?: 
 
   // 3. Distribución por rubros (top rubros)
   const rubrosQuery = await dbPool.query(`
-    SELECT COALESCE(co.rubro_id, '__sin_rubro__') as rubro, COUNT(ce.id) as cantidad_envios
+    SELECT COALESCE(r.nombre, 'Sin rubro') as rubro, COUNT(ce.id) as cantidad_envios
     FROM cola_envios ce
     JOIN contactos co ON ce.contacto_id = co.id
+    LEFT JOIN rubros r ON co.rubro_id = r.id
     JOIN campanas c ON ce.campana_id = c.id
     ${whereClause}
-    GROUP BY COALESCE(co.rubro_id, '__sin_rubro__')
+    GROUP BY COALESCE(r.nombre, 'Sin rubro')
     ORDER BY cantidad_envios DESC
     LIMIT 10
   `, params);
