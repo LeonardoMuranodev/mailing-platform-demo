@@ -106,8 +106,8 @@ export async function runSeed() {
 
     for (const camp of campanas) {
       const cRes = await client.query(
-        `INSERT INTO campanas (asunto, cuerpo_html, para_todos_rubros, estado, creado_en)
-         VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP - (random() * 7 || ' days')::interval)
+        `INSERT INTO campanas (asunto, cuerpo_html, para_todos_rubros, estado, creado_en, fecha_limite_envio)
+         VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP - (random() * 7 || ' days')::interval, CURRENT_TIMESTAMP + (random() * 15 || ' days')::interval)
          RETURNING id`,
         [camp.asunto, '<h1>Hola Mundo</h1>', true, camp.estado]
       );
