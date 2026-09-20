@@ -172,26 +172,31 @@ export async function runSeed() {
 
     // 7. Reportes de Soporte
     console.log('🎫 Creando tickets de soporte...');
-    await client.query(
-      `INSERT INTO reportes_soporte (asunto, descripcion, estado)
-       VALUES ($1, $2, $3)`,
-      ['Problema visual en Safari', 'El botón de enviar no se alinea correctamente en dispositivos móviles', 'abierto']
-    );
-    await client.query(
-      `INSERT INTO reportes_soporte (asunto, descripcion, estado)
-       VALUES ($1, $2, $3)`,
-      ['Importación CSV', 'La importación de CSV dio error en la línea 40 porque faltaba el arroba en un correo.', 'en_progreso']
-    );
-    await client.query(
-      `INSERT INTO reportes_soporte (asunto, descripcion, estado)
-       VALUES ($1, $2, $3)`,
-      ['Duda sobre el límite diario', 'Quería consultar qué pasa si supero los 400 envíos por día, se pausa la campaña automáticamente?', 'cerrado']
-    );
-    await client.query(
-      `INSERT INTO reportes_soporte (asunto, descripcion, estado)
-       VALUES ($1, $2, $3)`,
-      ['Sugerencia: Editor de templates', 'Sería genial poder guardar templates HTML favoritos para reutilizarlos en vez de armarlos desde cero cada vez.', 'abierto']
-    );
+    const userRes = await client.query(`SELECT id FROM usuarios LIMIT 1`);
+    const adminId = userRes.rows.length > 0 ? userRes.rows[0].id : null;
+
+    if (adminId) {
+      await client.query(
+        `INSERT INTO reportes_soporte (tipo, descripcion, estado, usuario_id)
+         VALUES ($1, $2, $3, $4)`,
+        ['error', 'Problema visual en Safari: El botón de enviar no se alinea correctamente en dispositivos móviles', 'pendiente', adminId]
+      );
+      await client.query(
+        `INSERT INTO reportes_soporte (tipo, descripcion, estado, usuario_id)
+         VALUES ($1, $2, $3, $4)`,
+        ['error', 'Importación CSV: La importación de CSV dio error en la línea 40 porque faltaba el arroba en un correo.', 'pendiente', adminId]
+      );
+      await client.query(
+        `INSERT INTO reportes_soporte (tipo, descripcion, estado, usuario_id)
+         VALUES ($1, $2, $3, $4)`,
+        ['sugerencia', 'Duda sobre límite diario: Quería consultar qué pasa si supero los 400 envíos por día, se pausa la campaña automáticamente?', 'resuelto', adminId]
+      );
+      await client.query(
+        `INSERT INTO reportes_soporte (tipo, descripcion, estado, usuario_id)
+         VALUES ($1, $2, $3, $4)`,
+        ['mejora', 'Editor de templates: Sería genial poder guardar templates HTML favoritos para reutilizarlos en vez de armarlos desde cero cada vez.', 'pendiente', adminId]
+      );
+    }
 
     await client.query('COMMIT');
     console.log('✅ Seeding completado exitosamente!');
