@@ -123,7 +123,8 @@ export default function EstadisticasGenerales() {
 
   const totalCampanas = stats.campanas.reduce((acc, curr) => acc + curr.count, 0);
 
-  if (totalCampanas === 0 && totalColaProcessed === 0 && colaPendientes === 0) {
+  // Mostrar pantalla completa de "No hay estadísticas en toda la BD" SOLO si no hay filtros aplicados
+  if (!startDate && !endDate && totalCampanas === 0 && totalColaProcessed === 0 && colaPendientes === 0) {
     return (
       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 animate-fade-in">
         <div className="bg-surface border border-border rounded-xl shadow-sm p-12 text-center flex flex-col items-center justify-center min-h-[60vh]">
@@ -245,9 +246,19 @@ export default function EstadisticasGenerales() {
         </div>
       </div>
 
-      {/* KPIs Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-surface p-6 rounded-xl border border-border shadow-sm flex items-center gap-4">
+      {totalCampanas === 0 && totalColaProcessed === 0 && colaPendientes === 0 ? (
+        <div className="bg-surface p-12 text-center rounded-xl border border-border shadow-sm mb-8 flex flex-col items-center justify-center">
+          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-4">
+            <FilterX size={32} />
+          </div>
+          <h3 className="text-xl font-bold text-dark mb-2">No hay datos en este período</h3>
+          <p className="text-muted max-w-md">No se encontraron campañas ni estadísticas para el rango de fechas seleccionado. Prueba ampliando las fechas o limpia los filtros para ver el panorama general.</p>
+        </div>
+      ) : (
+        <>
+          {/* KPIs Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="bg-surface p-6 rounded-xl border border-border shadow-sm flex items-center gap-4">
           <div className="bg-secondary/10 p-3 rounded-lg text-secondary">
             <Send size={28} />
           </div>
@@ -337,7 +348,8 @@ export default function EstadisticasGenerales() {
             )}
           </div>
         </div>
-      </div>
+      </>
+      )}
     </div>
   );
 }
