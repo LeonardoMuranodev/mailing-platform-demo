@@ -14,29 +14,30 @@ Esta versión (GenMailer) es una **adaptación genérica y mejorada** de ese sof
 
 ## 🚀 Características Principales
 
-- **Gestor Inteligente de Colas SMTP:** Rotación automática de múltiples cuentas SMTP. Si una cuenta agota su límite de envíos diarios, el sistema cambia dinámicamente a la siguiente sin interrumpir la campaña.
-- **Procesamiento Asíncrono (Workers):** Tareas en segundo plano (Cron Jobs) que manejan el despacho progresivo de correos y la lectura de bandejas IMAP para detectar rebotes y limpiar automáticamente las listas de contactos.
+- **Gestor Inteligente de Colas SMTP (Round Robin):** Rotación automática y balanceo de carga entre múltiples cuentas SMTP. Si una cuenta agota su límite de envíos diarios, el sistema salta automáticamente a la siguiente cuenta disponible sin interrumpir la campaña.
+- **Procesamiento Asíncrono (Workers & Redis):** Tareas en segundo plano (Cron Jobs) que manejan el despacho progresivo de correos y la lectura de bandejas IMAP para detectar rebotes. Se apoyan en colas de alto rendimiento para garantizar que ningún correo se pierda.
 - **Dashboard Estadístico:** Gráficos interactivos de altas y bajas, tasas de entrega, y estadísticas por rubro, impulsados por consultas SQL optimizadas.
-- **Seguridad y Cifrado:** Las credenciales de las cuentas SMTP se almacenan encriptadas en la base de datos utilizando el estándar **AES-256-GCM**.
-- **Gestor de Contactos y Rubros:** Importación masiva, filtrado por estados (funcionales, rebotados) y categorización dinámica.
+- **Seguridad y Trazabilidad:** Las credenciales SMTP se cifran nativamente con **AES-256-GCM**. Todo el sistema cuenta con **Logs estructurados** (alertas de errores, monitoreo de cuentas quemadas) y scripts de **Backups** automatizados para resguardar la base de datos.
+- **Gestor de Contactos y Rubros:** Importación masiva, validaciones estrictas (impulsadas por esquemas) y categorización dinámica, filtrando automáticamente rebotados.
 
-![Vista de Campañas](docs/assets/campanas.png)
+
 
 ---
 
 ## 🛠️ Stack Tecnológico
 
-**Desarrollado íntegramente por [Leonardo Murano](https://www.linkedin.com/in/leonardo-murano)**, este proyecto demuestra un dominio completo (Full-Stack) sobre arquitecturas modernas:
+Este proyecto demuestra un dominio completo **Full-Stack** sobre arquitecturas modernas:
 
 ### Backend
-- **Node.js & Express:** API RESTful robusta y modular.
-- **PostgreSQL:** Base de datos relacional. Se utilizan transacciones, constraints y consultas complejas (JOINs, agrupaciones) para los reportes estadísticos.
+- **Node.js & Express con TypeScript:** API RESTful robusta, fuertemente tipada y modular.
+- **PostgreSQL & Redis:** Base de datos relacional para la persistencia transaccional (con consultas complejas, JOINs y agrupaciones para reportes), combinada con Redis para el manejo rápido de caché y estados efímeros.
+- **Zod:** Validación estricta de esquemas de datos (schemas) tanto en el ingreso (API) como en el procesamiento.
 - **Nodemailer & node-imap:** Protocolos de bajo nivel para el envío de correos y lectura de bandejas de entrada.
-- **node-cron:** Implementación de Workers para el procesamiento de colas.
+- **node-cron & Winston:** Implementación de Workers para procesamiento en segundo plano, sumado a un sistema avanzado de logs con rotación diaria (Winston) para el monitoreo y trazabilidad de errores.
 - **Criptografía nativa (crypto):** Para el cifrado seguro de contraseñas de terceros.
 
 ### Frontend
-- **React.js (Vite):** Arquitectura SPA extremadamente rápida y ligera.
+- **React.js (Vite) + TypeScript:** Arquitectura SPA extremadamente rápida, segura y ligera.
 - **TailwindCSS:** Sistema de diseño responsivo y moderno (Glassmorphism, Dark/Light modes sutiles).
 - **Zustand:** Manejo del estado global de autenticación de manera limpia y sin boilerplate.
 - **Recharts:** Renderizado de gráficos SVG para estadísticas.
@@ -44,7 +45,7 @@ Esta versión (GenMailer) es una **adaptación genérica y mejorada** de ese sof
 ### Infraestructura
 - **Docker & Docker Compose:** Contenerización de los servicios (Frontend, Backend, Base de Datos) para lograr un entorno reproducible con un solo comando.
 
-![Estadísticas Avanzadas](docs/assets/estadisticas.png)
+
 
 ---
 
@@ -80,7 +81,19 @@ El proyecto está 100% dockerizado para que su ejecución sea trivial sin import
    - La base de datos ejecutará automáticamente las migraciones SQL y un script de **Seeding** poblado con datos de prueba realistas (campañas, contactos, reportes).
    - *Nota: Utiliza las credenciales definidas en tu `.env` para iniciar sesión.*
 
-![Gestión de Cuentas SMTP](docs/assets/cuentas.png)
+---
+
+## 📸 Galería de Vistas
+
+Para visualizar la interfaz, revisa las siguientes capturas del sistema en funcionamiento:
+
+| Campañas e Historial | Dashboard Estadístico |
+| :---: | :---: |
+| ![Campañas](docs/assets/campanas.png) | ![Estadísticas](docs/assets/estadisticas.png) |
+
+| Gestión de Cuentas SMTP | Directorio de Contactos |
+| :---: | :---: |
+| ![Cuentas SMTP](docs/assets/cuentas.png) | ![Contactos](docs/assets/contactos.png) |
 
 ---
 
