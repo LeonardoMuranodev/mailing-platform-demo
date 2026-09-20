@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Send, AlertTriangle, CheckCircle2, Clock, Mail, Search, RefreshCw, BarChart2, Download, MousePointerClick, Pause, Play, Trash2, Edit3 } from 'lucide-react';
 import { obtenerCampanaDetalle, obtenerColaCampana, cambiarEstadoCampana, eliminarCampana } from '../services/api';
@@ -550,6 +550,42 @@ export default function DetalleCampana() {
                   className="flex-1 py-2.5 px-4 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors shadow-sm"
                 >
                   Sí, Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmación para Forzar Envío */}
+      {forzarConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="flex justify-center mb-4">
+                <div className="bg-indigo-100 p-3 rounded-full">
+                  <Send size={32} className="text-indigo-600" />
+                </div>
+              </div>
+              <h3 className="text-xl font-bold text-center text-dark mb-2">
+                ¿Forzar Envío Ahora?
+              </h3>
+              <p className="text-center text-muted mb-6">
+                Esto ignorará el cronjob automático del servidor y disparará el intento de enviar mails pendientes de forma inmediata. Solo se ejecutará un intento global y se bloqueará el botón por 10 minutos.
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setForzarConfirm(false)}
+                  className="flex-1 py-2.5 px-4 bg-surface border border-border text-dark rounded-lg font-medium hover:bg-border transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleForzarEnvio}
+                  className="flex-1 py-2.5 px-4 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm"
+                >
+                  Sí, Disparar Envíos
                 </button>
               </div>
             </div>
