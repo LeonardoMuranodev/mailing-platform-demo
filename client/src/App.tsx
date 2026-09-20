@@ -180,13 +180,13 @@ function App() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-center gap-4 text-muted text-sm font-medium">
           <div className="flex items-center gap-1.5">
             <span>Desarrollado por</span>
-            <a href="https://github.com/LeonardoMuranodev" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold flex items-center gap-1">
+            <a href="https://github.com/LeonardoMuranodev/mailing-platform-demo" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold flex items-center gap-1">
               Leonardo Murano
             </a>
           </div>
           <div className="hidden sm:block w-1.5 h-1.5 rounded-full bg-border"></div>
           <div className="flex items-center gap-4">
-            <a href="https://github.com/LeonardoMuranodev/mailing-platform-demo" target="_blank" rel="noopener noreferrer" className="text-muted hover:text-dark transition-colors" title="Código Fuente en GitHub">
+            <a href="https://github.com/LeonardoMuranodev" target="_blank" rel="noopener noreferrer" className="text-muted hover:text-dark transition-colors" title="Código Fuente en GitHub">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.03c3.15-.38 6.5-1.4 6.5-7.17a4.6 4.6 0 0 0-1.28-3.18 4.3 4.3 0 0 0-.12-3.14s-1-.31-3.2 1.17a11.05 11.05 0 0 0-5.8 0C7.8 1.45 6.8 1.76 6.8 1.76a4.3 4.3 0 0 0-.12 3.14 4.6 4.6 0 0 0-1.28 3.18c0 5.76 3.35 6.79 6.5 7.17a4.8 4.8 0 0 0-1 3.03v4"></path>
                 <path d="M9 20c-5 1.5-5-2.5-7-3"></path>
