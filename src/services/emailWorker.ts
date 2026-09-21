@@ -201,7 +201,7 @@ export async function procesarCola(): Promise<void> {
 
         try {
           const info = await transporter.sendMail({
-            from: `"Dirección de Producción - 3F" <${cuentaSmtp.email}>`,
+            from: `"Sistema de Envíos" <${cuentaSmtp.email}>`,
             to: item.contacto_email,
             subject: item.asunto,
             html,

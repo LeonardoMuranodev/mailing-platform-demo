@@ -5,11 +5,11 @@
 
 /* ── Design Tokens (Tailwind v4 @theme) ───────────────── */
 @theme {
-  --color-primary: #005CA9;          /* Azul Institucional 3F */
+  --color-primary: #005CA9;          /* Azul Institucional */
   --color-primary-light: #0073D1;
   --color-primary-dark: #004A87;
 
-  --color-secondary: #16A34A;        /* Verde 3F / Aprobación */
+  --color-secondary: #16A34A;        /* Verde / Aprobación */
   --color-secondary-light: #22C55E;
   --color-secondary-dark: #15803D;
 

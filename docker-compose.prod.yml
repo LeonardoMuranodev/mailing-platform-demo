@@ -1,5 +1,5 @@
 # ══════════════════════════════════════════════════════════════
-# Docker Compose — PRODUCCIÓN (3F Mailer)
+# Docker Compose — PRODUCCIÓN (GenMailer)
 # ══════════════════════════════════════════════════════════════
 # Uso: docker compose -f docker-compose.prod.yml up -d --build
 #

@@ -46,7 +46,7 @@ export async function notifyError(context: string, error: Error | string): Promi
   pendingCount = 0;
 
   const text = [
-    `🚨 *ERROR CRÍTICO — 3F Mailer*`,
+    `🚨 *ERROR CRÍTICO — GenMailer*`,
     ``,
     `📍 *Contexto:* ${escapeMarkdown(context)}`,
     `⏰ *Fecha:* ${timestamp}`,

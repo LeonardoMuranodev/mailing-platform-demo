@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ══════════════════════════════════════════════════════════════
-# deploy.sh — Script de despliegue idempotente para 3F Mailer
+# deploy.sh — Script de despliegue idempotente para GenMailer
 # ══════════════════════════════════════════════════════════════
 # Uso: bash scripts/deploy.sh
 #

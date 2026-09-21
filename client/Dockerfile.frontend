@@ -30,7 +30,7 @@ CMD ["npx", "vite", "--host", "0.0.0.0", "--port", "5173"]
 # ── Stage 3: Production (Nginx) ─────────────────────────
 FROM nginx:1.27-alpine AS production
 
-LABEL org.opencontainers.image.title="3F Mailer Frontend"
+LABEL org.opencontainers.image.title="GenMailer Frontend"
 LABEL org.opencontainers.image.description="Frontend React para sistema de mailing masivo"
 
 # Copia el build estático al directorio de Nginx

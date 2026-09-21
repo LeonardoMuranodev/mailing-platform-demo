@@ -22,7 +22,7 @@ set -e
 BACKUP_DIR="/backups"
 RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-7}"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-FILENAME="3fmailer_backup_${TIMESTAMP}.sql.gz"
+FILENAME="genmailer_backup_${TIMESTAMP}.sql.gz"
 FILEPATH="${BACKUP_DIR}/${FILENAME}"
 
 # ── Funciones de notificación ────────────────────────────
@@ -59,7 +59,7 @@ fi
 unset PGPASSWORD
 
 # ── 3. Limpieza de backups antiguos ─────────────────────
-DELETED=$(find "$BACKUP_DIR" -name "3fmailer_backup_*.sql.gz" -mtime +${RETENTION_DAYS} -print -delete | wc -l)
+DELETED=$(find "$BACKUP_DIR" -name "genmailer_backup_*.sql.gz" -mtime +${RETENTION_DAYS} -print -delete | wc -l)
 echo "[Backup] 🧹 Backups eliminados (>${RETENTION_DAYS} días): ${DELETED}"
 
 # ── 4. Subida a Google Drive (opcional) ─────────────────
@@ -116,9 +116,9 @@ if [ "$CLEAN_GDRIVE_ENABLED" = "true" ] && [ -n "$CLEAN_REFRESH_TOKEN" ]; then
 fi
 
 # ── 5. Notificación final ──────────────────────────────
-REMAINING=$(find "$BACKUP_DIR" -name "3fmailer_backup_*.sql.gz" | wc -l)
+REMAINING=$(find "$BACKUP_DIR" -name "genmailer_backup_*.sql.gz" | wc -l)
 
-notify_telegram "🗄 *BACKUP COMPLETADO — 3F Mailer*\n\n📁 Archivo: \`${FILENAME}\`\n📦 Tamaño: ${FILE_SIZE}\n🧹 Eliminados: ${DELETED}\n📚 Total en disco: ${REMAINING}\n☁️ Google Drive: ${DRIVE_STATUS}"
+notify_telegram "🗄 *BACKUP COMPLETADO — GenMailer*\n\n📁 Archivo: \`${FILENAME}\`\n📦 Tamaño: ${FILE_SIZE}\n🧹 Eliminados: ${DELETED}\n📚 Total en disco: ${REMAINING}\n☁️ Google Drive: ${DRIVE_STATUS}"
 
 echo "[Backup] 📬 Notificación enviada"
 echo "[Backup] ✅ Proceso de backup finalizado"

@@ -43,7 +43,7 @@ describe('Auth Service', () => {
     const testUser = {
       id: 'uuid-123',
       nombre: 'Test User',
-      email: 'test@3f.com',
+      email: 'test@test.com',
       password_hash: '', // se genera en cada test
       rol: 'encargada' as const,
       creado_en: '2024-01-01T00:00:00Z',
@@ -59,7 +59,7 @@ describe('Auth Service', () => {
         rowCount: 1,
       });
 
-      const result = await login('test@3f.com', password);
+      const result = await login('test@test.com', password);
 
       expect(result).toHaveProperty('token');
       expect(result).toHaveProperty('user');
@@ -72,14 +72,14 @@ describe('Auth Service', () => {
 
       // Verificar que el token es JWT válido
       const decoded = jwt.decode(result.token) as JwtPayload;
-      expect(decoded.email).toBe('test@3f.com');
+      expect(decoded.email).toBe('test@test.com');
       expect(decoded.rol).toBe('encargada');
     });
 
     it('debería lanzar error con email inexistente', async () => {
       mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
-      await expect(login('noexiste@3f.com', 'password123')).rejects.toThrow(
+      await expect(login('noexiste@test.com', 'password123')).rejects.toThrow(
         'Credenciales inválidas',
       );
     });
@@ -92,7 +92,7 @@ describe('Auth Service', () => {
         rowCount: 1,
       });
 
-      await expect(login('test@3f.com', 'password_incorrecta')).rejects.toThrow(
+      await expect(login('test@test.com', 'password_incorrecta')).rejects.toThrow(
         'Credenciales inválidas',
       );
     });
@@ -102,7 +102,7 @@ describe('Auth Service', () => {
     it('debería decodificar un token válido', () => {
       const payload: JwtPayload = {
         userId: 'uuid-123',
-        email: 'test@3f.com',
+        email: 'test@test.com',
         rol: 'desarrollador',
       };
 
@@ -113,7 +113,7 @@ describe('Auth Service', () => {
 
       const result = verificarToken(token);
       expect(result.userId).toBe('uuid-123');
-      expect(result.email).toBe('test@3f.com');
+      expect(result.email).toBe('test@test.com');
       expect(result.rol).toBe('desarrollador');
     });
 
@@ -126,7 +126,7 @@ describe('Auth Service', () => {
     it('debería lanzar error con token expirado', () => {
       const payload: JwtPayload = {
         userId: 'uuid-123',
-        email: 'test@3f.com',
+        email: 'test@test.com',
         rol: 'invitado',
       };
 

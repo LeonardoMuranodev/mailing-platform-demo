@@ -40,10 +40,10 @@ describe('SMTP Rotation — Round-Robin', () => {
     it('debería retornar la cuenta SMTP con ultimo_uso más antiguo', async () => {
       const cuentaEsperada = {
         id: 'smtp-1',
-        email: 'dpi5m3f@gmail.com',
+        email: 'dpi5m@test.com',
         host: 'smtp.gmail.com',
         puerto: 465,
-        usuario: 'dpi5m3f@gmail.com',
+        usuario: 'dpi5m@test.com',
         password_encrypted: 'encrypted_pass',
         estado: 'activo',
         enviados_hoy: 50,
@@ -84,10 +84,10 @@ describe('SMTP Rotation — Round-Robin', () => {
     it('debería incrementar enviados_hoy y actualizar ultimo_uso', async () => {
       const cuentaActualizada = {
         id: 'smtp-1',
-        email: 'dpi5m3f@gmail.com',
+        email: 'dpi5m@test.com',
         host: 'smtp.gmail.com',
         puerto: 465,
-        usuario: 'dpi5m3f@gmail.com',
+        usuario: 'dpi5m@test.com',
         password_encrypted: 'encrypted_pass',
         estado: 'activo',
         enviados_hoy: 51, // incrementado
@@ -116,10 +116,10 @@ describe('SMTP Rotation — Round-Robin', () => {
     it('debería cambiar estado a "agotado" al alcanzar el límite diario (Circuit Breaker)', async () => {
       const cuentaAgotada = {
         id: 'smtp-2',
-        email: 'dpi2m3f@gmail.com',
+        email: 'dpi2m@test.com',
         host: 'smtp.gmail.com',
         puerto: 465,
-        usuario: 'dpi2m3f@gmail.com',
+        usuario: 'dpi2m@test.com',
         password_encrypted: 'encrypted_pass',
         estado: 'agotado', // cambiado por el CASE
         enviados_hoy: 400, // alcanzó el límite
