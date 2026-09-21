@@ -170,7 +170,7 @@ export async function notificarCampanaTerminada(campanaId: string, asunto: strin
 export async function notificarCuotaGlobalAgotada() {
   const { smtpHost, smtpPort, smtpUser, smtpPass, telegramChatId, telegramToken } = config.notifier;
 
-  const msg = `⚠️ *Cuota Excedida - Sistema de Mails de la municipalidad*\n\nTodas las cuentas llegaron al limite de envio de 500 mails HOY.`;
+  const msg = `⚠️ *Cuota Excedida - Sistema de Mails de ${process.env.ORG_NAME || "la Organización"}*\n\nTodas las cuentas llegaron al limite de envio de 500 mails HOY.`;
 
   // Enviar a Telegram
   if (telegramChatId && telegramToken) {

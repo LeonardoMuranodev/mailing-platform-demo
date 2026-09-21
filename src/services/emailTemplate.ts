@@ -3,13 +3,13 @@ import DOMPurify from 'isomorphic-dompurify';
 
 /** URLs de assets estáticos */
 const HEADER_URL =
-  'https://mhzdgavtkwafhvbntrsy.supabase.co/storage/v1/object/public/assets-muni/direccion%20de%20produccion.png';
+  'https://via.placeholder.com/600x150/f0f4f8/333333?text=Banner+Institucional';
 const WHATSAPP_ICON = 'https://cdn-icons-png.flaticon.com/512/733/733585.png';
 const MAIL_ICON = 'https://cdn-icons-png.flaticon.com/512/732/732200.png';
 
 /** Datos de contacto */
-const WHATSAPP_NUMBER = '5491140659649';
-const CONTACT_EMAIL = 'dpim3f@gmail.com';
+const WHATSAPP_NUMBER = '5491100000000';
+const CONTACT_EMAIL = 'contacto@organizacion.com';
 
 interface EmailTemplateData {
   cuerpo_html: string;
@@ -19,7 +19,7 @@ interface EmailTemplateData {
 
 /**
  * Genera el HTML completo del email listo para envío SMTP.
- * Replica exactamente el maquetado del template de Dirección de Producción.
+ * Replica el maquetado institucional predeterminado.
  *
  * Todos los estilos están inline para máxima compatibilidad con clientes de correo
  * (Gmail, Outlook, Yahoo, Apple Mail, etc.).
@@ -70,7 +70,7 @@ export function generarHtmlEmail(data: EmailTemplateData): string {
   <div class="container">
 
     <div class="header">
-      <img src="${HEADER_URL}" alt="Dirección de Producción - 3F">
+      <img src="${HEADER_URL}" alt="Banner Institucional">
     </div>
 
     <div class="content">
@@ -83,7 +83,7 @@ export function generarHtmlEmail(data: EmailTemplateData): string {
 
     <div class="footer">
       <div class="footer-cell-text">
-        Comunicate: con la Dirección de Producción<br>
+        Comunicate con nosotros:<br>
       </div>
       <div class="footer-cell-icons" style="white-space: nowrap;">
         <a href="https://wa.me/${WHATSAPP_NUMBER}"><img class="footer-icon" src="${WHATSAPP_ICON}" alt="WhatsApp"></a><a href="mailto: ${CONTACT_EMAIL}"><img class="footer-icon" src="${MAIL_ICON}" alt="Mail"></a>

@@ -13,7 +13,7 @@ const IGNORAR_MAILS = [
   'postmaster@',
   'leomellimurano@gmail.com',
   'claseiatecno@gmail.com',
-  'dpim3f@gmail.com',
+  'admin@organizacion.com',
 ];
 
 interface ReboteProcesado {
@@ -299,7 +299,7 @@ async function procesarCuenta(cuenta: any): Promise<ReboteProcesado[]> {
  * Genera el HTML y envía el email consolidado a los administradores.
  */
 export async function enviarAvisoConsolidado(rebotes: ReboteProcesado[]) {
-  const destinatario = MODO_PRUEBA ? "claseiatecno@gmail.com" : "dpim3f@gmail.com";
+  const destinatario = MODO_PRUEBA ? "claseiatecno@gmail.com" : "admin@organizacion.com";
   const cantidad = rebotes.length;
   const esPlural = cantidad > 1;
 
