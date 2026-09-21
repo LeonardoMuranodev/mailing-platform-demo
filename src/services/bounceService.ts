@@ -409,7 +409,7 @@ export async function enviarAvisoConsolidado(rebotes: ReboteProcesado[]) {
           <tr>
             <td style="background-color: #f8fafc; padding: 20px 30px; border-top: 1px solid #e2e8f0; text-align: center;">
               <p style="margin: 0; font-size: 12px; color: #718096; line-height: 1.4;">
-                Este es un mensaje automático del sistema de envíos de la Municipalidad de Tres de Febrero
+                Este es un mensaje automático del sistema de envíos de ${process.env.ORG_NAME || "Nuestra Organización"}
               </p>
             </td>
           </tr>

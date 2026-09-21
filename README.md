@@ -6,9 +6,9 @@ Una plataforma integral para el envío masivo de correos electrónicos, gestión
 
 ## 📖 Historia del Proyecto
 
-Este proyecto nació como una solución a medida para la **Municipalidad de Tres de Febrero**. En su origen, el sistema fue desarrollado mano a mano con las encargadas del área de comunicación. A través de un proceso iterativo de escucha activa, fui adaptando la plataforma a sus necesidades reales del día a día: desde la creación intuitiva de plantillas HTML hasta la necesidad crítica de sortear los límites estrictos de envío diario de los servidores de correo (como el límite de 400 correos por día de Gmail).
+Este proyecto nació como una solución a medida para un **organismo público**. En su origen, el sistema fue desarrollado mano a mano con los equipos de comunicación institucional. A través de un proceso iterativo de escucha activa, fui adaptando la plataforma a sus necesidades reales del día a día: desde la creación intuitiva de plantillas HTML hasta la necesidad crítica de sortear los límites estrictos de envío diario de los servidores de correo (como el límite de 400 correos por día de Gmail).
 
-Esta versión (GenMailer) es una **adaptación genérica y mejorada** de ese software en producción. Se han eliminado datos sensibles y lógicas exclusivas del municipio, transformándolo en un producto SaaS marca blanca, ideal para demostrar su arquitectura técnica y fluidez.
+Esta versión (GenMailer) es una **adaptación genérica y mejorada** de ese software en producción. Se han eliminado datos sensibles y lógicas exclusivas de la organización, transformándolo en un producto SaaS marca blanca, ideal para demostrar su arquitectura técnica y fluidez.
 
 ---
 
