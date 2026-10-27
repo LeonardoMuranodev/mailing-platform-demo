@@ -18,11 +18,28 @@ export interface HistoricoStat {
   envios: number;
 }
 
+export interface RankingCampana {
+  asunto: string;
+  procesados: number;
+  exitosos: number;
+  fallidos: number;
+  aperturas: number;
+}
+
+export interface PadronStat {
+  estado: string;
+  count: number;
+}
+
 export interface GlobalStatsResult {
   campanas: CampanasStat[];
   cola: ColaStat[];
   rubros: RubroStat[];
   historico: HistoricoStat[];
+  ranking: RankingCampana[];
+  padron: PadronStat[];
+  aperturasTotales: number;
+  clicsTotales: number;
 }
 
 export interface GlobalStatsResponse {

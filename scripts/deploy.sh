@@ -42,8 +42,9 @@ fi
 
 # ── Pull últimos cambios ─────────────────────────────────────
 log "Descargando últimos cambios de Git..."
-git pull origin main || warn "No se pudo hacer git pull (¿offline o sin cambios?)"
-ok "Código actualizado"
+git fetch origin main
+git reset --hard origin/main
+ok "Código actualizado a la última versión de origin/main"
 
 # ── Build de imágenes ────────────────────────────────────────
 log "Construyendo imágenes Docker..."

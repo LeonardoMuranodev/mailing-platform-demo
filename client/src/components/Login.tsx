@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 
 import ThemeToggle from './ThemeToggle';
@@ -64,15 +65,15 @@ export default function Login() {
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
-          <div className="w-20 h-20 overflow-hidden rounded-[20px] shadow-sm bg-white p-2 flex items-center justify-center">
-            <Mail size={40} className="text-primary" />
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-sm">
+            <Mail size={32} />
           </div>
         </div>
         <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-dark">
           Acceso al Sistema
         </h2>
         <p className="mt-2 text-center text-sm text-muted">
-          Sistema de Envío de Correos Masivos
+          Plataforma de Mailing & Gestión de Campañas
         </p>
       </div>
 
@@ -96,16 +97,21 @@ export default function Login() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="ejemplo@empresa.com"
+                  placeholder="ejemplo@organizacion.com"
                   className="w-full pl-10 pr-3.5 py-2.5 text-sm bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors h-[42px]"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-muted mb-1.5">
-                Contraseña
-              </label>
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="block text-sm font-semibold text-muted">
+                  Contraseña
+                </label>
+                <Link to="/forgot-password" className="text-xs font-medium text-primary hover:text-primary-dark transition-colors">
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={18} />
                 <input

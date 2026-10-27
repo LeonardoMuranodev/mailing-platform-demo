@@ -13,7 +13,7 @@
   --color-secondary-light: #22C55E;
   --color-secondary-dark: #15803D;
 
-  --color-accent-orange: #D85C37;    /* Naranja Producción / CTA Email */
+  --color-accent-orange: #D85C37;    /* Naranja Primario / CTA Email */
   --color-accent-orange-dark: #B84825;
 
   --color-dark: #1E293B;
@@ -43,6 +43,7 @@
    accent-orange and secondary stay identical to preserve identity.
    ────────────────────────────────────────────────────────── */
 html.dark {
+  color-scheme: dark;
   --color-primary: #1E75C4;
   --color-primary-light: #3B8FDB;
   --color-primary-dark: #1563A8;
@@ -58,9 +59,7 @@ html.dark {
   --color-success-light: #0D3320;
 }
 
-html.dark input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(1);
-}
+
 
 /* ── Base ──────────────────────────────────────────────── */
 *,
@@ -319,12 +318,12 @@ body {
 
 /* ── Animations ───────────────────────────────────────── */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.25s ease-out;
 }
 
 /* ── Focus visible ────────────────────────────────────── */
@@ -333,3 +332,142 @@ body {
   outline-offset: 2px;
   border-radius: 4px;
 }
+
+/* ── Badge de Advertencia (Modal Sin Flyer) ─────────────── */
+.badge-warning-light {
+  background-color: #FEF9C3 !important; /* Amarillo pastel súper claro y limpio */
+  border: 2px solid #FDE047 !important; /* Borde amarillo dorado suave */
+  color: #D97706 !important; /* Icono ámbar nítido */
+}
+html.dark .badge-warning-light {
+  background-color: rgba(120, 53, 15, 0.3) !important;
+  border-color: transparent !important;
+  color: #FBBF24 !important;
+}
+
+/* ── Estilos de Impresión / Exportación PDF ────────────────── */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0; /* Al ser 0, Chromium suprime automáticamente la fecha, la URL y el título nativos */
+  }
+
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  html, body {
+    background-color: #ffffff !important;
+    color: #1e293b !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Ocultar elementos no imprimibles de la app */
+  header,
+  nav,
+  footer,
+  button,
+  .no-print,
+  .fixed,
+  .sticky {
+    display: none !important;
+  }
+
+  /* ── Reporte Ejecutivo delimitado exactamente en 1 sola hoja con márgenes elegantes para respirar ── */
+  .print-report-container {
+    padding: 10mm 14mm 8mm 14mm !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Modo oscuro a claro forzado en impresión */
+  html.dark {
+    --color-background: #ffffff !important;
+    --color-surface: #ffffff !important;
+    --color-dark: #1e293b !important;
+    --color-muted: #64748b !important;
+    --color-border: #e2e8f0 !important;
+  }
+
+  /* Contenedores principales a ancho completo sin márgenes parásitos */
+  .max-w-7xl, .max-w-4xl, .max-w-\[1400px\], main {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Tarjetas con espaciado prolijo */
+  .print-avoid-break,
+  .bg-surface {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    box-shadow: none !important;
+    border: 1px solid #e2e8f0 !important;
+    background-color: #ffffff !important;
+  }
+
+  /* Desactivar scroll interno en impresión */
+  .overflow-y-auto, .overflow-x-auto {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  /* Tablas prolijas que no se desbordan */
+  table {
+    width: 100% !important;
+    table-layout: auto !important;
+    border-collapse: collapse !important;
+  }
+
+  th {
+    padding: 6px 8px !important;
+    font-size: 0.72rem !important;
+  }
+
+  td {
+    padding: 5px 8px !important;
+    font-size: 0.75rem !important;
+  }
+
+  /* Ajuste de tipografía y espaciado para PDF */
+  h1 { font-size: 1.2rem !important; }
+  h2 { font-size: 0.95rem !important; }
+}
+
+/* ── Animaciones para Notificaciones Estilo Gemini ────────── */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes modalPop {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-modal-pop {
+  animation: modalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+

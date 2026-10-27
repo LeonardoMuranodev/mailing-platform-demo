@@ -9,6 +9,7 @@ import {
 import { sendSuccess, sendError } from '../utils/responseHandler.js';
 import type { CrearCuentaSmtpBody, ActualizarCuentaSmtpBody } from '../schemas/smtpSchema.js';
 import { clearCacheByPrefix } from '../middlewares/cache.js';
+import { registrarAccion } from '../services/historialService.js';
 
 /**
  * POST /api/smtp
@@ -19,6 +20,7 @@ async function crear(req: Request, res: Response, next: NextFunction): Promise<v
     const body = req.body as CrearCuentaSmtpBody;
     const cuenta = await crearCuentaSmtp(body);
     await clearCacheByPrefix('/api/smtp');
+    await registrarAccion(req.user?.userId || null, 'CREAR', 'SMTP', cuenta.id, { email: cuenta.email });
     sendSuccess(res, cuenta, 201);
   } catch (err) {
     next(err);
@@ -55,6 +57,7 @@ async function actualizar(req: Request, res: Response, next: NextFunction): Prom
     }
 
     await clearCacheByPrefix('/api/smtp');
+    await registrarAccion(req.user?.userId || null, 'ACTUALIZAR', 'SMTP', cuenta.id, { email: cuenta.email });
     sendSuccess(res, cuenta);
   } catch (err) {
     next(err);
@@ -75,6 +78,7 @@ async function eliminar(req: Request, res: Response, next: NextFunction): Promis
     }
 
     await clearCacheByPrefix('/api/smtp');
+    await registrarAccion(req.user?.userId || null, 'ELIMINAR', 'SMTP', cuenta.id, { email: cuenta.email });
     sendSuccess(res, cuenta);
   } catch (err) {
     next(err);
@@ -102,6 +106,7 @@ async function toggleEstado(req: Request, res: Response, next: NextFunction): Pr
     }
 
     await clearCacheByPrefix('/api/smtp');
+    await registrarAccion(req.user?.userId || null, 'ACTUALIZAR', 'SMTP', cuenta.id, { email: cuenta.email, nuevo_estado: estado });
     sendSuccess(res, cuenta);
   } catch (err) {
     next(err);

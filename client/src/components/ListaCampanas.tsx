@@ -1,12 +1,14 @@
 import { useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Filter, RotateCcw, CalendarIcon, Trash2, AlertTriangle, Archive, Info, HelpCircle, X, Edit3, CheckCircle2, Play, Pause, Mail } from 'lucide-react';
-import { listarCampanas, eliminarCampana, archivarCampana, eliminarCampanasMasivo, cambiarEstadoCampana } from '../services/api';
+import { Plus, Search, Filter, RotateCcw, CalendarIcon, Trash2, AlertTriangle, Archive, Info, HelpCircle, X, Edit3, CheckCircle2, Play, Pause, RefreshCcw, Mail } from 'lucide-react';
+import { listarCampanas, eliminarCampana, archivarCampana, desarchivarCampana, eliminarCampanasMasivo, cambiarEstadoCampana } from '../services/api';
 import type { CampanaResponse } from '../types/campana';
 import { usePermisos } from '../hooks/usePermisos';
 import { formatDate } from '../utils/formatDate';
 import { RUBROS_LABELS, RUBROS_LIST } from '../data/rubros';
 
+import { useCampanaStore } from '../stores/campanaStore';
 
 const ESTADO_BADGE_CLASSES: Record<string, string> = {
   borrador: 'bg-slate-100 text-slate-600 border border-slate-200',
@@ -15,6 +17,7 @@ const ESTADO_BADGE_CLASSES: Record<string, string> = {
   pausada: 'bg-orange-50 text-orange-700 border border-orange-200',
   completada: 'bg-green-50 text-green-700 border border-green-200',
   cancelada: 'bg-red-50 text-red-700 border border-red-200',
+  archivada: 'bg-gray-100 text-gray-700 border border-gray-300',
 };
 
 const ESTADO_LABELS: Record<string, string> = {
@@ -24,6 +27,7 @@ const ESTADO_LABELS: Record<string, string> = {
   pausada: 'Pausada',
   completada: 'Completada',
   cancelada: 'Cancelada',
+  archivada: 'Archivada',
 };
 
 export default function ListaCampanas() {
@@ -52,6 +56,17 @@ export default function ListaCampanas() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+
+  // Bloquear scroll del fondo cuando hay modal abierto
+  useEffect(() => {
+    const isAnyModalOpen = Boolean(deleteConfirmId || archiveConfirmId || showBulkDeleteConfirm || showHelp);
+    if (isAnyModalOpen) {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = '';
+      };
+    }
+  }, [deleteConfirmId, archiveConfirmId, showBulkDeleteConfirm, showHelp]);
 
   const fetchCampanas = useCallback(async (currentPage = page) => {
     setLoading(true);
@@ -158,6 +173,17 @@ export default function ListaCampanas() {
     }
   };
 
+  const handleRestore = async (id: string) => {
+    try {
+      const res = await desarchivarCampana(id);
+      if (res.success) {
+        fetchCampanas();
+      }
+    } catch (error) {
+      console.error('Error al restaurar campaña:', error);
+    }
+  };
+
   const handleStatusChange = async (id: string, newStatus: string) => {
     try {
       const res = await cambiarEstadoCampana(id, newStatus);
@@ -179,12 +205,12 @@ export default function ListaCampanas() {
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 w-full">
         <div className="flex items-start gap-4">
-          <div className="w-11 h-11 overflow-hidden rounded-[14px] shadow-sm shrink-0 mt-0.5 bg-primary/10 flex items-center justify-center text-primary">
-            <Mail size={24} />
-          </div>
+          <div className="w-11 h-11 overflow-hidden rounded-[14px] shadow-sm shrink-0 mt-0.5 bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+              <Mail size={22} className="text-primary" />
+            </div>
           <div>
             <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
-              Campañas de Correo
+              GenMailer: Campañas de Correo
             </h1>
             <p className="text-muted mt-1">
               Gestioná y monitoreá el estado de los envíos masivos.
@@ -203,7 +229,7 @@ export default function ListaCampanas() {
           )}
           {puedeCrear && (
             <button
-              onClick={() => navigate('/nueva')}
+              onClick={() => { useCampanaStore.getState().reset(); navigate('/nueva'); }}
               className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg hover:bg-primary-dark transition-colors font-medium shadow-sm w-full sm:w-auto"
             >
               <Plus size={20} />
@@ -257,6 +283,7 @@ export default function ListaCampanas() {
               className="w-full pl-3.5 pr-8 py-2.5 text-sm bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors h-[42px]"
             >
               <option value="">Todos los rubros</option>
+              <option value="__sin_rubro__">Sin Rubro</option>
               {RUBROS_LIST.map((r) => (
                 <option key={r} value={r}>{RUBROS_LABELS[r] || r}</option>
               ))}
@@ -335,7 +362,7 @@ export default function ListaCampanas() {
                   const rubrosDisplay = campana.para_todos_rubros
                     ? 'Todos los rubros'
                     : Array.isArray(campana.rubros_seleccionados)
-                      ? campana.rubros_seleccionados.map((r) => r === '__sin_rubro__' ? 'Sin Rubro' : RUBROS_LABELS[r] || r).join(', ')
+                      ? (campana.rubros_seleccionados || []).map((r) => r === '__sin_rubro__' ? 'Sin Rubro' : RUBROS_LABELS[r] || r).join(', ')
                       : 'Ninguno';
 
                   return (
@@ -359,8 +386,8 @@ export default function ListaCampanas() {
                         {rubrosDisplay}
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${ESTADO_BADGE_CLASSES[campana.estado] || 'bg-slate-100'}`}>
-                          {ESTADO_LABELS[campana.estado] || campana.estado}
+                        <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${estado === 'archivada' ? ESTADO_BADGE_CLASSES['archivada'] : (ESTADO_BADGE_CLASSES[campana.estado] || 'bg-slate-100')}`}>
+                          {estado === 'archivada' ? `Archivada (${ESTADO_LABELS[campana.estado] || campana.estado})` : (ESTADO_LABELS[campana.estado] || campana.estado)}
                         </span>
                       </td>
                       <td className="px-6 py-4">
@@ -419,7 +446,7 @@ export default function ListaCampanas() {
                               <Play size={16} />
                             </button>
                           )}
-                          {puedeEliminar && (
+                          {puedeEliminar && estado !== 'archivada' && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -429,6 +456,18 @@ export default function ListaCampanas() {
                               title="Archivar campaña (oculta de la lista pero mantiene estadísticas)"
                             >
                               <Archive size={16} />
+                            </button>
+                          )}
+                          {puedeEditar && estado === 'archivada' && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRestore(campana.id);
+                              }}
+                              className="p-1.5 text-muted hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                              title="Restaurar campaña archivada"
+                            >
+                              <RefreshCcw size={16} />
                             </button>
                           )}
                           {puedeEliminar && (
@@ -497,9 +536,9 @@ export default function ListaCampanas() {
       </div>
 
       {/* Modal de Confirmación de Eliminación */}
-      {deleteConfirmId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+      {deleteConfirmId && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-modal-pop border border-border">
             <div className="p-6">
               <div className="flex justify-center mb-4">
                 <div className="bg-red-100 p-3 rounded-full">
@@ -529,13 +568,14 @@ export default function ListaCampanas() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal de Confirmación de Archivar */}
-      {archiveConfirmId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+      {archiveConfirmId && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-modal-pop border border-border">
             <div className="p-6">
               <div className="flex justify-center mb-4">
                 <div className="bg-blue-100 p-3 rounded-full">
@@ -565,13 +605,14 @@ export default function ListaCampanas() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal de Confirmación de Eliminación Masiva */}
-      {showBulkDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+      {showBulkDeleteConfirm && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-modal-pop border border-border">
             <div className="p-6">
               <div className="flex justify-center mb-4">
                 <div className="bg-red-100 p-3 rounded-full">
@@ -601,13 +642,14 @@ export default function ListaCampanas() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal de Ayuda */}
-      {showHelp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-surface rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+      {showHelp && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-modal-pop border border-border">
             <div className="p-6">
               <div className="flex justify-between items-center mb-5">
                 <h3 className="text-lg font-bold text-dark flex items-center gap-2">
@@ -657,7 +699,8 @@ export default function ListaCampanas() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

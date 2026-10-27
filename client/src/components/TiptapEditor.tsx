@@ -1,4 +1,5 @@
 import { useEditor, EditorContent } from '@tiptap/react';
+import { createPortal } from 'react-dom';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import {
@@ -49,6 +50,16 @@ export default function TiptapEditor() {
 
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
+
+  // Bloquear scroll del fondo cuando hay modal abierto
+  useEffect(() => {
+    if (isLinkModalOpen) {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = '';
+      };
+    }
+  }, [isLinkModalOpen]);
 
   const openLinkModal = useCallback(() => {
     if (!editor) return;
@@ -178,9 +189,9 @@ export default function TiptapEditor() {
       
       {error && <p className="text-danger text-sm px-3 pb-2">{error}</p>}
 
-      {isLinkModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-surface rounded-xl shadow-xl w-full max-w-sm p-5 animate-fade-in border border-border">
+      {isLinkModalOpen && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-sm p-5 animate-modal-pop border border-border">
             <h3 className="text-lg font-semibold text-dark mb-4">Insertar Enlace</h3>
             <input
               type="text"
@@ -209,7 +220,8 @@ export default function TiptapEditor() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

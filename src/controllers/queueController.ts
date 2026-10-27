@@ -55,7 +55,7 @@ import { procesarCola } from '../services/emailWorker.js';
 async function forzarEnvio(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     // Fire and forget (no esperamos a que termine para responder)
-    procesarCola().catch((err) => {
+    procesarCola(true).catch((err) => {
       console.error('[Worker] Error al procesar cola forzadamente:', err);
     });
     

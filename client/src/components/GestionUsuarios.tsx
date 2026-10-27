@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, RotateCcw, Plus, Edit2, Trash2, X, Users, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import {
   obtenerUsuarios,
@@ -33,6 +34,18 @@ export default function GestionUsuarios() {
   // Confirm Delete
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleteErrorMsg, setDeleteErrorMsg] = useState('');
+
+  // Bloqueo de scroll en el body mientras cualquier modal esté abierto
+  const isAnyModalOpen = isModalOpen || !!deleteConfirmId;
+  useEffect(() => {
+    if (isAnyModalOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isAnyModalOpen]);
 
   const fetchUsuariosData = async () => {
     setLoading(true);
@@ -316,9 +329,9 @@ export default function GestionUsuarios() {
         </div>
       </div>
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-surface w-full max-w-lg rounded-xl border border-border shadow-2xl overflow-hidden animate-fade-in">
+      {isModalOpen && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto animate-fade-in">
+          <div className="bg-surface w-full max-w-lg rounded-xl border border-border shadow-2xl overflow-hidden my-auto animate-fade-in">
             <div className="px-6 py-4 border-b border-border flex justify-between items-center">
               <h2 className="text-lg font-bold text-dark">{editingId ? 'Editar Usuario' : 'Nuevo Usuario'}</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-muted hover:text-dark">
@@ -349,7 +362,7 @@ export default function GestionUsuarios() {
                     value={form.email}
                     onChange={e => setForm({...form, email: e.target.value})}
                     className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 h-[42px]"
-                    placeholder="ejemplo@empresa.com"
+                    placeholder="ejemplo@organizacion.com"
                     required
                   />
                 </div>
@@ -411,13 +424,14 @@ export default function GestionUsuarios() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal de Confirmación de Eliminación */}
-      {deleteConfirmId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in p-4">
-          <div className="bg-surface rounded-xl shadow-xl w-full max-w-sm p-6 animate-fade-in border border-border text-center">
+      {deleteConfirmId && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4 overflow-y-auto">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-sm p-6 animate-fade-in border border-border text-center my-auto">
             <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-danger/10 mb-4">
               <AlertCircle className="h-6 w-6 text-danger" />
             </div>
@@ -448,7 +462,8 @@ export default function GestionUsuarios() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

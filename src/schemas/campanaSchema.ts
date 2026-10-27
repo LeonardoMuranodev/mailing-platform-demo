@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import DOMPurify from 'isomorphic-dompurify';
+import { config } from '../config/env.js';
 
 // ── Helpers de coerción para multipart/form-data ─────────
 
@@ -35,10 +36,11 @@ export const crearCampanaSchema = z.object({
     .max(255, 'El asunto no puede exceder 255 caracteres'),
 
   cuerpo_html: z
-    .string({ message: 'El cuerpo HTML es obligatorio' })
+    .string()
     .trim()
-    .min(1, 'El cuerpo HTML no puede estar vacío')
-    .transform((html) => DOMPurify.sanitize(html)),
+    .transform((html) => DOMPurify.sanitize(html))
+    .optional()
+    .or(z.literal('')),
 
   link_inscripcion: z
     .string()
@@ -47,15 +49,55 @@ export const crearCampanaSchema = z.object({
     .optional()
     .or(z.literal('')),
 
+  link_nacion: z
+    .string()
+    .trim()
+    .url('El link de Nación debe ser una URL válida')
+    .optional()
+    .or(z.literal('')),
+
+  link_provincia: z
+    .string()
+    .trim()
+    .url('El link de Provincia debe ser una URL válida')
+    .optional()
+    .or(z.literal('')),
+
   flyer_url: z
     .string()
     .trim()
     .optional(),
 
-  fecha_limite_envio: z
-    .string({ message: 'La fecha límite de envío es obligatoria' })
+  adjunto_url: z
+    .string()
     .trim()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'La fecha debe tener formato YYYY-MM-DD'),
+    .optional(),
+
+  adjuntos_extras: z.preprocess((val) => {
+    if (!val) return [];
+    if (typeof val === 'string') {
+      try { return JSON.parse(val); } catch { return []; }
+    }
+    return Array.isArray(val) ? val : [];
+  }, z.array(z.object({
+    url: z.string(),
+    nombre_original: z.string(),
+  })).max(config.maxAdjuntos, `No se pueden adjuntar más de ${config.maxAdjuntos} archivos`).optional().default([])),
+
+  fecha_limite_envio: z
+    .string()
+    .trim()
+    .optional()
+    .or(z.literal(''))
+    .refine((val) => {
+      if (!val) return true;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(val)) return false;
+      const hoy = new Date();
+      // Ajustar por zona horaria de Argentina (-03:00)
+      hoy.setHours(hoy.getHours() - 3);
+      const hoyStr = hoy.toISOString().split('T')[0];
+      return val > hoyStr;
+    }, 'La fecha debe tener formato YYYY-MM-DD y ser posterior al día de hoy'),
 
   prioridad: z
     .enum(['alta', 'media', 'baja'], {
@@ -76,6 +118,15 @@ export const cambiarEstadoSchema = z.object({
 
 export const actualizarCampanaSchema = crearCampanaSchema.partial();
 
+/** Esquema para modificar fecha límite y prioridad de campañas activas o en borrador */
+export const actualizarProgramacionSchema = z.object({
+  fecha_limite_envio: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de fecha inválido (YYYY-MM-DD)'),
+  prioridad: z.enum(['alta', 'media', 'baja']).optional(),
+});
+
 /** Esquema para validar params con UUID */
 export const uuidParamSchema = z.object({
   id: z.string().uuid('El ID debe ser un UUID válido'),
@@ -85,3 +136,4 @@ export const uuidParamSchema = z.object({
 export type CrearCampanaBody = z.infer<typeof crearCampanaSchema>;
 export type CambiarEstadoBody = z.infer<typeof cambiarEstadoSchema>;
 export type ActualizarCampanaBody = z.infer<typeof actualizarCampanaSchema>;
+export type ActualizarProgramacionBody = z.infer<typeof actualizarProgramacionSchema>;

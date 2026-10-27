@@ -1,6 +1,7 @@
 import { google } from 'googleapis';
 import { config } from '../config/env.js';
 import { importarContactosJson, type ContactoImportRow } from './contactoService.js';
+import { emitirAlertaRealtime } from './realtimeService.js';
 
 function normalizeString(str: string | null | undefined): string {
   if (!str) return '';
@@ -8,7 +9,7 @@ function normalizeString(str: string | null | undefined): string {
 }
 
 let isSyncingStatus = false;
-let lastSyncResult: { success: boolean; message: string; procesados?: number; insertados_o_actualizados?: number } | null = null;
+let lastSyncResult: { success: boolean; message: string; procesados?: number; insertados_o_actualizados?: number; omitidos?: number } | null = null;
 
 export function getSyncStatus() {
   return {
@@ -28,6 +29,13 @@ export async function syncContactosFromSheets(): Promise<void> {
 
   isSyncingStatus = true;
   lastSyncResult = null;
+
+  emitirAlertaRealtime({
+    tipo: 'sync_started',
+    titulo: 'Sincronización en curso',
+    mensaje: 'Iniciando sincronización de contactos con Google Sheets...',
+    timestamp: new Date().toISOString(),
+  });
 
   try {
     const { sheetId, clientEmail, privateKey } = config.google;
@@ -117,9 +125,10 @@ export async function syncContactosFromSheets(): Promise<void> {
     // Reutilizamos la función de importación por lote (Upsert)
     const resultados = await importarContactosJson(contactosParaImportar);
 
+    const omitidosText = resultados.omitidos > 0 ? ` Se omitieron ${resultados.omitidos} filas por errores.` : '';
     lastSyncResult = { 
       success: true, 
-      message: `Sincronización completa. Se procesaron ${resultados.procesados} contactos.`, 
+      message: `Sincronización completa. Se procesaron ${resultados.procesados} contactos.${omitidosText}`, 
       procesados: resultados.procesados, 
       insertados_o_actualizados: resultados.insertados_o_actualizados 
     };
@@ -129,5 +138,43 @@ export async function syncContactosFromSheets(): Promise<void> {
     lastSyncResult = { success: false, message: err.message || 'Error desconocido al sincronizar' };
   } finally {
     isSyncingStatus = false;
+
+    if (lastSyncResult) {
+      const exito = lastSyncResult.success;
+      emitirAlertaRealtime({
+        tipo: 'sync_finished',
+        titulo: exito ? 'Sincronización finalizada' : 'Error en sincronización',
+        mensaje: lastSyncResult.message,
+        detalles: {
+          procesados: lastSyncResult.procesados,
+          insertados_o_actualizados: lastSyncResult.insertados_o_actualizados,
+          exito,
+        },
+        urlDestino: '/contactos',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+}
+
+/**
+ * Ejecución periódica para cron en segundo plano.
+ * No arroja excepciones no controladas si faltan variables o si ya hay una sync en curso.
+ */
+export async function syncContactosFromSheetsCron(): Promise<void> {
+  const { sheetId, clientEmail, privateKey } = config.google;
+  if (!sheetId || !clientEmail || !privateKey) {
+    return;
+  }
+  if (isSyncingStatus) {
+    console.log('[Sheets Cron] Sincronización omitida: ya hay una en curso.');
+    return;
+  }
+  console.log('[Sheets Cron] Iniciando sincronización automática periódica con Google Sheets...');
+  try {
+    await syncContactosFromSheets();
+    console.log('[Sheets Cron] Sincronización automática finalizada exitosamente.');
+  } catch (err: any) {
+    console.error('[Sheets Cron] Error en sincronización automática:', err?.message || err);
   }
 }

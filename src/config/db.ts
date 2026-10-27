@@ -21,7 +21,8 @@ export const dbPool = new Pool({
 export async function testDbConnection(): Promise<void> {
   try {
     const client = await dbPool.connect();
-    console.log('[DB] ✅ Connected to Supabase PostgreSQL');
+    const modoTexto = config.modoPrueba ? 'MODO PRUEBA' : 'PRODUCCIÓN';
+    console.log(`[DB] ✅ Connected to Supabase PostgreSQL (${modoTexto}) [user: ${config.db.user}, host: ${config.db.host}]`);
     client.release();
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

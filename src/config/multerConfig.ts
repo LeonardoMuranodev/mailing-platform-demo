@@ -15,6 +15,10 @@ const ALLOWED_MIME_TYPES = new Set([
   'image/png',
   'image/webp',
   'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // DOCX
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // XLSX
+  'application/vnd.ms-excel', // XLS
+  'text/csv', // CSV
 ]);
 
 const storage = multer.diskStorage({
@@ -24,7 +28,12 @@ const storage = multer.diskStorage({
   filename(req, file, cb) {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
     const ext = path.extname(file.originalname);
-    const prefix = req.originalUrl?.includes('soporte') ? 'adjunto-soporte' : 'flyer';
+    
+    let prefix = 'file';
+    if (file.fieldname === 'flyer') prefix = 'flyer';
+    else if (file.fieldname === 'adjunto' || file.fieldname === 'adjuntos') prefix = 'adjunto';
+    else if (req.originalUrl?.includes('soporte')) prefix = 'adjunto-soporte';
+    
     cb(null, `${prefix}-${uniqueSuffix}${ext}`);
   },
 });
@@ -44,5 +53,5 @@ function fileFilter(
 export const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
 });

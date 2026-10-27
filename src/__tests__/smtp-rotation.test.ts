@@ -30,6 +30,7 @@ import {
   obtenerSiguienteSmtpDisponible,
   incrementarCuotaSmtp,
 } from '../services/queueService.js';
+import { resetearContadoresSmtp } from '../services/smtpAccountService.js';
 
 describe('SMTP Rotation — Round-Robin', () => {
   beforeEach(() => {
@@ -40,10 +41,10 @@ describe('SMTP Rotation — Round-Robin', () => {
     it('debería retornar la cuenta SMTP con ultimo_uso más antiguo', async () => {
       const cuentaEsperada = {
         id: 'smtp-1',
-        email: 'dpi5m@test.com',
+        email: 'cuenta5@gmail.com',
         host: 'smtp.gmail.com',
         puerto: 465,
-        usuario: 'dpi5m@test.com',
+        usuario: 'cuenta5@gmail.com',
         password_encrypted: 'encrypted_pass',
         estado: 'activo',
         enviados_hoy: 50,
@@ -84,10 +85,10 @@ describe('SMTP Rotation — Round-Robin', () => {
     it('debería incrementar enviados_hoy y actualizar ultimo_uso', async () => {
       const cuentaActualizada = {
         id: 'smtp-1',
-        email: 'dpi5m@test.com',
+        email: 'cuenta5@gmail.com',
         host: 'smtp.gmail.com',
         puerto: 465,
-        usuario: 'dpi5m@test.com',
+        usuario: 'cuenta5@gmail.com',
         password_encrypted: 'encrypted_pass',
         estado: 'activo',
         enviados_hoy: 51, // incrementado
@@ -116,10 +117,10 @@ describe('SMTP Rotation — Round-Robin', () => {
     it('debería cambiar estado a "agotado" al alcanzar el límite diario (Circuit Breaker)', async () => {
       const cuentaAgotada = {
         id: 'smtp-2',
-        email: 'dpi2m@test.com',
+        email: 'cuenta2@gmail.com',
         host: 'smtp.gmail.com',
         puerto: 465,
-        usuario: 'dpi2m@test.com',
+        usuario: 'cuenta2@gmail.com',
         password_encrypted: 'encrypted_pass',
         estado: 'agotado', // cambiado por el CASE
         enviados_hoy: 400, // alcanzó el límite
@@ -164,9 +165,6 @@ describe('resetearContadoresSmtp', () => {
 
   it('debería ejecutar el UPDATE para resetear contadores y cambiar estado agotado', async () => {
     mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [] });
-    
-    // resetearContadoresSmtp debe importarse estáticamente arriba
-    const { resetearContadoresSmtp } = await import('../services/smtpAccountService.js');
     await resetearContadoresSmtp();
     
     expect(mockQuery).toHaveBeenCalledTimes(1);

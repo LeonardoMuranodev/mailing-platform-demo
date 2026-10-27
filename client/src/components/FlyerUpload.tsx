@@ -48,6 +48,7 @@ export default function FlyerUpload() {
   const handleRemove = (e: React.MouseEvent) => {
     e.stopPropagation();
     setFlyer(null);
+    useCampanaStore.setState({ flyerPreview: null, form: { ...useCampanaStore.getState().form, flyer_url: '' } });
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -108,10 +109,12 @@ export default function FlyerUpload() {
           <div className="flex-grow flex flex-col gap-1 w-full text-center sm:text-left">
             <div className="flex items-center justify-center sm:justify-start gap-2 text-dark font-medium">
               <FileImage size={18} className="text-primary" />
-              <span className="truncate max-w-[200px]">{flyer?.name}</span>
+              <span className="truncate max-w-[200px]">
+                {flyer ? flyer.name : flyerPreview?.split('/').pop() || 'flyer-adjunto.jpg'}
+              </span>
             </div>
             <p className="text-muted text-sm">
-              {flyer ? (flyer.size / 1024 / 1024).toFixed(2) : 0} MB
+              {flyer ? `${(flyer.size / 1024 / 1024).toFixed(2)} MB` : 'Archivo subido al servidor'}
             </p>
           </div>
           <button

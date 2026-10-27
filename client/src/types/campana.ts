@@ -2,8 +2,14 @@
 export interface CampanaFormData {
   asunto: string;
   cuerpo_html: string;
+  usa_links_multiples: boolean;
   link_inscripcion: string;
+  link_nacion: string;
+  link_provincia: string;
   flyer_url: string;
+  adjunto_url: string;
+  adjunto_nombre_original: string;
+  adjuntos_extras: Array<{ url: string; nombre_original: string }>;
   fecha_limite_envio: string;
   prioridad: 'alta' | 'media' | 'baja';
   para_todos_rubros: boolean;
@@ -18,7 +24,12 @@ export interface CampanaResponse {
   asunto: string;
   cuerpo_html: string;
   link_inscripcion: string | null;
+  link_nacion: string | null;
+  link_provincia: string | null;
   flyer_url: string | null;
+  adjunto_url: string | null;
+  adjunto_nombre_original: string | null;
+  adjuntos_extras: Array<{ url: string; nombre_original: string }> | null;
   fecha_limite_envio: string;
   prioridad: 'alta' | 'media' | 'baja';
   para_todos_rubros: boolean;
@@ -37,6 +48,7 @@ export interface CampanaConStats extends CampanaResponse {
     fallidos: number;
     abiertos: number;
     clicks: number;
+    desglose_fallos?: Array<{ categoria: string; cantidad: number; porcentaje: number }>;
   };
 }
 
@@ -70,8 +82,14 @@ export interface ApiResponse<T> {
 export const CAMPANA_FORM_INITIAL: CampanaFormData = {
   asunto: '',
   cuerpo_html: '',
+  usa_links_multiples: false,
   link_inscripcion: '',
+  link_nacion: '',
+  link_provincia: '',
   flyer_url: '',
+  adjunto_url: '',
+  adjunto_nombre_original: '',
+  adjuntos_extras: [],
   fecha_limite_envio: '',
   prioridad: 'alta',
   para_todos_rubros: true,

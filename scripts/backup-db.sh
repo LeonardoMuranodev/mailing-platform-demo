@@ -62,8 +62,9 @@ unset PGPASSWORD
 DELETED=$(find "$BACKUP_DIR" -name "genmailer_backup_*.sql.gz" -mtime +${RETENTION_DAYS} -print -delete | wc -l)
 echo "[Backup] 🧹 Backups eliminados (>${RETENTION_DAYS} días): ${DELETED}"
 
-# ── 4. Subida a Google Drive (opcional) ─────────────────
+# ── 4. Subida y Retención en Google Drive (opcional) ───
 DRIVE_STATUS="⏭ No configurado"
+DELETED_DRIVE_COUNT=0
 
 # Sanitize variables (Windows CRLF to LF protection)
 CLEAN_GDRIVE_ENABLED=$(echo "$GDRIVE_ENABLED" | tr -d '\r')
@@ -71,6 +72,7 @@ CLEAN_CLIENT_ID=$(echo "$GDRIVE_CLIENT_ID" | tr -d '\r')
 CLEAN_CLIENT_SECRET=$(echo "$GDRIVE_CLIENT_SECRET" | tr -d '\r')
 CLEAN_REFRESH_TOKEN=$(echo "$GDRIVE_REFRESH_TOKEN" | tr -d '\r')
 CLEAN_FOLDER_ID=$(echo "$GDRIVE_FOLDER_ID" | tr -d '\r')
+CLEAN_MAX_BACKUPS=$(echo "${GDRIVE_MAX_BACKUPS:-7}" | tr -d '\r')
 
 if [ "$CLEAN_GDRIVE_ENABLED" = "true" ] && [ -n "$CLEAN_REFRESH_TOKEN" ]; then
   echo "[Backup] ☁️  Subiendo a Google Drive..."
@@ -104,6 +106,46 @@ if [ "$CLEAN_GDRIVE_ENABLED" = "true" ] && [ -n "$CLEAN_REFRESH_TOKEN" ]; then
       if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
         DRIVE_STATUS="✅ Subido exitosamente"
         echo "[Backup] ✅ Archivo subido a Google Drive"
+
+        # Paso 3: Retención en Google Drive — conservar solo los últimos CLEAN_MAX_BACKUPS
+        echo "[Backup] 🧹 Verificando retención en Google Drive (máximo ${CLEAN_MAX_BACKUPS} backups)..."
+        
+        LIST_RES=$(curl -s -G "https://www.googleapis.com/drive/v3/files" \
+          -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+          --data-urlencode "q='${CLEAN_FOLDER_ID}' in parents and trashed=false and name contains 'genmailer_backup_'" \
+          --data-urlencode "orderBy=createdTime desc" \
+          --data-urlencode "pageSize=100" \
+          --data-urlencode "fields=files(id,name,createdTime)")
+
+        if command -v jq >/dev/null 2>&1; then
+          FILES_TO_DELETE=$(echo "$LIST_RES" | jq -r ".files[${CLEAN_MAX_BACKUPS}:][]? | .id + \"\t\" + .name")
+          
+          if [ -n "$FILES_TO_DELETE" ]; then
+            while IFS="$(printf '\t')" read -r OLD_ID OLD_NAME; do
+              if [ -n "$OLD_ID" ]; then
+                echo "[Backup] 🗑️  Eliminando backup antiguo en Drive: ${OLD_NAME} (${OLD_ID})..."
+                DEL_HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
+                  "https://www.googleapis.com/drive/v3/files/${OLD_ID}" \
+                  -H "Authorization: Bearer ${ACCESS_TOKEN}")
+
+                if [ "$DEL_HTTP" = "204" ] || [ "$DEL_HTTP" = "200" ]; then
+                  DELETED_DRIVE_COUNT=$((DELETED_DRIVE_COUNT + 1))
+                  echo "[Backup] ✅ Eliminado de Drive: ${OLD_NAME}"
+                else
+                  echo "[Backup] ⚠️  Fallo al eliminar de Drive ${OLD_NAME} (HTTP ${DEL_HTTP})"
+                fi
+              fi
+            done <<EOF
+$FILES_TO_DELETE
+EOF
+            echo "[Backup] 🧹 Total backups eliminados en Google Drive: ${DELETED_DRIVE_COUNT}"
+          else
+            echo "[Backup] ✨ Google Drive al día (<= ${CLEAN_MAX_BACKUPS} backups)"
+          fi
+        else
+          echo "[Backup] ⚠️  jq no está disponible; omitiendo limpieza automática en Drive."
+        fi
+
       else
         DRIVE_STATUS="🔴 Error HTTP ${HTTP_CODE}"
         echo "[Backup] ❌ Error subiendo a Drive (HTTP ${HTTP_CODE})"
@@ -118,7 +160,12 @@ fi
 # ── 5. Notificación final ──────────────────────────────
 REMAINING=$(find "$BACKUP_DIR" -name "genmailer_backup_*.sql.gz" | wc -l)
 
-notify_telegram "🗄 *BACKUP COMPLETADO — GenMailer*\n\n📁 Archivo: \`${FILENAME}\`\n📦 Tamaño: ${FILE_SIZE}\n🧹 Eliminados: ${DELETED}\n📚 Total en disco: ${REMAINING}\n☁️ Google Drive: ${DRIVE_STATUS}"
+DRIVE_SUMMARY="${DRIVE_STATUS}"
+if [ "$DELETED_DRIVE_COUNT" -gt 0 ]; then
+  DRIVE_SUMMARY="${DRIVE_STATUS} (🧹 ${DELETED_DRIVE_COUNT} viejos purgados)"
+fi
+
+notify_telegram "🗄 *BACKUP COMPLETADO — GenMailer*\n\n📁 Archivo: \`${FILENAME}\`\n📦 Tamaño: ${FILE_SIZE}\n🧹 Eliminados en disco: ${DELETED}\n📚 Total en disco: ${REMAINING}\n☁️ Google Drive: ${DRIVE_SUMMARY}"
 
 echo "[Backup] 📬 Notificación enviada"
 echo "[Backup] ✅ Proceso de backup finalizado"

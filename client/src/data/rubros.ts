@@ -75,4 +75,5 @@ export const RUBROS_LABELS: Record<string, string> = {
   quimica: 'Química',
   grafica: 'Gráfica',
   inmobiliarios: 'Inmobiliarios',
+  __sin_rubro__: 'Sin Rubro',
 };

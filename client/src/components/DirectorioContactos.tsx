@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Filter, RotateCcw, Upload, Download, Plus, Edit2, Trash2, X, Building2, AlertCircle } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Search, Filter, RotateCcw, Upload, Download, Plus, Edit2, Trash2, X, Building2, AlertCircle, HelpCircle, Info } from 'lucide-react';
 import {
   obtenerContactos,
   crearContacto,
@@ -7,11 +8,13 @@ import {
   eliminarContacto,
   eliminarContactosBulk,
   syncContactosSheets,
-  checkSyncStatus
+  checkSyncStatus,
+  buscarEmpresasApi
 } from '../services/api';
 import type { ContactoConRubro, CrearContactoInput } from '../types/contacto';
 import { RUBROS_LABELS, RUBROS_LIST } from '../data/rubros';
 import { usePermisos } from '../hooks/usePermisos';
+import { useNotificationStore } from '../stores/useNotificationStore';
 import AlertMessage from './ui/AlertMessage';
 import ImportadorVisual from './ImportadorVisual';
 
@@ -36,6 +39,7 @@ export default function DirectorioContactos() {
   // Modals state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<CrearContactoInput>({
     email: '',
@@ -46,22 +50,29 @@ export default function DirectorioContactos() {
   });
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [exportError, setExportError] = useState<string | null>(null);
 
   // Autocompletado empresa
-  const [empresasSugeridas, setEmpresasSugeridas] = useState<Array<{ id: string; nombre: string; cuit: string | null }>>([]);
-  const [showEmpresaSugeridas, setShowEmpresaSugeridas] = useState(false);
-  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+  const [empresasSugeridas, setEmpresasSugeridas] = useState<Array<{ id: string; nombre: string; cuit: string | null; rubro_id?: string | null }>>([]);
+  const [showEmpresaSugeridas, setShowEmpresaSugeridas] = useState<false | 'empresa' | 'cuit'>(false);
 
-  const buscarEmpresasSugeridas = async (q: string) => {
-    if (!q || q.length < 2) { setEmpresasSugeridas([]); setShowEmpresaSugeridas(false); return; }
+  const buscarEmpresasSugeridas = async (q: string, fieldType: 'empresa' | 'cuit') => {
+    if (!q || q.length < 2) { 
+      setEmpresasSugeridas([]); 
+      setShowEmpresaSugeridas(false); 
+      return; 
+    }
     try {
-      const token = localStorage.getItem('token');
-      const resp = await fetch(`${API_BASE}/empresas?q=${encodeURIComponent(q)}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await resp.json();
-      if (data.success) { setEmpresasSugeridas(data.data); setShowEmpresaSugeridas(data.data.length > 0); }
-    } catch { setEmpresasSugeridas([]); }
+      const res = await buscarEmpresasApi(q);
+      if (res.success && res.data) { 
+        setEmpresasSugeridas(res.data); 
+        setShowEmpresaSugeridas(res.data.length > 0 ? fieldType : false); 
+      } else {
+        setEmpresasSugeridas([]);
+      }
+    } catch { 
+      setEmpresasSugeridas([]); 
+    }
   };
 
   // Confirm Delete
@@ -70,6 +81,18 @@ export default function DirectorioContactos() {
   // Sync Sheets
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  // Bloqueo de scroll en el body mientras cualquier modal esté abierto
+  const isAnyModalOpen = isModalOpen || isImportModalOpen || !!deleteConfirmId || bulkDeleteConfirm || showHelp;
+  useEffect(() => {
+    if (isAnyModalOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isAnyModalOpen]);
 
   const fetchContactosData = async (currentPage = page) => {
     setLoading(true);
@@ -127,30 +150,47 @@ export default function DirectorioContactos() {
   const activasLocales = contactos.filter(c => c.estado === 'funcional').length;
   const rebotadasLocales = contactos.filter(c => c.estado.includes('rebotado')).length;
 
-  const handleExportCsv = () => {
-    const header = ['Empresa', 'Email', 'CUIT', 'Rubro', 'Estado', 'Creado'];
-    const rows = contactos.map(c => [
-      c.empresa_nombre || '',
-      c.email,
-      c.cuit || '',
-      c.rubro_nombre || '',
-      c.estado,
-      new Date(c.creado_en).toLocaleDateString()
-    ]);
+  const handleExportCsv = async () => {
+    setExportError(null);
+    try {
+      const res = await obtenerContactos({
+        limit: 999999
+      });
 
-    const csvContent = [
-      header.join(','),
-      ...rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-    ].join('\n');
+      if (!res.success || !res.data) {
+        setExportError('Error al obtener datos para exportar');
+        return;
+      }
 
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', 'contactos.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const allContacts = res.data.data; // res.data es ContactosResponse
+      const header = ['Empresa', 'Email', 'CUIT', 'Rubro', 'Estado', 'Tipo', 'Creado'];
+      const rows = allContacts.map(c => [
+        c.empresa_nombre || '',
+        c.email,
+        c.cuit || '',
+        c.rubro_nombre ? (RUBROS_LABELS[c.rubro_nombre.trim().toLowerCase()] || c.rubro_nombre) : '',
+        c.estado,
+        c.tipo || '',
+        new Date(c.creado_en).toLocaleDateString()
+      ]);
+
+      const csvContent = [
+        header.join(','),
+        ...rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      ].join('\n');
+
+      const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'contactos.csv');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      console.error(e);
+      setExportError('Ocurrió un error al exportar el CSV');
+    }
   };
 
   const handleSyncSheets = async () => {
@@ -159,10 +199,19 @@ export default function DirectorioContactos() {
     try {
       const res = await syncContactosSheets();
       if (!res.success) {
+        // Si ya hay una sincronización en marcha, no es un error que deba alertar; mantenemos la UI en progreso
+        if (res.error?.code === 'CONFLICT' || res.error?.message?.toLowerCase().includes('en curso')) {
+          return;
+        }
+        // Si se excedió el límite de clics seguidos
+        if (res.error?.code === 'SYNC_RATE_LIMIT' || res.error?.code === 'RATE_LIMIT_EXCEEDED') {
+          setSyncResult({ success: false, message: 'La sincronización ya fue solicitada hace instantes. Continúa en segundo plano.' });
+          return;
+        }
         setSyncResult({ success: false, message: res.error?.message || 'Error al iniciar sincronización' });
         setIsSyncing(false);
       }
-      // If success, the polling useEffect will take over
+      // Si fue exitosa, el polling tomará el relevo para mostrar el estado final
     } catch (e: any) {
       setSyncResult({ success: false, message: e.message || 'Error de red al sincronizar' });
       setIsSyncing(false);
@@ -199,18 +248,36 @@ export default function DirectorioContactos() {
       }
     };
 
-    // Check status inmediately on mount
+    // Consultar estado inmediatamente al montar el componente
     checkStatus();
 
-    // Setup polling every 3 seconds if syncing
+    // Polling cada 5 segundos únicamente mientras haya una sincronización activa
     if (isSyncing) {
-      interval = setInterval(checkStatus, 3000);
+      interval = setInterval(checkStatus, 5000);
     }
 
     return () => {
       if (interval) clearInterval(interval);
     };
   }, [isSyncing]);
+
+  // Actualización instantánea en vivo cuando llega evento SSE
+  const ultimaNotificacion = useNotificationStore((state) => state.historial[0]);
+  useEffect(() => {
+    if (!ultimaNotificacion) return;
+    if (ultimaNotificacion.tipo === 'sync_started') {
+      setIsSyncing(true);
+    } else if (ultimaNotificacion.tipo === 'sync_finished') {
+      setIsSyncing(false);
+      setSyncResult({
+        success: Boolean(ultimaNotificacion.detalles?.exito ?? true),
+        message: ultimaNotificacion.mensaje,
+      });
+      fetchContactosData(1);
+      setPage(1);
+    }
+  }, [ultimaNotificacion]);
+
 
   const openCrearModal = () => {
     setEditingId(null);
@@ -221,11 +288,14 @@ export default function DirectorioContactos() {
 
   const openEditarModal = (c: ContactoConRubro) => {
     setEditingId(c.id);
+    const rubroKey = c.rubro_nombre?.trim().toLowerCase() || c.rubro_id?.trim().toLowerCase() || '';
+    const rubroSeleccionado = RUBROS_LIST.includes(rubroKey) ? rubroKey : (c.rubro_id || '');
+
     setForm({
       email: c.email,
       empresa_nombre: c.empresa_nombre || '',
       cuit: c.cuit || '',
-      rubro_id: c.rubro_id || '',
+      rubro_id: rubroSeleccionado,
       estado: c.estado,
       tipo: c.tipo || '',
     });
@@ -238,8 +308,34 @@ export default function DirectorioContactos() {
     setErrorMsg('');
     setSaving(true);
 
+    const cuitLimpio = form.cuit ? form.cuit.trim() : '';
+
+    if (cuitLimpio) {
+      if (cuitLimpio.length !== 11) {
+        setErrorMsg('El CUIT debe tener exactamente 11 dígitos, o déjalo vacío si no posee CUIT.');
+        setSaving(false);
+        return;
+      }
+      
+      const multipliers = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
+      let total = 0;
+      for (let i = 0; i < 10; i++) total += parseInt(cuitLimpio[i]) * multipliers[i];
+      const mod = total % 11;
+      let checkDigit = mod === 0 ? 0 : 11 - mod;
+      if (checkDigit === 10) {
+        const prefix = cuitLimpio.substring(0, 2);
+        checkDigit = (prefix === '20' || prefix === '23' || prefix === '24') ? 9 : (prefix === '27' ? 4 : 9);
+      }
+      if (checkDigit !== parseInt(cuitLimpio[10])) {
+        setErrorMsg('El CUIT ingresado no es matemáticamente válido.');
+        setSaving(false);
+        return;
+      }
+    }
+
     try {
-      const payload = { ...form };
+      const payload: any = { ...form };
+      payload.cuit = cuitLimpio || null;
       if (!payload.rubro_id) payload.rubro_id = null;
 
       if (editingId) {
@@ -324,9 +420,16 @@ export default function DirectorioContactos() {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto flex-wrap justify-end">
+          <button
+            onClick={() => setShowHelp(true)}
+            className="flex items-center justify-center gap-2 bg-surface text-dark border border-border px-3 py-2 rounded-lg hover:bg-background transition-colors font-medium shadow-sm w-full sm:w-auto"
+            title="Ayuda sobre el directorio"
+          >
+            <HelpCircle size={20} className="text-primary" />
+          </button>
           {puedeCrear && (
             <>
-              {/* <button
+              <button
                 onClick={handleSyncSheets}
                 disabled={isSyncing}
                 className="flex items-center justify-center gap-2 px-4 py-2 bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-500 rounded-lg hover:bg-green-500/20 transition-colors font-medium shadow-sm w-full sm:w-auto disabled:opacity-60 disabled:cursor-not-allowed"
@@ -337,7 +440,7 @@ export default function DirectorioContactos() {
                   <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
                 )}
                 Sincronizar con Sheets
-              </button> */}
+              </button>
               <button
                 onClick={() => setIsImportModalOpen(true)}
                 className="flex items-center justify-center gap-2 px-4 py-2 bg-surface border border-border text-dark rounded-lg hover:bg-background transition-colors font-medium shadow-sm w-full sm:w-auto"
@@ -364,12 +467,70 @@ export default function DirectorioContactos() {
         </div>
       </div>
 
+      {showHelp && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto animate-fade-in">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-lg p-6 border border-border relative my-auto animate-slide-up max-h-[90vh] overflow-y-auto">
+            <button 
+              onClick={() => setShowHelp(false)}
+              className="absolute top-4 right-4 text-muted hover:text-dark transition-colors"
+            >
+              <X size={20} />
+            </button>
+            <h3 className="text-lg font-bold text-dark mb-4 flex items-center gap-2">
+              <Info size={20} className="text-primary" />
+              ¿Cómo organizar tu base?
+            </h3>
+            
+            <div className="space-y-3.5 text-sm text-dark">
+              <div className="bg-background p-3 rounded-lg border border-border">
+                <h4 className="font-semibold text-primary mb-1">🔄 Sincronizar Sheets</h4>
+                <p className="text-muted leading-relaxed">
+                  Importa nuevos contactos desde el Excel en la nube de Google Sheets (Automático y manual).
+                </p>
+              </div>
+
+              <div className="bg-background p-3 rounded-lg border border-border">
+                <h4 className="font-semibold text-primary mb-1">📤 Exportar/Importar CSV</h4>
+                <p className="text-muted leading-relaxed">
+                  Sirve para hacer respaldos masivos o migraciones a otros sistemas de forma rápida.
+                </p>
+              </div>
+
+              <div className="bg-background p-3 rounded-lg border border-border">
+                <h4 className="font-semibold text-primary mb-1">🛡️ Estados (Rebotes)</h4>
+                <p className="text-muted leading-relaxed">
+                  Los correos que no existan o reboten pasarán a estado "Rebotado" automáticamente por el sistema, lo que evita que se les envíe en la próxima campaña cuidando la reputación de tu cuenta.
+                </p>
+              </div>
+            </div>
+            
+            <button
+              onClick={() => setShowHelp(false)}
+              className="mt-6 w-full px-4 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {syncResult && (
         <div className="mb-6">
           <AlertMessage
             type={syncResult.success ? "success" : "error"}
             message={syncResult.message}
             onClose={() => setSyncResult(null)}
+          />
+        </div>
+      )}
+
+      {exportError && (
+        <div className="mb-6">
+          <AlertMessage
+            type="error"
+            message={exportError}
+            onClose={() => setExportError(null)}
           />
         </div>
       )}
@@ -427,6 +588,7 @@ export default function DirectorioContactos() {
               className="w-full pl-3 pr-10 py-2.5 text-sm bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors h-[42px]"
             >
               <option value="">Todos los rubros</option>
+              <option value="__sin_rubro__">Sin Rubro</option>
               {RUBROS_LIST.map((r) => (
                 <option key={r} value={r}>{RUBROS_LABELS[r] || r}</option>
               ))}
@@ -446,6 +608,7 @@ export default function DirectorioContactos() {
               <option value="rebotado bandeja llena">Rebotado Bandeja Llena</option>
               <option value="rebotado spam">Rebotado SPAM</option>
               <option value="rebotado desconocido">Rebotado Desconocido</option>
+              <option value="mal_escrito">Mail Mal Escrito</option>
             </select>
           </div>
           <div className="flex flex-row gap-3 w-full lg:w-auto">
@@ -494,10 +657,14 @@ export default function DirectorioContactos() {
               ) : (
                 contactos.map((c) => {
                   const estadoBadge =
-                    c.estado === 'funcional' ? 'bg-[#16A34A] text-white' :
-                      c.estado === 'inactivo' ? 'bg-gray-500 text-white' :
-                        c.estado.includes('rebotado') ? 'bg-[#DC2626] text-white' :
-                          'bg-gray-500 text-white';
+                    c.estado === 'funcional' ? 'bg-[#10b981] text-white' : // Verde (Activos)
+                    c.estado === 'rebotado inexistente' ? 'bg-[#ef4444] text-white' : // Rojo
+                    c.estado === 'rebotado bandeja llena' ? 'bg-[#f97316] text-white' : // Naranja
+                    c.estado === 'rebotado spam' ? 'bg-[#854d0e] text-white' : // Marrón
+                    c.estado === 'rebotado desconocido' ? 'bg-[#8b5cf6] text-white' : // Violeta
+                    c.estado === 'mal_escrito' ? 'bg-pink-600 text-white' : // Rosa fuerte
+                    c.estado === 'inactivo' ? 'bg-[#64748b] text-white' : // Gris
+                    'bg-gray-500 text-white';
 
                   return (
                     <tr key={c.id} className={`hover:bg-background/50 transition-colors ${selectedIds.includes(c.id) ? 'bg-primary/5' : ''}`}>
@@ -520,9 +687,9 @@ export default function DirectorioContactos() {
                       <td className="px-6 py-4">
                         {c.cuit || '-'}
                       </td>
-                      <td className="px-6 py-4 max-w-[150px] truncate" title={c.rubro_nombre || '-'}>
-                        <span className="bg-background border border-border px-2 py-1 rounded text-xs">
-                          {c.rubro_nombre || '-'}
+                      <td className="px-6 py-4 max-w-[170px] truncate" title={(c.rubro_nombre && (RUBROS_LABELS[c.rubro_nombre.trim().toLowerCase()] || c.rubro_nombre)) || 'Sin rubro'}>
+                        <span className={`px-2.5 py-1 rounded-md text-xs inline-block ${c.rubro_nombre ? 'bg-background border border-border text-dark font-medium shadow-xs' : 'text-muted italic'}`}>
+                          {c.rubro_nombre ? (RUBROS_LABELS[c.rubro_nombre.trim().toLowerCase()] || c.rubro_nombre) : 'Sin rubro'}
                         </span>
                       </td>
                       <td className="px-6 py-4">
@@ -631,9 +798,9 @@ export default function DirectorioContactos() {
         )}
       </div>
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-surface w-full max-w-lg rounded-xl border border-border shadow-2xl overflow-hidden animate-fade-in">
+      {isModalOpen && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto animate-fade-in">
+          <div className="bg-surface w-full max-w-lg rounded-xl border border-border shadow-2xl overflow-hidden my-auto animate-fade-in">
             <div className="px-6 py-4 border-b border-border flex justify-between items-center">
               <h2 className="text-lg font-bold text-dark">{editingId ? 'Editar Contacto' : 'Nuevo Contacto'}</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-muted hover:text-dark">
@@ -666,20 +833,20 @@ export default function DirectorioContactos() {
                     value={form.empresa_nombre || ''}
                     onChange={e => {
                       setForm({ ...form, empresa_nombre: e.target.value });
-                      buscarEmpresasSugeridas(e.target.value);
+                      buscarEmpresasSugeridas(e.target.value, 'empresa');
                     }}
                     onBlur={() => setTimeout(() => setShowEmpresaSugeridas(false), 150)}
                     className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 h-[42px]"
                     placeholder="Nombre de la empresa (busca entre existentes)"
                   />
-                  {showEmpresaSugeridas && empresasSugeridas.length > 0 && (
+                  {showEmpresaSugeridas === 'empresa' && empresasSugeridas.length > 0 && (
                     <ul className="absolute z-50 w-full bg-surface border border-border rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
                       {empresasSugeridas.map(emp => (
                         <li
                           key={emp.id}
                           className="px-3 py-2 hover:bg-primary/10 cursor-pointer text-dark flex justify-between items-center"
                           onMouseDown={() => {
-                            setForm(f => ({ ...f, empresa_nombre: emp.nombre, cuit: emp.cuit || f.cuit }));
+                            setForm(f => ({ ...f, empresa_nombre: emp.nombre, cuit: emp.cuit || f.cuit, rubro_id: emp.rubro_id || f.rubro_id }));
                             setShowEmpresaSugeridas(false);
                           }}
                         >
@@ -691,18 +858,54 @@ export default function DirectorioContactos() {
                   )}
                 </div>
 
-                {/* CUIT - full width */}
-                <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-dark mb-1">CUIT</label>
+                {/* CUIT - full width con autocompletado y opción Sin CUIT */}
+                <div className="sm:col-span-2" style={{ position: 'relative' }}>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-sm font-medium text-dark">
+                      CUIT <span className="text-muted font-normal text-xs">(Opcional)</span>
+                    </label>
+                    {form.cuit && form.cuit.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, cuit: '' }))}
+                        className="text-xs text-primary hover:text-primary-dark font-medium hover:underline transition-colors"
+                      >
+                        Dejar sin CUIT
+                      </button>
+                    )}
+                  </div>
                   <input
                     type="text"
+                    autoComplete="off"
                     inputMode="numeric"
                     value={form.cuit || ''}
-                    onChange={e => setForm({ ...form, cuit: e.target.value.replace(/\D/g, '') })}
+                    onChange={e => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setForm({ ...form, cuit: val });
+                      buscarEmpresasSugeridas(val, 'cuit');
+                    }}
+                    onBlur={() => setTimeout(() => setShowEmpresaSugeridas(false), 150)}
                     className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 h-[42px]"
-                    placeholder="Sin guiones (ej: 30709328995)"
+                    placeholder="Sin guiones (ej: 30709328995) o dejar vacío"
                     maxLength={11}
                   />
+                  {showEmpresaSugeridas === 'cuit' && empresasSugeridas.length > 0 && (
+                    <ul className="absolute z-50 w-full bg-surface border border-border rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+                      {empresasSugeridas.map(emp => (
+                        <li
+                          key={emp.id}
+                          className="px-3 py-2 hover:bg-primary/10 cursor-pointer text-dark flex justify-between items-center"
+                          onMouseDown={() => {
+                            setForm(f => ({ ...f, empresa_nombre: emp.nombre, cuit: emp.cuit || f.cuit, rubro_id: emp.rubro_id || f.rubro_id }));
+                            setShowEmpresaSugeridas(false);
+                          }}
+                        >
+                          <span>{emp.nombre}</span>
+                          {emp.cuit && <span className="text-muted text-xs">{emp.cuit}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
 
                 {/* Estado y Tipo - lado a lado */}
@@ -719,6 +922,7 @@ export default function DirectorioContactos() {
                     <option value="rebotado bandeja llena">Rebotado Bandeja Llena</option>
                     <option value="rebotado spam">Rebotado SPAM</option>
                     <option value="rebotado desconocido">Rebotado Desconocido</option>
+                    <option value="mal_escrito">Mail Mal Escrito</option>
                   </select>
                 </div>
 
@@ -770,7 +974,8 @@ export default function DirectorioContactos() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {isImportModalOpen && (
@@ -781,9 +986,9 @@ export default function DirectorioContactos() {
       )}
 
       {/* Modal de Confirmación de Eliminación */}
-      {deleteConfirmId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in p-4">
-          <div className="bg-surface rounded-xl shadow-xl w-full max-w-sm p-6 animate-fade-in border border-border text-center">
+      {deleteConfirmId && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4 overflow-y-auto">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-sm p-6 animate-fade-in border border-border text-center my-auto">
             <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-danger/10 mb-4">
               <Trash2 className="h-6 w-6 text-danger" />
             </div>
@@ -806,13 +1011,14 @@ export default function DirectorioContactos() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal de Confirmación de Eliminación Masiva */}
-      {bulkDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in p-4">
-          <div className="bg-surface rounded-xl shadow-xl w-full max-w-sm p-6 animate-fade-in border border-border text-center">
+      {bulkDeleteConfirm && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4 overflow-y-auto">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-sm p-6 animate-fade-in border border-border text-center my-auto">
             <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-danger/10 mb-4">
               <Trash2 className="h-6 w-6 text-danger" />
             </div>
@@ -839,8 +1045,10 @@ export default function DirectorioContactos() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
 }
+

@@ -26,6 +26,8 @@ services:
       - TZ=America/Argentina/Buenos_Aires
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - PUBLIC_API_URL=${PUBLIC_API_URL:-https://mailer.tudominio.com}
+      - APP_URL=${APP_URL:-https://mailer.tudominio.com}
     volumes:
       - uploads_data:/app/uploads
     depends_on:

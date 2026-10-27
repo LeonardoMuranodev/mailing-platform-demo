@@ -1,19 +1,20 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Send, AlertTriangle, CheckCircle2, Clock, Mail, Search, RefreshCw, BarChart2, Download, MousePointerClick, Pause, Play, Trash2, Edit3 } from 'lucide-react';
-import { obtenerCampanaDetalle, obtenerColaCampana, cambiarEstadoCampana, eliminarCampana } from '../services/api';
+import { ArrowLeft, Send, AlertTriangle, CheckCircle2, Clock, Mail, Search, RefreshCw, BarChart2, Download, MousePointerClick, Pause, Play, Trash2, Edit3, ArrowUp, Zap, X } from 'lucide-react';
+import { obtenerCampanaDetalle, obtenerColaCampana, cambiarEstadoCampana, eliminarCampana, actualizarProgramacionCampana } from '../services/api';
 import type { CampanaConStats, ColaEnvioItem } from '../types/campana';
 import { formatDate } from '../utils/formatDate';
 import { RUBROS_LABELS } from '../data/rubros';
 import { usePermisos } from '../hooks/usePermisos';
 
 const ESTADO_BADGE_CLASSES: Record<string, string> = {
-  borrador: 'bg-slate-100 text-slate-600 border-slate-200',
-  aprobada: 'bg-blue-50 text-blue-700 border-blue-200',
-  en_proceso: 'bg-amber-50 text-amber-700 border-amber-200',
-  pausada: 'bg-orange-50 text-orange-700 border-orange-200',
-  completada: 'bg-green-50 text-green-700 border-green-200',
-  cancelada: 'bg-red-50 text-red-700 border-red-200',
+  borrador: 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+  aprobada: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800',
+  en_proceso: 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-700',
+  pausada: 'bg-orange-50 text-orange-700 border-orange-300 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-700',
+  completada: 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-700',
+  cancelada: 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-700',
 };
 
 const ESTADO_LABELS: Record<string, string> = {
@@ -36,6 +37,25 @@ export default function DetalleCampana() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [forzarConfirm, setForzarConfirm] = useState(false);
 
+  // Modal para cambiar fecha límite / ritmo
+  const [showModalFecha, setShowModalFecha] = useState(false);
+  const [nuevaFecha, setNuevaFecha] = useState('');
+  const [nuevaPrioridad, setNuevaPrioridad] = useState<'alta' | 'media' | 'baja'>('media');
+  const [guardandoFecha, setGuardandoFecha] = useState(false);
+  const [errorModalFecha, setErrorModalFecha] = useState<string | null>(null);
+  const [exitoModalFecha, setExitoModalFecha] = useState(false);
+
+  // Bloquear scroll del fondo cuando hay modal abierto
+  useEffect(() => {
+    const isAnyModalOpen = Boolean(deleteConfirm || forzarConfirm || showModalFecha);
+    if (isAnyModalOpen) {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = '';
+      };
+    }
+  }, [deleteConfirm, forzarConfirm, showModalFecha]);
+
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
 
@@ -44,10 +64,42 @@ export default function DetalleCampana() {
   const [cola, setCola] = useState<ColaEnvioItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'cola' | 'stats'>('cola');
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   // Filtros para la cola
   const [emailFiltro, setEmailFiltro] = useState('');
   const [estadoFiltro, setEstadoFiltro] = useState('');
+
+  // Bloquear scroll del fondo cuando hay modal abierto
+  useEffect(() => {
+    const isAnyModalOpen = Boolean(deleteConfirm || forzarConfirm || showModalFecha);
+    if (isAnyModalOpen) {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = '';
+      };
+    }
+  }, [deleteConfirm, forzarConfirm, showModalFecha]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 300) {
+        setShowScrollTop(true);
+      } else {
+        setShowScrollTop(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
 
   const fetchData = async (overrideEmail?: string, overrideEstado?: string) => {
     if (!id) return;
@@ -126,6 +178,40 @@ export default function DetalleCampana() {
     }
   };
 
+  const handleGuardarProgramacion = async () => {
+    if (!campana || !nuevaFecha) return;
+    setGuardandoFecha(true);
+    setErrorModalFecha(null);
+    try {
+      const res = await actualizarProgramacionCampana(campana.id, {
+        fecha_limite_envio: nuevaFecha,
+        prioridad: nuevaPrioridad,
+      });
+      if (res.success && res.data) {
+        setCampana((prev) =>
+          prev
+            ? {
+                ...prev,
+                fecha_limite_envio: res.data!.fecha_limite_envio,
+                prioridad: res.data!.prioridad,
+              }
+            : prev
+        );
+        setExitoModalFecha(true);
+        setTimeout(() => {
+          setExitoModalFecha(false);
+          setShowModalFecha(false);
+        }, 900);
+      } else {
+        setErrorModalFecha(res.error?.message || 'Error al actualizar la programación');
+      }
+    } catch (err: any) {
+      setErrorModalFecha(err.message || 'Error de conexión');
+    } finally {
+      setGuardandoFecha(false);
+    }
+  };
+
   const exportarCSV = () => {
     if (!campana) return;
 
@@ -142,7 +228,7 @@ export default function DetalleCampana() {
 
     const rubrosStr = campana.para_todos_rubros
       ? 'Todos los rubros'
-      : campana.rubros_seleccionados.map((r: string) => r === '__sin_rubro__' ? 'Sin Rubro' : RUBROS_LABELS[r as keyof typeof RUBROS_LABELS] || r).join(' - ');
+      : (campana.rubros_seleccionados || []).map((r: string) => r === '__sin_rubro__' ? 'Sin Rubro' : RUBROS_LABELS[r as keyof typeof RUBROS_LABELS] || r).join(' - ');
 
     const csvContent = [
       ['Asunto:', `"${campana.asunto}"`],
@@ -203,82 +289,175 @@ export default function DetalleCampana() {
           <ArrowLeft size={18} />
           Volver a Campañas
         </button>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-dark">{campana.asunto}</h1>
-            <p className="text-sm text-muted mt-1 flex flex-col sm:flex-row sm:items-center gap-2">
-              <span className="flex items-center gap-1"><CalendarIcon size={14} /> Creada: {formatDate(campana.creado_en)}</span>
-              <span className="hidden sm:inline">•</span>
-              <span className="flex items-center gap-1"><Clock size={14} /> Límite: {formatDate(campana.fecha_limite_envio)}</span>
-            </p>
-            <p className="text-sm text-dark mt-2">
-              <strong>Rubros:</strong> {campana.para_todos_rubros ? 'Todos los rubros' : campana.rubros_seleccionados.map((r: string) => r === '__sin_rubro__' ? 'Sin Rubro' : RUBROS_LABELS[r as keyof typeof RUBROS_LABELS] || r).join(', ')}
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <span className={`px-3 py-1.5 text-sm font-semibold border rounded-full ${ESTADO_BADGE_CLASSES[campana.estado] || 'bg-slate-100'}`}>
-              {ESTADO_LABELS[campana.estado] || campana.estado}
-            </span>
-            {puedeEditar && campana.estado === 'borrador' && (
-              <>
-                <button
-                  onClick={() => navigate(`/campanas/editar/${campana.id}`)}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border text-dark rounded-lg hover:text-primary hover:border-primary/30 transition-colors text-sm font-medium"
-                >
-                  <Edit3 size={16} /> Editar
-                </button>
-                <button
-                  onClick={async () => {
-                    try {
-                      const res = await cambiarEstadoCampana(campana.id, 'aprobada');
-                      if (res.success && res.data) {
-                        setCampana(prev => prev ? { ...prev, estado: res.data!.estado } : prev);
-                      }
-                    } catch (err) {
-                      console.error('Error al aprobar campaña:', err);
-                    }
-                  }}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
-                >
-                  <CheckCircle2 size={16} /> Aprobar
-                </button>
-              </>
-            )}
-            {puedeEditar && ['en_proceso', 'aprobada'].includes(campana.estado) && (
-              <>
-                {(() => {
-                  const stamp = localStorage.getItem(`forzado_${campana.id}`);
-                  const isBlocked = stamp && (Date.now() - parseInt(stamp) < 600000); // 10 mins
-                  if (!isBlocked) {
-                    return (
-                      <button onClick={() => setForzarConfirm(true)} className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors text-sm font-medium" title="Ignorar cron y procesar la cola de envíos ahora mismo">
-                        <Send size={16} /> Forzar Envío
-                      </button>
-                    );
-                  }
-                  return null;
-                })()}
 
-                {campana.estado === 'en_proceso' && (
-                  <button onClick={handleTogglePausa} className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors text-sm font-medium">
-                    <Pause size={16} /> Pausar
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 pb-5 border-b border-border/70">
+          {/* Identificación de la Campaña y Estado */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl sm:text-3xl font-bold text-dark tracking-tight">{campana.asunto}</h1>
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-full border shadow-xs tracking-wider uppercase ${ESTADO_BADGE_CLASSES[campana.estado] || 'bg-slate-100'}`}>
+                <span className="w-1.5 h-1.5 rounded-full bg-current opacity-80 animate-pulse"></span>
+                {ESTADO_LABELS[campana.estado] || campana.estado}
+              </span>
+            </div>
+
+            {/* Metadatos: Fechas, Prioridad y Modificar */}
+            <div className="text-xs sm:text-sm text-muted flex items-center gap-2 flex-wrap">
+              <span className="flex items-center gap-1.5">
+                <CalendarIcon size={14} className="text-muted" />
+                <span>Creada: <strong>{formatDate(campana.creado_en)}</strong></span>
+              </span>
+              <span className="text-border">•</span>
+              <span className="flex items-center gap-1.5 flex-wrap">
+                <Clock size={14} className="text-muted" />
+                <span>Límite: <strong>{formatDate(campana.fecha_limite_envio)}</strong></span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase border ${
+                  campana.prioridad === 'alta'
+                    ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'
+                    : campana.prioridad === 'baja'
+                    ? 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30'
+                    : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30'
+                }`}>
+                  {campana.prioridad}
+                </span>
+                {puedeEditar && ['borrador', 'aprobada', 'en_proceso', 'pausada'].includes(campana.estado) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNuevaFecha(campana.fecha_limite_envio ? campana.fecha_limite_envio.split('T')[0] : '');
+                      setNuevaPrioridad(campana.prioridad || 'media');
+                      setErrorModalFecha(null);
+                      setExitoModalFecha(false);
+                      setShowModalFecha(true);
+                    }}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-dark transition-colors ml-1 cursor-pointer"
+                    title="Modificar fecha límite y ritmo de despacho"
+                  >
+                    <Edit3 size={13} />
+                    <span>Modificar</span>
                   </button>
                 )}
-              </>
-            )}
-            {puedeEditar && campana.estado === 'pausada' && (
-              <button onClick={handleTogglePausa} className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium">
-                <Play size={16} /> Reanudar
+              </span>
+            </div>
+
+            <p className="text-xs sm:text-sm text-dark/90">
+              <strong className="text-muted">Rubros:</strong> {campana.para_todos_rubros ? 'Todos los rubros' : (campana.rubros_seleccionados || []).map((r: string) => r === '__sin_rubro__' ? 'Sin Rubro' : RUBROS_LABELS[r as keyof typeof RUBROS_LABELS] || r).join(', ')}
+            </p>
+          </div>
+
+          {/* Barra de Acciones Normalizada (Mobile: 2 columnas alineadas / Desktop: fila homogénea) */}
+          <div className="w-full lg:w-auto">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end gap-2 sm:gap-2.5">
+              {puedeEditar && campana.estado === 'borrador' && (
+                <>
+                  <button
+                    onClick={() => navigate(`/campanas/editar/${campana.id}`)}
+                    className="h-10 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-2 transition-all duration-200 whitespace-nowrap shadow-xs cursor-pointer bg-surface border border-border text-dark hover:border-primary/40 hover:text-primary"
+                  >
+                    <Edit3 size={16} className="shrink-0" />
+                    <span>Editar</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const res = await cambiarEstadoCampana(campana.id, 'aprobada');
+                        if (res.success && res.data) {
+                          setCampana(prev => prev ? { ...prev, estado: res.data!.estado } : prev);
+                        }
+                      } catch (err) {
+                        console.error('Error al aprobar campaña:', err);
+                      }
+                    }}
+                    className="h-10 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-2 transition-all duration-200 whitespace-nowrap shadow-xs cursor-pointer bg-primary hover:bg-primary-dark text-white shadow-primary/20"
+                  >
+                    <CheckCircle2 size={16} className="shrink-0" />
+                    <span>Aprobar</span>
+                  </button>
+                </>
+              )}
+
+              {puedeEditar && ['en_proceso', 'aprobada'].includes(campana.estado) && (
+                <>
+                  {(() => {
+                    const stamp = localStorage.getItem(`forzado_${campana.id}`);
+                    const isBlocked = stamp && (Date.now() - parseInt(stamp) < 600000); // 10 mins
+                    if (!isBlocked) {
+                      return (
+                        <button
+                          onClick={() => setForzarConfirm(true)}
+                          className="h-10 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-2 transition-all duration-200 whitespace-nowrap shadow-xs cursor-pointer bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/20 hover:border-indigo-500/50"
+                          title="Ignorar cron y procesar la cola de envíos ahora mismo"
+                        >
+                          <Send size={16} className="shrink-0 text-indigo-600 dark:text-indigo-400" />
+                          <span>Forzar Envío</span>
+                        </button>
+                      );
+                    }
+                    return null;
+                  })()}
+
+                  {campana.estado === 'en_proceso' && (
+                    <button
+                      onClick={handleTogglePausa}
+                      className="h-10 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-2 transition-all duration-200 whitespace-nowrap shadow-xs cursor-pointer bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/20 hover:border-amber-500/50"
+                      title="Pausar temporalmente los envíos automáticos"
+                    >
+                      <Pause size={16} className="shrink-0 text-amber-600 dark:text-amber-400" />
+                      <span>Pausar</span>
+                    </button>
+                  )}
+                </>
+              )}
+
+              {puedeEditar && campana.estado === 'pausada' && (
+                <button
+                  onClick={handleTogglePausa}
+                  className="h-10 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-2 transition-all duration-200 whitespace-nowrap shadow-xs cursor-pointer bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/20 hover:border-emerald-500/50"
+                  title="Reanudar el despacho automático de correos"
+                >
+                  <Play size={16} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <span>Reanudar</span>
+                </button>
+              )}
+
+              {puedeEditar && ['en_proceso', 'aprobada', 'pausada'].includes(campana.estado) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNuevaFecha(campana.fecha_limite_envio ? campana.fecha_limite_envio.split('T')[0] : '');
+                    setNuevaPrioridad(campana.prioridad || 'media');
+                    setErrorModalFecha(null);
+                    setExitoModalFecha(false);
+                    setShowModalFecha(true);
+                  }}
+                  className="h-10 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-2 transition-all duration-200 whitespace-nowrap shadow-xs cursor-pointer bg-surface text-dark border border-border hover:border-amber-500/40 hover:bg-amber-500/5 hover:text-amber-600 dark:hover:text-amber-400"
+                  title="Ajustar fecha límite o prioridad para acelerar o regular el ritmo de despacho"
+                >
+                  <Zap size={16} className="shrink-0 text-amber-500" />
+                  <span>Cambiar Ritmo</span>
+                </button>
+              )}
+
+              <button
+                onClick={exportarCSV}
+                className="h-10 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-2 transition-all duration-200 whitespace-nowrap shadow-xs cursor-pointer bg-surface text-dark border border-border hover:bg-background hover:text-primary hover:border-primary/40"
+                title="Descargar lista de destinatarios y estados en formato CSV"
+              >
+                <Download size={16} className="shrink-0 text-muted" />
+                <span>Exportar CSV</span>
               </button>
-            )}
-            <button onClick={exportarCSV} className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border text-dark rounded-lg hover:bg-border transition-colors text-sm font-medium">
-              <Download size={16} /> Exportar CSV
-            </button>
-            {puedeEliminar && (
-              <button onClick={() => setDeleteConfirm(true)} className="flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-200 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium">
-                <Trash2 size={16} /> Eliminar
-              </button>
-            )}
+
+              {puedeEliminar && (
+                <button
+                  onClick={() => setDeleteConfirm(true)}
+                  className="h-10 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-2 transition-all duration-200 whitespace-nowrap shadow-xs cursor-pointer bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 hover:border-rose-500/40 col-span-2 sm:col-span-1"
+                  title="Eliminar campaña"
+                >
+                  <Trash2 size={16} className="shrink-0 text-rose-500" />
+                  <span>Eliminar</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -476,41 +655,59 @@ export default function DetalleCampana() {
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {(() => {
-                        const fallidos = cola.filter(c => c.estado === 'fallido' || (c.estado === 'pendiente' && c.respuesta_smtp));
-                        if (fallidos.length === 0) return <p className="text-sm text-muted">Buscando datos...</p>;
+                        const fallosLista = campana.stats.desglose_fallos && campana.stats.desglose_fallos.length > 0
+                          ? campana.stats.desglose_fallos
+                          : (() => {
+                            const fallidos = cola.filter(c => c.estado === 'fallido' || (c.estado === 'pendiente' && c.respuesta_smtp));
+                            if (fallidos.length === 0) return [];
 
-                        const categorias = {
-                          'Dominio Inexistente': 0,
-                          'Credenciales/Login SMTP': 0,
-                          'Cuota Excedida (Remitente)': 0,
-                          'Casilla Llena (Destinatario)': 0,
-                          'Rechazado por Spam': 0,
-                          'Otros': 0
-                        };
+                            const categorias: Record<string, number> = {
+                              'Cancelado': 0,
+                              'Dominio Inexistente': 0,
+                              'Credenciales/Login SMTP': 0,
+                              'Cuota Excedida (Remitente)': 0,
+                              'Casilla Llena (Destinatario)': 0,
+                              'Rechazado por Spam': 0,
+                              'Email Mal Escrito': 0,
+                              'Otros': 0
+                            };
 
-                        fallidos.forEach(f => {
-                          const msg = (f.respuesta_smtp || '').toLowerCase();
-                          if (msg.includes('domain not found') || msg.includes('nxdomain') || msg.includes('no such domain') || msg.includes('el correo o dominio no existe')) categorias['Dominio Inexistente']++;
-                          else if (msg.includes('login') || msg.includes('auth') || msg.includes('password') || msg.includes('webloginrequired')) categorias['Credenciales/Login SMTP']++;
-                          else if (msg.includes('daily sending limit') || msg.includes('quota exceeded') && !msg.includes('mailbox')) categorias['Cuota Excedida (Remitente)']++;
-                          else if (msg.includes('mailbox full') || msg.includes('storage full') || msg.includes('bandeja de entrada llena') || (msg.includes('quota') && msg.includes('mailbox'))) categorias['Casilla Llena (Destinatario)']++;
-                          else if (msg.includes('spam') || msg.includes('blocked') || msg.includes('blacklisted') || msg.includes('política del servidor')) categorias['Rechazado por Spam']++;
-                          else categorias['Otros']++;
-                        });
+                            fallidos.forEach(f => {
+                              const msg = (f.respuesta_smtp || '').toLowerCase();
+                              if (msg.includes('cancelad')) categorias['Cancelado']++;
+                              else if (msg.includes('domain not found') || msg.includes('nxdomain') || msg.includes('no such domain') || msg.includes('el correo o dominio no existe')) categorias['Dominio Inexistente']++;
+                              else if (msg.includes('mail_mal_escrito') || msg.includes('syntax error') || msg.includes('mal escrito')) categorias['Email Mal Escrito']++;
+                              else if (msg.includes('login') || msg.includes('auth') || msg.includes('password') || msg.includes('webloginrequired')) categorias['Credenciales/Login SMTP']++;
+                              else if ((msg.includes('daily sending limit') || msg.includes('quota exceeded')) && !msg.includes('mailbox') && !msg.includes('bandeja')) categorias['Cuota Excedida (Remitente)']++;
+                              else if (msg.includes('mailbox full') || msg.includes('storage full') || msg.includes('bandeja de entrada llena') || (msg.includes('quota') && (msg.includes('mailbox') || msg.includes('bandeja')))) categorias['Casilla Llena (Destinatario)']++;
+                              else if (msg.includes('spam') || msg.includes('blocked') || msg.includes('blacklisted') || msg.includes('bloqueado') || msg.includes('política del servidor')) categorias['Rechazado por Spam']++;
+                              else categorias['Otros']++;
+                            });
 
-                        return Object.entries(categorias)
-                          .filter(([_, count]) => count > 0)
-                          .map(([label, count]) => (
-                            <div key={label} className="bg-background border border-border p-3 rounded-lg flex justify-between items-center">
-                              <span className="text-sm font-medium text-dark">{label}</span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm text-muted">{count}</span>
-                                <span className="text-xs px-2 py-1 bg-surface rounded-md font-bold text-slate-600">
-                                  {((count / fallidos.length) * 100).toFixed(0)}%
-                                </span>
-                              </div>
+                            return Object.entries(categorias)
+                              .filter(([_, count]) => count > 0)
+                              .map(([categoria, cantidad]) => ({
+                                categoria,
+                                cantidad,
+                                porcentaje: Math.round((cantidad / fallidos.length) * 100)
+                              }));
+                          })();
+
+                        if (fallosLista.length === 0) {
+                          return <p className="text-sm text-muted col-span-2">No se registran detalles específicos para los fallos.</p>;
+                        }
+
+                        return fallosLista.map((item) => (
+                          <div key={item.categoria} className="bg-background border border-border p-3 rounded-lg flex justify-between items-center shadow-xs">
+                            <span className="text-sm font-medium text-dark">{item.categoria}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-muted font-medium">{item.cantidad}</span>
+                              <span className="text-xs px-2 py-1 bg-surface border border-border/50 rounded-md font-bold text-dark">
+                                {item.porcentaje}%
+                              </span>
                             </div>
-                          ));
+                          </div>
+                        ));
                       })()}
                     </div>
                   </div>
@@ -522,75 +719,208 @@ export default function DetalleCampana() {
       </div>
 
       {/* Modal de Confirmación de Eliminación */}
-      {deleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+      {deleteConfirm && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-modal-pop border border-border">
             <div className="p-6">
               <div className="flex justify-center mb-4">
-                <div className="bg-red-100 p-3 rounded-full">
-                  <AlertTriangle size={32} className="text-red-600" />
+                <div className="bg-red-100 dark:bg-red-950/40 p-3 rounded-full">
+                  <AlertTriangle size={32} className="text-red-600 dark:text-red-400" />
                 </div>
               </div>
               <h3 className="text-xl font-bold text-center text-dark mb-2">
                 ¿Eliminar campaña?
               </h3>
               <p className="text-center text-muted mb-6">
-                Estás a punto de eliminar la campaña <strong>{campana.asunto}</strong>. Esta acción también eliminará todo su historial y métricas y no se puede deshacer.
+                Estás a punto de eliminar la campaña <strong>{campana?.asunto}</strong>. Esta acción también eliminará todo su historial y métricas y no se puede deshacer.
               </p>
 
               <div className="flex gap-3">
                 <button
                   onClick={() => setDeleteConfirm(false)}
-                  className="flex-1 py-2.5 px-4 bg-surface border border-border text-dark rounded-lg font-medium hover:bg-border transition-colors"
+                  className="flex-1 py-2.5 px-4 bg-surface border border-border text-dark rounded-lg font-medium hover:bg-border transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleDelete}
-                  className="flex-1 py-2.5 px-4 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors shadow-sm"
+                  className="flex-1 py-2.5 px-4 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors shadow-sm cursor-pointer"
                 >
                   Sí, Eliminar
                 </button>
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal de Confirmación para Forzar Envío */}
-      {forzarConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+      {forzarConfirm && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-modal-pop border border-border">
             <div className="p-6">
               <div className="flex justify-center mb-4">
-                <div className="bg-indigo-100 p-3 rounded-full">
-                  <Send size={32} className="text-indigo-600" />
+                <div className="bg-indigo-100 dark:bg-indigo-950/40 p-3 rounded-full">
+                  <Send size={32} className="text-indigo-600 dark:text-indigo-400" />
                 </div>
               </div>
               <h3 className="text-xl font-bold text-center text-dark mb-2">
                 ¿Forzar Envío Ahora?
               </h3>
               <p className="text-center text-muted mb-6">
-                Esto ignorará el cronjob automático del servidor y disparará el intento de enviar mails pendientes de forma inmediata. Solo se ejecutará un intento global y se bloqueará el botón por 10 minutos.
+                Esto ignorará el cronjob automático del servidor y disparará el intento de enviar mails pendientes de forma inmediata. También ignorará las restricciones de horarios y días feriados. Solo se ejecutará un intento global y se bloqueará el botón por 10 minutos.
               </p>
 
               <div className="flex gap-3">
                 <button
                   onClick={() => setForzarConfirm(false)}
-                  className="flex-1 py-2.5 px-4 bg-surface border border-border text-dark rounded-lg font-medium hover:bg-border transition-colors"
+                  className="flex-1 py-2.5 px-4 bg-surface border border-border text-dark rounded-lg font-medium hover:bg-border transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleForzarEnvio}
-                  className="flex-1 py-2.5 px-4 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm"
+                  className="flex-1 py-2.5 px-4 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm cursor-pointer"
                 >
                   Sí, Disparar Envíos
                 </button>
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Modal para Modificar Fecha Límite / Ritmo */}
+      {showModalFecha && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-modal-pop border border-border">
+            <div className="p-6">
+              <div className="flex items-center justify-between pb-3 border-b border-border mb-4">
+                <h3 className="text-lg font-bold text-dark flex items-center gap-2">
+                  <Zap className="text-amber-500" size={20} />
+                  Modificar Ritmo y Fecha Límite
+                </h3>
+                <button
+                  onClick={() => {
+                    if (!guardandoFecha) {
+                      setShowModalFecha(false);
+                      setErrorModalFecha(null);
+                    }
+                  }}
+                  className="text-muted hover:text-dark p-1 rounded-md transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-4 text-sm text-dark">
+                {/* Explicación del funcionamiento dinámico */}
+                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2.5">
+                  <AlertTriangle size={16} className="shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                  <p>
+                    <strong>¿Cómo acelerar los envíos?</strong> Al adelantar la fecha límite a un día más cercano, el worker calcula automáticamente lotes más grandes por hora para enviar todos los correos a tiempo (respetando los límites seguros de las cuentas SMTP).
+                  </p>
+                </div>
+
+                {errorModalFecha && (
+                  <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-600 dark:text-red-400 flex items-center gap-2">
+                    <AlertTriangle size={15} className="shrink-0" />
+                    <span>{errorModalFecha}</span>
+                  </div>
+                )}
+
+                {exitoModalFecha && (
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
+                    <CheckCircle2 size={15} className="shrink-0" />
+                    <span>¡Fecha y ritmo actualizados con éxito!</span>
+                  </div>
+                )}
+
+                {/* Input Fecha Límite */}
+                <div>
+                  <label className="block text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">
+                    Nueva Fecha Límite de Envío <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={nuevaFecha}
+                    onChange={(e) => setNuevaFecha(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    disabled={guardandoFecha}
+                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-dark disabled:opacity-50"
+                  />
+                  <p className="text-xs text-muted mt-1">
+                    Fecha actual: <strong>{formatDate(campana.fecha_limite_envio)}</strong>
+                  </p>
+                </div>
+
+                {/* Selector de Prioridad */}
+                <div>
+                  <label className="block text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">
+                    Prioridad de Despacho
+                  </label>
+                  <select
+                    value={nuevaPrioridad}
+                    onChange={(e) => setNuevaPrioridad(e.target.value as 'alta' | 'media' | 'baja')}
+                    disabled={guardandoFecha}
+                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-dark disabled:opacity-50"
+                  >
+                    <option value="alta">Alta</option>
+                    <option value="media">Media</option>
+                    <option value="baja">Baja</option>
+                  </select>
+                </div>
+
+                {/* Botones de acción */}
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-border mt-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowModalFecha(false);
+                      setErrorModalFecha(null);
+                    }}
+                    disabled={guardandoFecha}
+                    className="px-4 py-2 border border-border rounded-lg text-sm font-medium text-muted hover:text-dark hover:bg-background transition-colors cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleGuardarProgramacion}
+                    disabled={guardandoFecha || !nuevaFecha}
+                    className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
+                  >
+                    {guardandoFecha ? (
+                      <RefreshCw size={16} className="animate-spin" />
+                    ) : (
+                      <CheckCircle2 size={16} />
+                    )}
+                    Guardar Cambios
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Botón flotante para volver arriba (a las estadísticas) */}
+      {showScrollTop && (
+        <button
+          type="button"
+          onClick={scrollToTop}
+          className="fixed bottom-6 right-6 z-40 p-3 bg-primary text-white rounded-full shadow-lg hover:bg-primary-dark transition-all duration-300 transform hover:scale-110 flex items-center justify-center gap-2 group"
+          title="Volver a las estadísticas de la campaña"
+          aria-label="Volver arriba"
+        >
+          <ArrowUp size={20} className="group-hover:-translate-y-0.5 transition-transform" />
+          <span className="max-w-0 overflow-hidden whitespace-nowrap group-hover:max-w-xs transition-all duration-300 text-xs font-semibold pr-0 group-hover:pr-1">
+            Volver arriba
+          </span>
+        </button>
       )}
     </div>
   );

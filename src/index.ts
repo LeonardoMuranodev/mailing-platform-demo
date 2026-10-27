@@ -15,11 +15,13 @@ import {
 import { procesarCola } from './services/emailWorker.js';
 import { procesarRebotes, MODO_PRUEBA } from './services/bounceService.js';
 import { resetearContadoresSmtp } from './services/smtpAccountService.js';
+import { syncContactosFromSheetsCron } from './services/googleSheetsService.js';
+import { getClientIdentifier } from './middlewares/rateLimiter.js';
 import cron from 'node-cron';
 import rateLimit from 'express-rate-limit';
 const app = express();
 
-// Confiar en Nginx (Proxy Inverso) para Rate Limiting
+// Confiar en Nginx (1 salto de proxy) para Rate Limiting
 app.set('trust proxy', 1);
 
 // ── Security Middlewares ─────────────────────────────────
@@ -27,17 +29,31 @@ app.use(securityHeaders);
 app.use(corsMiddleware);
 
 // ── Global Rate Limiter ──────────────────────────────────
+// Protección general para la aplicación (5000 peticiones por usuario/IP cada 15 min)
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 300, // Límite de 300 peticiones por IP cada 15 min
+  max: 5000,
+  keyGenerator: getClientIdentifier,
+  validate: { trustProxy: false, keyGeneratorIpFallback: false },
+  skip: (req) => {
+    // Excluir endpoints de polling recurrente, SSE streaming, healthcheck y archivos estáticos
+    return req.path.endsWith('/sync-status') || req.path.endsWith('/stream') || req.path.endsWith('/health') || req.path.startsWith('/uploads');
+  },
   message: { success: false, error: { code: 'TOO_MANY_REQUESTS', message: 'Demasiadas peticiones, intente más tarde' } },
   standardHeaders: true,
   legacyHeaders: false,
 });
 app.use(globalLimiter);
 
-// ── Body Parsers (con límite de tamaño) ─────────────────
-app.use(express.json({ limit: '1mb' }));
+// ── Body Parsers (con límite de tamaño y captura de rawBody para firmas Svix) ───
+app.use(
+  express.json({
+    limit: '1mb',
+    verify: (req: any, _res, buf) => {
+      req.rawBody = buf;
+    },
+  })
+);
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // Servir archivos subidos de forma estática
@@ -70,7 +86,7 @@ dbPool.on('error', async (err) => {
   await notifyDbError(err);
 });
 
-import { runSeed } from './scripts/seed.js';
+import { seedUsuarios } from './scripts/seedUsuarios.js';
 import fs from 'node:fs';
 
 async function runMigrations(): Promise<void> {
@@ -107,36 +123,12 @@ app.listen(config.port, async () => {
   logger.info(`🚀 Server listening on http://localhost:${config.port}`);
   await testDbConnection();
   await runMigrations();
-  // Auto-seeding solo si la DB está vacía (sin usuarios)
-  try {
-    const { rows } = await dbPool.query('SELECT COUNT(*) FROM usuarios');
-    if (parseInt(rows[0].count) === 0) {
-      logger.info('DB vacía detectada, corriendo seed de prueba completo...');
-      await runSeed();
-    }
-
-    // Asegurar siempre que el admin del .env exista y tenga la clave actualizada
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@genmailer.com';
-    const adminPassword = process.env.ADMIN_PASSWORD || 'Admin123!';
-    const bcrypt = await import('bcrypt');
-    const hash = await bcrypt.hash(adminPassword, 10);
-    
-    await dbPool.query(
-      `INSERT INTO usuarios (nombre, email, password_hash, rol)
-       VALUES ('Admin', $1, $2, 'desarrollador')
-       ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash`,
-      [adminEmail, hash]
-    );
-    logger.info(`✅ Credenciales de admin actualizadas desde .env: ${adminEmail}`);
-    
-  } catch(e) {
-    logger.error('Error al chequear DB o asegurar admin', e);
-  }
+  await seedUsuarios();
 
   // Iniciar worker SMTP con Cron (Lunes a Viernes de 9 a 17 hs, o cada 1 min en TEST)
   const cronSmtp = MODO_PRUEBA ? '* * * * *' : '0 9-17 * * 1-5';
   logger.info(`🔄 Iniciando Worker SMTP (Cron: ${cronSmtp})...`);
-  cron.schedule(cronSmtp, procesarCola, {
+  cron.schedule(cronSmtp, () => procesarCola(false), {
     timezone: 'America/Argentina/Buenos_Aires',
   });
 
@@ -160,4 +152,13 @@ app.listen(config.port, async () => {
   }, {
     timezone: 'America/Argentina/Buenos_Aires',
   });
+
+  // Sincronización automática de contactos desde Google Sheets
+  // Se ejecuta cada 2 horas (de 8 a 18 hs los días hábiles) en segundo plano
+  const cronSheets = MODO_PRUEBA ? '*/15 * * * *' : '0 8-18/2 * * 1-5';
+  logger.info(`📊 Programando sincronización automática con Google Sheets (Cron: ${cronSheets})...`);
+  cron.schedule(cronSheets, syncContactosFromSheetsCron, {
+    timezone: 'America/Argentina/Buenos_Aires',
+  });
 });
+

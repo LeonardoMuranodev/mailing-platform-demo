@@ -5,15 +5,19 @@ import path from 'path';
 async function migrate() {
   try {
     console.log('Ejecutando migraciones SQL...');
-    const sqlPath = path.resolve('src/migrations/001_smtp_cola_envios.sql');
-    const sql = fs.readFileSync(sqlPath, 'utf8');
-    await dbPool.query(sql);
+    const migrationsDir = path.resolve('src/migrations');
+    const files = fs.readdirSync(migrationsDir)
+      .filter(f => f.endsWith('.sql'))
+      .sort(); // Sort alphabetically (000, 001, 002, etc.)
 
-    const sqlPath2 = path.resolve('src/migrations/002_add_cuit.sql');
-    const sql2 = fs.readFileSync(sqlPath2, 'utf8');
-    await dbPool.query(sql2);
+    for (const file of files) {
+      console.log(`Ejecutando: ${file}...`);
+      const sqlPath = path.join(migrationsDir, file);
+      const sql = fs.readFileSync(sqlPath, 'utf8');
+      await dbPool.query(sql);
+    }
 
-    console.log('Migraciones ejecutadas exitosamente.');
+    console.log('Todas las migraciones fueron ejecutadas exitosamente.');
   } catch (e) {
     console.error('Error migrando DB:', e);
   } finally {

@@ -1,4 +1,4 @@
-export type EstadoContacto = 'funcional' | 'inactivo' | 'rebotado inexistente' | 'rebotado bandeja llena' | 'rebotado spam' | 'rebotado desconocido';
+export type EstadoContacto = 'funcional' | 'inactivo' | 'rebotado inexistente' | 'rebotado bandeja llena' | 'rebotado spam' | 'rebotado desconocido' | 'mal_escrito';
 
 export interface Contacto {
   id: string;
@@ -20,7 +20,7 @@ export interface ContactoConRubro extends Contacto {
 export interface CrearContactoInput {
   email: string;
   empresa_nombre?: string;
-  cuit?: string;
+  cuit?: string | null;
   rubro_id?: string | null;
   tipo?: string;
   estado?: EstadoContacto;
@@ -29,7 +29,7 @@ export interface CrearContactoInput {
 export interface ActualizarContactoInput {
   email?: string;
   empresa_nombre?: string;
-  cuit?: string;
+  cuit?: string | null;
   rubro_id?: string | null;
   tipo?: string;
   estado?: EstadoContacto;

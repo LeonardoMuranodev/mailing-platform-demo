@@ -12,6 +12,9 @@ export interface ColaEnvio {
   intentos: number;
   fecha_programada: string;             // TIMESTAMPTZ
   fecha_envio: string | null;
+  fecha_apertura?: string | null;
+  fecha_click?: string | null;
+  proveedor_message_id?: string | null;
   creado_en: string;
 }
 

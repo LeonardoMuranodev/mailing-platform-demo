@@ -15,6 +15,7 @@ export interface CuentaSmtp {
   minimo_por_ejecucion: number;
   maximo_por_ejecucion: number;
   ultimo_uso: string | null;          // TIMESTAMPTZ serializado como ISO string
+  es_oauth?: boolean;
   creado_en: string;
   actualizado_en: string;
 }

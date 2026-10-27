@@ -6,10 +6,15 @@ import type {
 } from '../types/smtp.js';
 import { encrypt, decrypt } from '../utils/encryption.js';
 import nodemailer from 'nodemailer';
+import { esCuentaOAuth } from './gmailApiService.js';
 
 function omitPassword(cuenta: CuentaSmtp): CuentaSmtp {
   if (!cuenta) return cuenta;
-  return { ...cuenta, password_encrypted: '********' };
+  return { 
+    ...cuenta, 
+    password_encrypted: '********',
+    es_oauth: esCuentaOAuth(cuenta.email),
+  };
 }
 
 /**
@@ -42,8 +47,8 @@ async function verificarConexionSmtp(host: string, puerto: number, usuario: stri
     });
     await transporter.verify();
   } catch (error: any) {
-    if (error.responseCode === 535 || (error.message && error.message.includes('Auth')) || (error.message && error.message.includes('Username and Password'))) {
-      throw new Error('Contraseña de aplicación inválida o el usuario no existe.');
+    if (error.responseCode === 535 || error.responseCode === 534 || (error.message && (error.message.includes('Auth') || error.message.includes('Username and Password') || error.message.includes('Application-specific')))) {
+      throw new Error('Contraseña de aplicación inválida o requerida. Recuerda generar la clave de 16 caracteres de Google.');
     } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
       throw new Error('El host SMTP es inválido o no se pudo alcanzar.');
     } else {
@@ -68,9 +73,11 @@ export async function crearCuentaSmtp(data: CrearCuentaSmtpInput): Promise<Cuent
   } = data;
 
   const authUser = usuario || email;
-  await verificarConexionSmtp(host, puerto, authUser, password_encrypted);
+  if (!esCuentaOAuth(email)) {
+    await verificarConexionSmtp(host, puerto, authUser, password_encrypted);
+  }
 
-  const encryptedPassword = encrypt(password_encrypted);
+  const encryptedPassword = encrypt(password_encrypted || 'oauth-token');
 
   const query = `
     INSERT INTO cuentas_smtp (email, host, puerto, usuario, password_encrypted, limite_diario, minimo_por_ejecucion, maximo_por_ejecucion)
@@ -134,17 +141,19 @@ export async function actualizarCuentaSmtp(
     data.email !== undefined;
 
   if (willUpdateConnection) {
-    const hostToVerify = data.host ?? cuentaActual.host;
-    const puertoToVerify = data.puerto ?? cuentaActual.puerto;
     const emailToVerify = data.email ?? cuentaActual.email;
-    const usuarioToVerify = data.usuario ?? cuentaActual.usuario ?? emailToVerify;
-    let passToVerify = data.password_encrypted;
-    
-    if (!passToVerify) {
-      passToVerify = decrypt(cuentaActual.password_encrypted);
-    }
+    if (!esCuentaOAuth(emailToVerify)) {
+      const hostToVerify = data.host ?? cuentaActual.host;
+      const puertoToVerify = data.puerto ?? cuentaActual.puerto;
+      const usuarioToVerify = data.usuario ?? cuentaActual.usuario ?? emailToVerify;
+      let passToVerify = data.password_encrypted;
+      
+      if (!passToVerify) {
+        passToVerify = decrypt(cuentaActual.password_encrypted);
+      }
 
-    await verificarConexionSmtp(hostToVerify, puertoToVerify, usuarioToVerify, passToVerify);
+      await verificarConexionSmtp(hostToVerify, puertoToVerify, usuarioToVerify, passToVerify);
+    }
   }
 
   // Construir SET dinámico solo con campos presentes

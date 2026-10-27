@@ -34,9 +34,27 @@ async function fetchApi<T>(url: string, options: RequestInit = {}): Promise<ApiR
     const contentType = res.headers.get('content-type');
 
     if (!contentType || !contentType.includes('application/json')) {
+      if (res.status === 413) {
+        return {
+          success: false,
+          error: {
+            code: 'PAYLOAD_TOO_LARGE',
+            message: 'El flyer o archivo adjunto supera el tamaño máximo permitido por el servidor. Por favor, suba un archivo más liviano (máx 10 MB).'
+          }
+        };
+      }
+      if (res.status === 502 || res.status === 504) {
+        return {
+          success: false,
+          error: {
+            code: 'SERVER_GATEWAY_ERROR',
+            message: 'El servidor se encuentra reiniciando o no responde (Error ' + res.status + '). Por favor, intente en unos instantes.'
+          }
+        };
+      }
       return {
         success: false,
-        error: { code: 'SERVER_ERROR', message: 'El servidor respondió con un formato inválido. Por favor, intente nuevamente más tarde.' }
+        error: { code: 'SERVER_ERROR', message: `El servidor respondió con error ${res.status}. Por favor, intente nuevamente más tarde.` }
       };
     }
 
@@ -47,6 +65,13 @@ async function fetchApi<T>(url: string, options: RequestInit = {}): Promise<ApiR
       error: { code: 'NETWORK_ERROR', message: 'No se pudo conectar con el servidor. Verifique su conexión y vuelva a intentar.' }
     };
   }
+}
+
+/**
+ * Obtiene la configuración del servidor para campañas (ej: maxAdjuntos).
+ */
+export async function obtenerConfigCampana(): Promise<ApiResponse<{ maxAdjuntos: number }>> {
+  return fetchApi<{ maxAdjuntos: number }>(`${API_BASE}/api/campanas/config`);
 }
 
 /**
@@ -91,18 +116,29 @@ export async function cambiarEstadoCampana(
 }
 
 /**
- * Envia un mail de prueba con los datos de la campaña actual
+ * Modifica la fecha límite de envío y/o prioridad de una campaña (activa o borrador).
+ * Permite regular la velocidad de despacho del worker o corregir la fecha del evento/comunicado.
+ */
+export async function actualizarProgramacionCampana(
+  id: string,
+  data: { fecha_limite_envio: string; prioridad?: 'alta' | 'media' | 'baja' }
+): Promise<ApiResponse<CampanaResponse>> {
+  return fetchApi<CampanaResponse>(`${API_BASE}/api/campanas/${id}/programacion`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Envia un mail de prueba con los datos de la campaña actual (soporta archivos)
  */
 export async function enviarMailPruebaCampana(
-  asunto: string,
-  cuerpo_html: string,
-  flyer_url?: string,
-  link_inscripcion?: string
+  formData: FormData
 ): Promise<ApiResponse<{ message: string; destinatario: string }>> {
   return fetchApi<{ message: string; destinatario: string }>(`${API_BASE}/api/campanas/prueba`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ asunto, cuerpo_html, flyer_url, link_inscripcion }),
+    body: formData,
   });
 }
 
@@ -423,3 +459,49 @@ export async function marcarReporteResuelto(id: string): Promise<ApiResponse<any
   });
 }
 
+// ── HORARIOS SMTP ───────────────────────────────────────────────
+
+export async function obtenerHorariosSmtp(): Promise<ApiResponse<any>> {
+  return fetchApi(`${API_BASE}/api/horarios`);
+}
+
+export async function actualizarHorariosSmtp(data: { hora_inicio: string, hora_fin: string, dias_permitidos: number[] }): Promise<ApiResponse<any>> {
+  return fetchApi(`${API_BASE}/api/horarios`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function agregarFechaExcluida(data: { fecha: string, motivo?: string }): Promise<ApiResponse<any>> {
+  return fetchApi(`${API_BASE}/api/horarios/fechas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function eliminarFechaExcluida(id: string): Promise<ApiResponse<any>> {
+  return fetchApi(`${API_BASE}/api/horarios/fechas/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+/**
+ * Restaura una campaña archivada.
+ */
+export async function desarchivarCampana(
+  id: string,
+): Promise<ApiResponse<{ message: string }>> {
+  return fetchApi<{ message: string }>(`${API_BASE}/api/campanas/${id}/desarchivar`, {
+    method: 'PATCH',
+  });
+}
+
+// ── EMPRESAS ───────────────────────────────────────────────
+
+export async function buscarEmpresasApi(q: string): Promise<ApiResponse<Array<{ id: string; nombre: string; cuit: string | null; rubro_id?: string | null }>>> {
+  const query = new URLSearchParams();
+  if (q) query.append('q', q);
+  return fetchApi<Array<{ id: string; nombre: string; cuit: string | null; rubro_id?: string | null }>>(`${API_BASE}/api/empresas?${query.toString()}`);
+}

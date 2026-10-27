@@ -11,9 +11,7 @@ const IGNORAR_MAILS = [
   'mailer-daemon@googlemail.com',
   'mailer-daemon@gmail.com',
   'postmaster@',
-  'leomellimurano@gmail.com',
-  'claseiatecno@gmail.com',
-  'admin@organizacion.com',
+  'admin@dominio.com',
 ];
 
 interface ReboteProcesado {
@@ -299,7 +297,7 @@ async function procesarCuenta(cuenta: any): Promise<ReboteProcesado[]> {
  * Genera el HTML y envía el email consolidado a los administradores.
  */
 export async function enviarAvisoConsolidado(rebotes: ReboteProcesado[]) {
-  const destinatario = MODO_PRUEBA ? "claseiatecno@gmail.com" : "admin@organizacion.com";
+  const destinatario = process.env.ADMIN_EMAIL || (MODO_PRUEBA ? "admin-test@dominio.com" : "admin@dominio.com");
   const cantidad = rebotes.length;
   const esPlural = cantidad > 1;
 
@@ -399,7 +397,7 @@ export async function enviarAvisoConsolidado(rebotes: ReboteProcesado[]) {
 
               <p style="margin-top: 25px; margin-bottom: 0; color: #2d3748;">
                 Saludos,<br>
-                <strong style="color: #004578;">Equipo de Gestión — Dirección de Producción</strong>
+                <strong style="color: #004578;">Equipo de Operaciones</strong>
               </p>
 
             </td>
@@ -409,7 +407,7 @@ export async function enviarAvisoConsolidado(rebotes: ReboteProcesado[]) {
           <tr>
             <td style="background-color: #f8fafc; padding: 20px 30px; border-top: 1px solid #e2e8f0; text-align: center;">
               <p style="margin: 0; font-size: 12px; color: #718096; line-height: 1.4;">
-                Este es un mensaje automático del sistema de envíos de ${process.env.ORG_NAME || "Nuestra Organización"}
+                Este es un mensaje automático del sistema de envíos de la Plataforma de Envíos
               </p>
             </td>
           </tr>

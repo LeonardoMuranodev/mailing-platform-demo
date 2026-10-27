@@ -20,11 +20,28 @@ export interface HistoricoStat {
   envios: number;
 }
 
+export interface RankingCampana {
+  asunto: string;
+  procesados: number;
+  exitosos: number;
+  fallidos: number;
+  aperturas: number;
+}
+
+export interface PadronStat {
+  estado: string;
+  count: number;
+}
+
 export interface GlobalStatsResult {
   campanas: CampanasStat[];
   cola: ColaStat[];
   rubros: RubroStat[];
   historico: HistoricoStat[];
+  ranking: RankingCampana[];
+  padron: PadronStat[];
+  aperturasTotales: number;
+  clicsTotales: number;
 }
 
 export async function obtenerEstadisticasGlobales(startDate?: string, endDate?: string): Promise<GlobalStatsResult> {
@@ -64,7 +81,7 @@ export async function obtenerEstadisticasGlobales(startDate?: string, endDate?: 
     SELECT COALESCE(r.nombre, 'Sin rubro') as rubro, COUNT(ce.id) as cantidad_envios
     FROM cola_envios ce
     JOIN contactos co ON ce.contacto_id = co.id
-    LEFT JOIN rubros r ON co.rubro_id = r.id
+    LEFT JOIN rubros r ON co.rubro_id = r.id::text
     JOIN campanas c ON ce.campana_id = c.id
     ${whereClause}
     GROUP BY COALESCE(r.nombre, 'Sin rubro')
@@ -86,6 +103,39 @@ export async function obtenerEstadisticasGlobales(startDate?: string, endDate?: 
     ORDER BY DATE(ce.fecha_envio) ASC
   `, params);
 
+  // 5. Aperturas y Clicks Totales
+  const interaccionesQuery = await dbPool.query(`
+    SELECT 
+      COUNT(CASE WHEN ce.fecha_apertura IS NOT NULL THEN 1 END) as aperturas,
+      COUNT(CASE WHEN ce.fecha_click IS NOT NULL THEN 1 END) as clics
+    FROM cola_envios ce
+    JOIN campanas c ON ce.campana_id = c.id
+    ${whereClause}
+  `, params);
+
+  // 6. Ranking de Campañas (Top 10)
+  const rankingQuery = await dbPool.query(`
+    SELECT c.asunto, 
+           COUNT(ce.id) as procesados,
+           COUNT(CASE WHEN ce.estado = 'enviado' THEN 1 END) as exitosos,
+           COUNT(CASE WHEN ce.estado = 'fallido' THEN 1 END) as fallidos,
+           COUNT(CASE WHEN ce.fecha_apertura IS NOT NULL THEN 1 END) as aperturas
+    FROM campanas c
+    JOIN cola_envios ce ON c.id = ce.campana_id
+    ${whereClause ? whereClause + " AND ce.estado IN ('enviado', 'fallido')" : "WHERE ce.estado IN ('enviado', 'fallido')"}
+    GROUP BY c.id, c.asunto
+    ORDER BY procesados DESC
+    LIMIT 10
+  `, params);
+
+  // 7. Salud del Padrón (Estado de contactos en BD) - Esto es global siempre
+  const padronQuery = await dbPool.query(`
+    SELECT estado, COUNT(*) as count 
+    FROM contactos
+    GROUP BY estado
+    ORDER BY count DESC, estado ASC
+  `);
+
   return {
     campanas: campanasQuery.rows.map(row => ({
       estado: row.estado,
@@ -100,9 +150,22 @@ export async function obtenerEstadisticasGlobales(startDate?: string, endDate?: 
       cantidad_envios: parseInt(row.cantidad_envios, 10)
     })),
     historico: historicoQuery.rows.map(row => ({
-      fecha: row.fecha,
+      fecha: row.fecha instanceof Date ? row.fecha.toISOString().split('T')[0] : row.fecha,
       envios: parseInt(row.envios, 10)
-    }))
+    })),
+    ranking: rankingQuery.rows.map(row => ({
+      asunto: row.asunto,
+      procesados: parseInt(row.procesados, 10),
+      exitosos: parseInt(row.exitosos, 10),
+      fallidos: parseInt(row.fallidos, 10),
+      aperturas: parseInt(row.aperturas, 10)
+    })),
+    padron: padronQuery.rows.map(row => ({
+      estado: row.estado || 'funcional',
+      count: parseInt(row.count, 10)
+    })),
+    aperturasTotales: parseInt(interaccionesQuery.rows[0]?.aperturas || '0', 10),
+    clicsTotales: parseInt(interaccionesQuery.rows[0]?.clics || '0', 10)
   };
 }
 

@@ -21,7 +21,12 @@ export async function crearCampana(data: CrearCampanaInput): Promise<Campana> {
     asunto,
     cuerpo_html,
     link_inscripcion = null,
+    link_nacion = null,
+    link_provincia = null,
     flyer_url = null,
+    adjunto_url = null,
+    adjunto_nombre_original = null,
+    adjuntos_extras = [],
     fecha_limite_envio,
     prioridad = 'alta',
     para_todos_rubros = true,
@@ -30,18 +35,35 @@ export async function crearCampana(data: CrearCampanaInput): Promise<Campana> {
 
   const query = `
     INSERT INTO campanas
-      (asunto, cuerpo_html, link_inscripcion, flyer_url,
+      (asunto, cuerpo_html, link_inscripcion, link_nacion, link_provincia, flyer_url, adjunto_url, adjunto_nombre_original, adjuntos_extras,
        fecha_limite_envio, prioridad, para_todos_rubros, rubros_seleccionados)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
     RETURNING *;
   `;
 
+  // XOR Logic for links
+  let finalLinkInscripcion = link_inscripcion || null;
+  let finalLinkNacion = link_nacion || null;
+  let finalLinkProvincia = link_provincia || null;
+
+  if (finalLinkNacion || finalLinkProvincia) {
+    finalLinkInscripcion = null;
+  } else if (finalLinkInscripcion) {
+    finalLinkNacion = null;
+    finalLinkProvincia = null;
+  }
+
   const values = [
     asunto,
-    cuerpo_html,
-    link_inscripcion,
-    flyer_url,
-    fecha_limite_envio,
+    cuerpo_html || null,
+    finalLinkInscripcion,
+    finalLinkNacion,
+    finalLinkProvincia,
+    flyer_url || null,
+    adjunto_url || null,
+    adjunto_nombre_original || null,
+    JSON.stringify(adjuntos_extras || []),
+    fecha_limite_envio || null,
     prioridad,
     para_todos_rubros,
     JSON.stringify(rubros_seleccionados),
@@ -67,19 +89,55 @@ export async function actualizarCampana(id: string, data: Partial<CrearCampanaIn
   }
   if (data.cuerpo_html !== undefined) {
     updates.push(`cuerpo_html = $${paramIdx++}`);
-    values.push(data.cuerpo_html);
+    values.push(data.cuerpo_html || null);
   }
-  if (data.link_inscripcion !== undefined) {
-    updates.push(`link_inscripcion = $${paramIdx++}`);
-    values.push(data.link_inscripcion);
+  
+  // Si envían algún link, procesamos la exclusividad (XOR)
+  if (data.link_inscripcion !== undefined || data.link_nacion !== undefined || data.link_provincia !== undefined) {
+    const linkInscripcion = data.link_inscripcion !== undefined ? data.link_inscripcion : null;
+    const linkNacion = data.link_nacion !== undefined ? data.link_nacion : null;
+    const linkProvincia = data.link_provincia !== undefined ? data.link_provincia : null;
+
+    if (linkNacion || linkProvincia) {
+      updates.push(`link_inscripcion = $${paramIdx++}`);
+      values.push(null);
+      updates.push(`link_nacion = $${paramIdx++}`);
+      values.push(linkNacion || null);
+      updates.push(`link_provincia = $${paramIdx++}`);
+      values.push(linkProvincia || null);
+    } else {
+      updates.push(`link_inscripcion = $${paramIdx++}`);
+      values.push(linkInscripcion || null);
+      updates.push(`link_nacion = $${paramIdx++}`);
+      values.push(null);
+      updates.push(`link_provincia = $${paramIdx++}`);
+      values.push(null);
+    }
   }
+
   if (data.flyer_url !== undefined) {
     updates.push(`flyer_url = $${paramIdx++}`);
-    values.push(data.flyer_url);
+    values.push(data.flyer_url || null);
+  }
+  if (data.adjunto_url !== undefined) {
+    updates.push(`adjunto_url = $${paramIdx++}`);
+    values.push(data.adjunto_url || null);
+  }
+  // @ts-ignore
+  if (data.adjunto_nombre_original !== undefined) {
+    updates.push(`adjunto_nombre_original = $${paramIdx++}`);
+    // @ts-ignore
+    values.push(data.adjunto_nombre_original || null);
+  }
+  // @ts-ignore
+  if (data.adjuntos_extras !== undefined) {
+    updates.push(`adjuntos_extras = $${paramIdx++}`);
+    // @ts-ignore
+    values.push(JSON.stringify(data.adjuntos_extras || []));
   }
   if (data.fecha_limite_envio !== undefined) {
     updates.push(`fecha_limite_envio = $${paramIdx++}`);
-    values.push(data.fecha_limite_envio);
+    values.push(data.fecha_limite_envio || null);
   }
   if (data.prioridad !== undefined) {
     updates.push(`prioridad = $${paramIdx++}`);
@@ -120,6 +178,17 @@ export async function cambiarEstadoCampana(
   id: string,
   nuevoEstado: string,
 ): Promise<Campana | null> {
+  if (nuevoEstado === 'aprobada') {
+    const campanaActual = await obtenerCampanaPorId(id);
+    if (!campanaActual) throw new Error('Campaña no encontrada');
+    if (!campanaActual.cuerpo_html || campanaActual.cuerpo_html.trim() === '') {
+      throw new Error('No se puede aprobar una campaña sin contenido del correo.');
+    }
+    if (!campanaActual.fecha_limite_envio) {
+      throw new Error('No se puede aprobar una campaña sin fecha límite de envío.');
+    }
+  }
+
   const query = `
     UPDATE campanas
     SET estado = $1, actualizado_en = CURRENT_TIMESTAMP
@@ -156,6 +225,15 @@ export async function archivarCampana(id: string): Promise<boolean> {
 }
 
 /**
+ * Desarchiva (restaura) una campaña, poniendo eliminado_en en NULL.
+ */
+export async function desarchivarCampana(id: string): Promise<boolean> {
+  const query = `UPDATE campanas SET eliminado_en = NULL WHERE id = $1 AND eliminado_en IS NOT NULL RETURNING id`;
+  const result = await dbPool.query(query, [id]);
+  return (result.rowCount ?? 0) > 0;
+}
+
+/**
  * Elimina una campaña y su cola de envíos asociada (Hard Delete).
  * Usar cuando se crea una campaña por error y no se quiere contabilizar.
  */
@@ -179,9 +257,10 @@ export async function obtenerCampanaPorId(
 /** Filtros opcionales para listar campañas */
 export interface ListarCampanasFiltros {
   asunto?: string;
-  estado?: EstadoCampana;
+  estado?: string;
   fecha_desde?: string;
   fecha_hasta?: string;
+  rubro?: string;
   page?: number;
   limit?: number;
 }
@@ -209,12 +288,6 @@ export async function listarCampanas(
     paramIdx++;
   }
 
-  if (filtros.estado) {
-    conditions.push(`estado = $${paramIdx}`);
-    values.push(filtros.estado);
-    paramIdx++;
-  }
-
   if (filtros.fecha_desde) {
     conditions.push(`fecha_limite_envio >= $${paramIdx}`);
     values.push(filtros.fecha_desde);
@@ -227,8 +300,28 @@ export async function listarCampanas(
     paramIdx++;
   }
 
-  // Siempre excluir campañas borradas (soft delete)
-  conditions.push('eliminado_en IS NULL');
+  if (filtros.rubro) {
+    const rubroLower = filtros.rubro.toLowerCase().trim();
+    if (filtros.rubro === '__sin_rubro__' || rubroLower === 'sin rubro' || rubroLower === 'sin_rubro') {
+      conditions.push(`(para_todos_rubros = true OR rubros_seleccionados::jsonb ? '__sin_rubro__')`);
+    } else {
+      conditions.push(`(para_todos_rubros = true OR rubros_seleccionados::jsonb ? $${paramIdx})`);
+      values.push(filtros.rubro);
+      paramIdx++;
+    }
+  }
+
+  if (filtros.estado === 'archivada') {
+    conditions.push('eliminado_en IS NOT NULL');
+  } else {
+    if (filtros.estado) {
+      conditions.push(`estado = $${paramIdx}`);
+      values.push(filtros.estado);
+      paramIdx++;
+    }
+    // Siempre excluir campañas borradas (soft delete) a menos que se busquen explícitamente
+    conditions.push('eliminado_en IS NULL');
+  }
 
   const whereClause = conditions.length > 0
     ? `WHERE ${conditions.join(' AND ')}`
@@ -269,6 +362,7 @@ export interface CampanaConStats extends Campana {
     fallidos: number;
     abiertos: number;
     clicks: number;
+    desglose_fallos?: Array<{ categoria: string; cantidad: number; porcentaje: number }>;
   };
 }
 
@@ -311,11 +405,108 @@ export async function obtenerCampanaConEstadisticas(
     clicks: 0,
   };
 
-  return { ...campana, stats };
+  let desglose_fallos: Array<{ categoria: string; cantidad: number; porcentaje: number }> = [];
+
+  if (stats.fallidos > 0) {
+    const fallosQuery = `
+      SELECT respuesta_smtp, COUNT(*)::int AS cantidad
+      FROM cola_envios
+      WHERE campana_id = $1 AND (estado = 'fallido' OR (estado = 'pendiente' AND respuesta_smtp IS NOT NULL))
+      GROUP BY respuesta_smtp;
+    `;
+    const fallosResult = await dbPool.query<{ respuesta_smtp: string | null; cantidad: number }>(fallosQuery, [id]);
+
+    const catMap: Record<string, number> = {
+      'Cancelado': 0,
+      'Dominio Inexistente': 0,
+      'Credenciales/Login SMTP': 0,
+      'Cuota Excedida (Remitente)': 0,
+      'Casilla Llena (Destinatario)': 0,
+      'Rechazado por Spam': 0,
+      'Email Mal Escrito': 0,
+      'Otros': 0,
+    };
+
+    let totalAnalizados = 0;
+
+    for (const row of fallosResult.rows) {
+      const msg = (row.respuesta_smtp || '').toLowerCase();
+      const count = row.cantidad;
+      totalAnalizados += count;
+
+      if (msg.includes('cancelad')) {
+        catMap['Cancelado'] += count;
+      } else if (msg.includes('domain not found') || msg.includes('nxdomain') || msg.includes('no such domain') || msg.includes('el correo o dominio no existe')) {
+        catMap['Dominio Inexistente'] += count;
+      } else if (msg.includes('mail_mal_escrito') || msg.includes('syntax error') || msg.includes('mal escrito')) {
+        catMap['Email Mal Escrito'] += count;
+      } else if (msg.includes('login') || msg.includes('auth') || msg.includes('password') || msg.includes('webloginrequired')) {
+        catMap['Credenciales/Login SMTP'] += count;
+      } else if ((msg.includes('daily sending limit') || msg.includes('quota exceeded')) && !msg.includes('mailbox') && !msg.includes('bandeja')) {
+        catMap['Cuota Excedida (Remitente)'] += count;
+      } else if (msg.includes('mailbox full') || msg.includes('storage full') || msg.includes('bandeja de entrada llena') || (msg.includes('quota') && (msg.includes('mailbox') || msg.includes('bandeja')))) {
+        catMap['Casilla Llena (Destinatario)'] += count;
+      } else if (msg.includes('spam') || msg.includes('blocked') || msg.includes('blacklisted') || msg.includes('bloqueado') || msg.includes('política del servidor')) {
+        catMap['Rechazado por Spam'] += count;
+      } else {
+        catMap['Otros'] += count;
+      }
+    }
+
+    if (totalAnalizados > 0) {
+      desglose_fallos = Object.entries(catMap)
+        .filter(([_, count]) => count > 0)
+        .map(([categoria, cantidad]) => ({
+          categoria,
+          cantidad,
+          porcentaje: Math.round((cantidad / totalAnalizados) * 100),
+        }));
+    }
+  }
+
+  return { ...campana, stats: { ...stats, desglose_fallos } };
 }
 
 export async function eliminarCampanasMasivo(ids: string[]): Promise<boolean> {
   const query = 'UPDATE campanas SET eliminado_en = CURRENT_TIMESTAMP WHERE id = ANY($1::uuid[]) AND eliminado_en IS NULL RETURNING id;';
   const { rowCount } = await dbPool.query(query, [ids]);
   return (rowCount ?? 0) > 0;
+}
+
+/**
+ * Modifica la fecha límite de envío y/o prioridad de una campaña.
+ * Permitido en estados 'borrador', 'aprobada', 'en_proceso' y 'pausada'.
+ * Esto permite regular o acelerar el ritmo de despacho de correos en el worker
+ * sin afectar destinatarios, contenido ni campañas existentes.
+ */
+export async function actualizarProgramacionCampana(
+  id: string,
+  data: { fecha_limite_envio: string; prioridad?: 'alta' | 'media' | 'baja' }
+): Promise<Campana | null> {
+  const campanaActual = await obtenerCampanaPorId(id);
+  if (!campanaActual) return null;
+
+  if (['completada', 'cancelada'].includes(campanaActual.estado)) {
+    throw new Error(`No se puede modificar la programación de una campaña en estado '${campanaActual.estado}'`);
+  }
+
+  const updates: string[] = ['fecha_limite_envio = $1', 'actualizado_en = CURRENT_TIMESTAMP'];
+  const values: any[] = [data.fecha_limite_envio];
+  let paramIdx = 2;
+
+  if (data.prioridad) {
+    updates.push(`prioridad = $${paramIdx++}`);
+    values.push(data.prioridad);
+  }
+
+  values.push(id);
+  const query = `
+    UPDATE campanas
+    SET ${updates.join(', ')}
+    WHERE id = $${paramIdx}
+    RETURNING *;
+  `;
+
+  const result = await dbPool.query<Campana>(query, values);
+  return result.rows[0] ?? null;
 }

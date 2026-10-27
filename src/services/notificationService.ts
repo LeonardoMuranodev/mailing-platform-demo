@@ -139,7 +139,7 @@ export async function notificarCampanaTerminada(campanaId: string, asunto: strin
           <tr>
             <td style="background-color: #f8fafc; padding: 20px 30px; border-top: 1px solid #e2e8f0; text-align: center;">
               <p style="margin: 0; font-size: 12px; color: #718096; line-height: 1.4;">
-                Este es un mensaje automático del sistema de envíos de ${process.env.ORG_NAME || "Nuestra Organización"}
+                Este es un mensaje automático de la Plataforma de Envíos
               </p>
             </td>
           </tr>
@@ -155,7 +155,7 @@ export async function notificarCampanaTerminada(campanaId: string, asunto: strin
 
       const mailOptions: any = {
         from: `"Sistema de Correos" <${smtpUser}>`,
-        to: smtpUser,
+        to: config.alertEmailDestination || smtpUser,
         subject: `Campaña Finalizada: ${asunto}`,
         html: htmlMsg
       };
@@ -170,7 +170,7 @@ export async function notificarCampanaTerminada(campanaId: string, asunto: strin
 export async function notificarCuotaGlobalAgotada() {
   const { smtpHost, smtpPort, smtpUser, smtpPass, telegramChatId, telegramToken } = config.notifier;
 
-  const msg = `⚠️ *Cuota Excedida - Sistema de Mails de ${process.env.ORG_NAME || "la Organización"}*\n\nTodas las cuentas llegaron al limite de envio de 500 mails HOY.`;
+  const msg = `⚠️ *Cuota Excedida - GenMailer*\n\nTodas las cuentas llegaron al limite de envio de 500 mails HOY.`;
 
   // Enviar a Telegram
   if (telegramChatId && telegramToken) {
@@ -237,7 +237,7 @@ export async function notificarCuotaGlobalAgotada() {
             <td style="padding: 30px; color: #333333; font-size: 15px; line-height: 1.6;">
               
               <p style="margin-top: 0; font-size: 15px; color: #2d3748;">
-                Estimado/a <strong>Equipo</strong>,
+                Estimado <strong>Equipo de Operaciones</strong>,
               </p>
               
               <p style="color: #4a5568; margin-bottom: 20px;">
@@ -282,7 +282,7 @@ export async function notificarCuotaGlobalAgotada() {
           <tr>
             <td style="background-color: #f8fafc; padding: 20px 30px; border-top: 1px solid #e2e8f0; text-align: center;">
               <p style="margin: 0; font-size: 12px; color: #718096; line-height: 1.4;">
-                Este es un mensaje automático del sistema de envíos de ${process.env.ORG_NAME || "Nuestra Organización"}
+                Este es un mensaje automático de la Plataforma de Envíos
               </p>
             </td>
           </tr>
@@ -314,7 +314,9 @@ export async function notificarCuentaProblema(email: string, tipo: 'agotada' | '
   const { telegramChatId, telegramToken } = config.notifier;
 
   const emoji = tipo === 'agotada' ? '⚠️' : '🚨';
-  const accion = tipo === 'agotada' ? 'alcanzó su cuota diaria' : 'fue BLOQUEADA por excesos de rebotes';
+  const accion = tipo === 'agotada' 
+    ? 'alcanzó su cuota diaria' 
+    : 'fue DESACTIVADA (Bloqueo o requerimiento de verificación en Google)';
 
   const msg = `${emoji} *Atención - Cuenta SMTP*\n\nLa cuenta \`${email}\` ${accion}.\n\n*Detalle:* ${detalle}`;
 
@@ -335,11 +337,17 @@ export async function notificarCuentaProblema(email: string, tipo: 'agotada' | '
   }
 }
 
-export async function enviarMailPrueba(asunto: string, cuerpoHtml: string) {
+export async function enviarMailPrueba(
+  asunto: string,
+  cuerpoHtml: string,
+  adjuntoUrl?: string | null,
+  flyerUrl?: string | null,
+  adjuntosExtras?: Array<{ url: string; nombre_original?: string }> | null
+) {
   const { smtpHost, smtpPort, smtpUser, smtpPass } = config.notifier;
-  const destinatario = config.modoPrueba
+  const destinatario = config.testEmailRecipient || (config.modoPrueba
     ? config.imapTest[0]?.user
-    : config.imapProd[0]?.user;
+    : config.imapProd[0]?.user);
 
   if (!destinatario) {
     throw new Error('No se encontró el destinatario (IMAP1_USER o IMAP1_TEST_USER) en la configuración.');
@@ -356,11 +364,56 @@ export async function enviarMailPrueba(asunto: string, cuerpoHtml: string) {
       }
     });
 
+    let finalHtml = cuerpoHtml;
+    const attachments: any[] = [];
+
+    // Incrustar Flyer como CID inline para que se visualice siempre en Gmail/Outlook
+    if (flyerUrl) {
+      const cleanFlyerPath = flyerUrl.startsWith('/') ? flyerUrl.slice(1) : flyerUrl;
+      const localFlyerPath = path.resolve(process.cwd(), cleanFlyerPath);
+      if (fs.existsSync(localFlyerPath)) {
+        attachments.push({
+          filename: path.basename(flyerUrl),
+          path: localFlyerPath,
+          cid: 'flyer_campana',
+          contentDisposition: 'inline'
+        });
+        // Reemplazar cualquier referencia residual por el CID
+        finalHtml = finalHtml.replaceAll(flyerUrl, 'cid:flyer_campana');
+      }
+    }
+
+    if (adjuntoUrl) {
+      const cleanAdjuntoPath = adjuntoUrl.startsWith('/') ? adjuntoUrl.slice(1) : adjuntoUrl;
+      const localAdjuntoPath = path.resolve(process.cwd(), cleanAdjuntoPath);
+      if (fs.existsSync(localAdjuntoPath)) {
+        attachments.push({
+          filename: path.basename(adjuntoUrl),
+          path: localAdjuntoPath
+        });
+      }
+    }
+
+    if (adjuntosExtras && Array.isArray(adjuntosExtras)) {
+      for (const adj of adjuntosExtras) {
+        if (adj.url === adjuntoUrl) continue; // ya agregado
+        const cleanPath = adj.url.startsWith('/') ? adj.url.slice(1) : adj.url;
+        const filepath = path.resolve(process.cwd(), cleanPath);
+        if (fs.existsSync(filepath)) {
+          attachments.push({
+            filename: adj.nombre_original || path.basename(adj.url),
+            path: filepath
+          });
+        }
+      }
+    }
+
     const mailOptions: any = {
-      from: `"Sistema de Envíos" <${smtpUser}>`,
+      from: `"${process.env.SENDER_NAME || 'Sistema de Notificaciones'}" <${smtpUser}>`,
       to: destinatario,
       subject: asunto,
-      html: cuerpoHtml
+      html: finalHtml,
+      attachments
     };
 
     await transporter.sendMail(mailOptions);
@@ -370,3 +423,29 @@ export async function enviarMailPrueba(asunto: string, cuerpoHtml: string) {
   }
 }
 
+export async function enviarMailTransaccional(to: string, asunto: string, html: string) {
+  const { smtpHost, smtpPort, smtpUser, smtpPass } = config.notifier;
+
+  if (smtpHost && smtpUser) {
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465,
+      auth: {
+        user: smtpUser,
+        pass: smtpPass,
+      }
+    });
+
+    const mailOptions: any = {
+      from: `"${process.env.SUPPORT_SENDER_NAME || 'Soporte'}" <${smtpUser}>`,
+      to,
+      subject: asunto,
+      html
+    };
+
+    await transporter.sendMail(mailOptions);
+  } else {
+    throw new Error('No está configurado el notificador SMTP.');
+  }
+}

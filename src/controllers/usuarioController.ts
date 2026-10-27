@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import { UsuarioService } from '../services/usuarioService.js';
 import { sendSuccess } from '../utils/responseHandler.js';
+import { registrarAccion } from '../services/historialService.js';
 
 const usuarioService = new UsuarioService();
 
@@ -22,6 +23,7 @@ export class UsuarioController {
       rol
     });
 
+    await registrarAccion((req as any).user?.userId || null, 'CREAR', 'USUARIO', nuevoUsuario.id, { email: nuevoUsuario.email, rol: nuevoUsuario.rol });
     sendSuccess(res, nuevoUsuario, 201);
   }
 
@@ -41,6 +43,7 @@ export class UsuarioController {
       rol
     });
 
+    await registrarAccion((req as any).user?.userId || null, 'ACTUALIZAR', 'USUARIO', usuario.id, { email: usuario.email, rol: usuario.rol });
     sendSuccess(res, usuario);
   }
 
@@ -49,6 +52,7 @@ export class UsuarioController {
     const adminId = (req as any).user.id; // User from requireAuth middleware
 
     await usuarioService.eliminarUsuario(id, adminId);
+    await registrarAccion((req as any).user?.userId || null, 'ELIMINAR', 'USUARIO', id);
     sendSuccess(res, { deleted: true });
   }
 }

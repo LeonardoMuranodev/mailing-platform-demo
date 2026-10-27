@@ -15,13 +15,18 @@ declare global {
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
+  let token: string | undefined;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  } else if (typeof req.query.token === 'string' && req.query.token.trim()) {
+    token = req.query.token.trim();
+  }
+
+  if (!token) {
     sendError(res, 'UNAUTHORIZED', 'No se proporcionó un token de autenticación', 401);
     return;
   }
-
-  const token = authHeader.split(' ')[1];
 
   try {
     const payload = verificarToken(token);

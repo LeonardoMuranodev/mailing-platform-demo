@@ -11,10 +11,22 @@ export const crearCampanaSchema = z.object({
     .string({ message: 'El contenido del correo es obligatorio' })
     .min(1, 'Debés escribir el contenido del correo'),
 
+  usa_links_multiples: z.boolean().default(false),
+
   link_inscripcion: z
-    .string({ message: 'El link de inscripción es obligatorio' })
-    .min(1, 'El link de inscripción es obligatorio')
-    .url('Ingresá una URL válida (ej: https://ejemplo.com)'),
+    .string()
+    .refine(val => val === '' || z.string().url().safeParse(val).success, 'Ingresá una URL válida')
+    .optional().default(''),
+    
+  link_nacion: z
+    .string()
+    .refine(val => val === '' || z.string().url().safeParse(val).success, 'Ingresá una URL válida')
+    .optional().default(''),
+
+  link_provincia: z
+    .string()
+    .refine(val => val === '' || z.string().url().safeParse(val).success, 'Ingresá una URL válida')
+    .optional().default(''),
 
   fecha_limite_envio: z
     .string({ message: 'La fecha límite es obligatoria' })
@@ -27,6 +39,14 @@ export const crearCampanaSchema = z.object({
   para_todos_rubros: z.boolean(),
 
   rubros_seleccionados: z.array(z.string()).default([]),
+}).refine(data => {
+  if (data.usa_links_multiples) {
+    return data.link_nacion && data.link_nacion.length > 0 && data.link_provincia && data.link_provincia.length > 0;
+  }
+  return data.link_inscripcion && data.link_inscripcion.length > 0;
+}, {
+  message: "Debes completar el/los links de inscripción requeridos",
+  path: ["link_inscripcion"]
 });
 
 /** Schema LAXO para guardar borrador (solo exige asunto con al menos 1 caracter) */
@@ -37,11 +57,28 @@ export const borradorCampanaSchema = z.object({
     .max(255, 'El asunto no puede exceder 255 caracteres'),
 
   cuerpo_html: z.string().optional().default(''),
+  usa_links_multiples: z.boolean().optional().default(false),
   link_inscripcion: z
     .string()
     .refine(
       (val) => val === '' || z.string().url().safeParse(val).success,
       'El link de inscripción no es una URL válida',
+    )
+    .optional()
+    .default(''),
+  link_nacion: z
+    .string()
+    .refine(
+      (val) => val === '' || z.string().url().safeParse(val).success,
+      'El link de Nación no es una URL válida',
+    )
+    .optional()
+    .default(''),
+  link_provincia: z
+    .string()
+    .refine(
+      (val) => val === '' || z.string().url().safeParse(val).success,
+      'El link de Provincia no es una URL válida',
     )
     .optional()
     .default(''),

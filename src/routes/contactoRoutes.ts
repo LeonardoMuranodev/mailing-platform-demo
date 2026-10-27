@@ -4,6 +4,7 @@ import { validateSchema } from '../middlewares/validateSchema.js';
 import { crearContactoSchema, actualizarContactoSchema, listarContactosQuerySchema, bulkDeleteSchema } from '../schemas/contactoSchema.js';
 import { contactoController } from '../controllers/contactoController.js';
 import { requireRole } from '../middlewares/requireRole.js';
+import { syncSheetsLimiter } from '../middlewares/rateLimiter.js';
 
 export const contactoRouter = Router();
 
@@ -38,5 +39,5 @@ contactoRouter.post('/importar-csv', requireRole(['desarrollador', 'encargada'])
 
 contactoRouter.post('/import-json', requireRole(['desarrollador', 'encargada']), contactoController.importarJson);
 
-contactoRouter.post('/sync-sheets', requireRole(['desarrollador', 'encargada']), contactoController.sincronizarConSheets);
+contactoRouter.post('/sync-sheets', requireRole(['desarrollador', 'encargada']), syncSheetsLimiter, contactoController.sincronizarConSheets);
 contactoRouter.get('/sync-status', requireRole(['desarrollador', 'encargada']), contactoController.obtenerSyncStatus);

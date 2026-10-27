@@ -8,17 +8,28 @@ import { contactoRouter } from './contactoRoutes.js';
 import { empresaRouter } from './empresaRoutes.js';
 import { usuariosRouter } from './usuariosRoutes.js';
 import soporteRouter from './soporteRoutes.js';
+import { horariosRouter } from './horariosRoutes.js';
+import { historialRouter } from './historialRoutes.js';
 import { requireAuth } from '../middlewares/requireAuth.js';
 import { requireRole } from '../middlewares/requireRole.js';
 import { healthRouter } from './healthRoutes.js';
 import { dnsRouter } from './dnsRoutes.js';
 import { trackRouter } from './trackRoutes.js';
+import webhookRouter from './webhookRoutes.js';
+import { notificacionRouter } from './notificacionRoutes.js';
 import { apiLimiter, authLimiter, queueLimiter } from '../middlewares/rateLimiter.js';
 
 export function registerRoutes(app: Application): void {
-  // Rate limiter general para toda la API — excluye /api/auth para no bloquear la validación de sesión
+  // Rate limiter general para toda la API — excluye /api/auth, /api/webhooks, /api/track y /api/notificaciones/stream
   app.use('/api', (req, res, next) => {
-    if (req.path.startsWith('/auth')) return next();
+    if (
+      req.path.startsWith('/auth') || 
+      req.path.startsWith('/webhooks') || 
+      req.path.startsWith('/track') ||
+      req.path.startsWith('/notificaciones/stream')
+    ) {
+      return next();
+    }
     return apiLimiter(req, res, next);
   });
 
@@ -34,6 +45,9 @@ export function registerRoutes(app: Application): void {
   // Tracking endpoints (Públicos - Para clientes de correo)
   app.use('/api/track', trackRouter);
 
+  // Webhooks de Proveedores (Públicos con verificación criptográfica Svix/HMAC)
+  app.use('/api/webhooks', webhookRouter);
+
   // Campañas y Contactos rutas a partir de aquí requieren autenticación
   app.use('/api', requireAuth);
 
@@ -45,8 +59,11 @@ export function registerRoutes(app: Application): void {
   app.use('/api/empresas', empresaRouter);
   app.use('/api/usuarios', usuariosRouter);
   app.use('/api/soporte', soporteRouter);
+  app.use('/api/horarios', horariosRouter);
+  app.use('/api/historial', historialRouter);
+  app.use('/api/notificaciones', notificacionRouter);
   
-  console.log('[Routes] ✅ REST endpoints registered: /api/auth, /api/campanas, /api/queue, /api/smtp, /api/stats, /api/contactos, /api/empresas, /api/usuarios, /api/soporte');
+  console.log('[Routes] ✅ REST endpoints registered: /api/auth, /api/campanas, /api/queue, /api/smtp, /api/stats, /api/contactos, /api/empresas, /api/usuarios, /api/soporte, /api/historial, /api/notificaciones');
   console.log('[Routes] 🛡️  Rate limiters active: auth (10/15min), api (200/15min), queue (5/1min)');
 }
 

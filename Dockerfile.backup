@@ -1,8 +1,8 @@
 # ── Imagen ligera para backup de PostgreSQL ──────────────
 FROM postgres:17-alpine
 
-# Instalar dependencias: pg_dump ya está, solo falta curl y gzip
-RUN apk add --no-cache curl gzip
+# Instalar dependencias: pg_dump ya está, curl, gzip y jq para limpiar backups viejos
+RUN apk add --no-cache curl gzip jq
 
 # Copiar script de backup
 COPY scripts/backup-db.sh /usr/local/bin/backup-db.sh

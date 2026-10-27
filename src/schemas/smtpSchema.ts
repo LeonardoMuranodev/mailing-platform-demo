@@ -64,7 +64,7 @@ export const actualizarCuentaSmtpSchema = z.object({
     })
     .optional(),
 
-  limite_diario: z.number().int().positive().optional(),
+  limite_diario: z.number().int().positive().max(500, 'El límite diario no puede superar los 500 correos por seguridad de Gmail').optional(),
   minimo_por_ejecucion: z.number().int().positive().optional(),
   maximo_por_ejecucion: z.number().int().positive().optional(),
 });

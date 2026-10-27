@@ -2,40 +2,60 @@ import type { Campana } from '../types/campana.js';
 import DOMPurify from 'isomorphic-dompurify';
 
 /** URLs de assets estáticos */
-const HEADER_URL =
-  'https://via.placeholder.com/600x150/f0f4f8/333333?text=Banner+Institucional';
+const HEADER_URL = process.env.EMAIL_BANNER_URL || 'https://via.placeholder.com/600x150/f0f4f8/333333?text=Banner+Institucional';
 const WHATSAPP_ICON = 'https://cdn-icons-png.flaticon.com/512/733/733585.png';
 const MAIL_ICON = 'https://cdn-icons-png.flaticon.com/512/732/732200.png';
 
 /** Datos de contacto */
-const WHATSAPP_NUMBER = '5491100000000';
-const CONTACT_EMAIL = 'contacto@organizacion.com';
+const WHATSAPP_NUMBER = process.env.CONTACT_WHATSAPP || '5491100000000';
+const CONTACT_EMAIL = process.env.CONTACT_EMAIL || 'contacto@organizacion.com';
 
 interface EmailTemplateData {
-  cuerpo_html: string;
+  cuerpo_html: string | null;
   link_inscripcion: string | null;
+  link_nacion: string | null;
+  link_provincia: string | null;
   flyer_url: string | null;
 }
 
 /**
  * Genera el HTML completo del email listo para envío SMTP.
- * Replica el maquetado institucional predeterminado.
+ * Replica exactamente el maquetado del template institucional estándar.
  *
  * Todos los estilos están inline para máxima compatibilidad con clientes de correo
  * (Gmail, Outlook, Yahoo, Apple Mail, etc.).
  */
 export function generarHtmlEmail(data: EmailTemplateData): string {
-  const { link_inscripcion, flyer_url } = data;
+  const { link_inscripcion, link_nacion, link_provincia, flyer_url } = data;
   // Defense in depth: sanitizar HTML incluso si ya fue sanitizado al crear la campaña
-  const cuerpo_html = DOMPurify.sanitize(data.cuerpo_html);
+  const cuerpo_html = data.cuerpo_html ? DOMPurify.sanitize(data.cuerpo_html) : '';
 
   // ── Sección botón CTA (condicional) ──
-  const botonHtml = link_inscripcion
-    ? `
+  let botonHtml = '';
+  if (link_nacion || link_provincia) {
+    // Modo botones múltiples (Nación/Provincia)
+    botonHtml = `
+    <div style="text-align:center;margin:10px 0 35px 0;background:#ffffff;">`;
+    
+    if (link_nacion) {
+      botonHtml += `
+      <a href="${escapeHtml(link_nacion)}" style="background-color:#75AADB;color:#ffffff !important;padding:16px 40px;text-decoration:none;font-weight:bold;border-radius:6px;display:inline-block;font-size:20px;box-shadow:0 3px 6px rgba(0,0,0,0.15);margin: 0 10px 10px 10px;">Inscripción Nación</a>`;
+    }
+    
+    if (link_provincia) {
+      botonHtml += `
+      <a href="${escapeHtml(link_provincia)}" style="background-color:#2E8B57;color:#ffffff !important;padding:16px 40px;text-decoration:none;font-weight:bold;border-radius:6px;display:inline-block;font-size:20px;box-shadow:0 3px 6px rgba(0,0,0,0.15);margin: 0 10px 10px 10px;">Inscripción Provincia</a>`;
+    }
+    
+    botonHtml += `
+    </div>`;
+  } else if (link_inscripcion) {
+    // Modo botón único
+    botonHtml = `
     <div style="text-align:center;margin:10px 0 35px 0;background:#ffffff;">
       <a href="${escapeHtml(link_inscripcion)}" style="background-color:#d85c37;color:#ffffff !important;padding:16px 40px;text-decoration:none;font-weight:bold;border-radius:6px;display:inline-block;font-size:20px;box-shadow:0 3px 6px rgba(0,0,0,0.15);">¡Inscribite!</a>
-    </div>`
-    : '';
+    </div>`;
+  }
 
   // ── Sección flyer (condicional) ──
   const flyerHtml = flyer_url
@@ -67,6 +87,10 @@ export function generarHtmlEmail(data: EmailTemplateData): string {
   </style>
 </head>
 <body>
+  <!-- Preheader hack: evita que Gmail muestre texto del footer o referencias técnicas en la vista previa -->
+  <div style="display:none;font-size:1px;color:#ffffff;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;mso-hide:all;">
+    &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy;
+  </div>
   <div class="container">
 
     <div class="header">
@@ -83,7 +107,7 @@ export function generarHtmlEmail(data: EmailTemplateData): string {
 
     <div class="footer">
       <div class="footer-cell-text">
-        Comunicate con nosotros:<br>
+        Comunicate con nuestro equipo<br>
       </div>
       <div class="footer-cell-icons" style="white-space: nowrap;">
         <a href="https://wa.me/${WHATSAPP_NUMBER}"><img class="footer-icon" src="${WHATSAPP_ICON}" alt="WhatsApp"></a><a href="mailto: ${CONTACT_EMAIL}"><img class="footer-icon" src="${MAIL_ICON}" alt="Mail"></a>
@@ -102,6 +126,8 @@ export function generarHtmlDesdeCampana(campana: Campana): string {
   return generarHtmlEmail({
     cuerpo_html: campana.cuerpo_html,
     link_inscripcion: campana.link_inscripcion,
+    link_nacion: campana.link_nacion,
+    link_provincia: campana.link_provincia,
     flyer_url: campana.flyer_url,
   });
 }

@@ -1,24 +1,32 @@
 import { create } from 'zustand';
 import type { CampanaFormData } from '../types/campana';
 import { CAMPANA_FORM_INITIAL } from '../types/campana';
-import { crearCampana, actualizarCampana, cambiarEstadoCampana } from '../services/api';
+import { crearCampana, actualizarCampana, cambiarEstadoCampana, obtenerConfigCampana } from '../services/api';
 import { validarFormulario, validarBorrador } from '../schemas/campanaSchema';
+import { useNotificationStore } from './useNotificationStore';
 
 const STORAGE_KEY = 'draft_campana_data';
+
+const DEFAULT_MAX_ADJUNTOS = parseInt(import.meta.env.VITE_MAX_ADJUNTOS || '6', 10) || 6;
 
 interface CampanaStore {
   // ── Estado ─────────────────────────────────────
   form: CampanaFormData;
   flyer: File | null;
   flyerPreview: string | null;
+  adjuntos: File[];
+  adjuntosNames: string[];
+  maxAdjuntos: number;
   htmlPreview: string;
   errors: Record<string, string>;
   isSubmitting: boolean;
   submitResult: { success: boolean; message: string; id?: string; mode?: 'borrador' | 'aprobada' } | null;
 
   // ── Acciones ───────────────────────────────────
+  cargarConfig: () => Promise<void>;
   setField: <K extends keyof CampanaFormData>(field: K, value: CampanaFormData[K]) => void;
   setFlyer: (file: File | null) => void;
+  setAdjuntos: (files: File[]) => void;
   setHtmlContent: (html: string) => void;
   toggleRubro: (rubro: string) => void;
   reset: () => void;
@@ -35,10 +43,24 @@ export const useCampanaStore = create<CampanaStore>((set, get) => ({
   form: { ...CAMPANA_FORM_INITIAL },
   flyer: null,
   flyerPreview: null,
+  adjuntos: [],
+  adjuntosNames: [],
+  maxAdjuntos: DEFAULT_MAX_ADJUNTOS,
   htmlPreview: '',
   errors: {},
   isSubmitting: false,
   submitResult: null,
+
+  cargarConfig: async () => {
+    try {
+      const res = await obtenerConfigCampana();
+      if (res.success && res.data?.maxAdjuntos) {
+        set({ maxAdjuntos: res.data.maxAdjuntos });
+      }
+    } catch {
+      // Ignorar error y mantener DEFAULT_MAX_ADJUNTOS
+    }
+  },
 
   // ── Acciones ────────────────────────────────────
   setField: (field, value) =>
@@ -55,6 +77,13 @@ export const useCampanaStore = create<CampanaStore>((set, get) => ({
     set({
       flyer: file,
       flyerPreview: file ? URL.createObjectURL(file) : null,
+    });
+  },
+
+  setAdjuntos: (files) => {
+    set({
+      adjuntos: files,
+      adjuntosNames: files.map((f) => f.name),
     });
   },
 
@@ -83,6 +112,8 @@ export const useCampanaStore = create<CampanaStore>((set, get) => ({
       form: { ...CAMPANA_FORM_INITIAL },
       flyer: null,
       flyerPreview: null,
+      adjuntos: [],
+      adjuntosNames: [],
       htmlPreview: '',
       errors: {},
       isSubmitting: false,
@@ -96,19 +127,22 @@ export const useCampanaStore = create<CampanaStore>((set, get) => ({
 
   // ── Submit ──────────────────────────────────────
   guardarBorrador: async (id?: string) => {
-    const { form, flyer } = get();
+    const { form, flyer, adjuntos } = get();
 
     // Validar con Zod de forma laxa
     const validationErrors = validarBorrador(form);
     if (validationErrors) {
-      set({ errors: validationErrors });
+      set({ 
+        errors: validationErrors,
+        submitResult: { success: false, message: 'Revisa los campos marcados en rojo.' }
+      });
       return;
     }
 
     set({ isSubmitting: true, errors: {}, submitResult: null });
 
     try {
-      const fd = buildFormData(form, flyer);
+      const fd = buildFormData(form, flyer, adjuntos);
       let res;
       if (id) {
         res = await actualizarCampana(id, fd);
@@ -127,10 +161,17 @@ export const useCampanaStore = create<CampanaStore>((set, get) => ({
           },
         });
       } else {
+        const errorMsg = res.error?.message ?? 'Error al guardar la campaña.';
+        const fieldErrors = res.error?.details?.reduce((acc: Record<string, string>, curr: any) => {
+          acc[curr.field] = curr.message;
+          return acc;
+        }, {}) || {};
+        
         set({
+          errors: fieldErrors,
           submitResult: {
             success: false,
-            message: res.error?.message ?? 'Error al guardar la campaña.',
+            message: errorMsg,
           },
         });
       }
@@ -143,12 +184,15 @@ export const useCampanaStore = create<CampanaStore>((set, get) => ({
   },
 
   aprobarCampana: async (id?: string) => {
-    const { form, flyer } = get();
+    const { form, flyer, adjuntos } = get();
 
     // Validar con Zod
     const validationErrors = validarFormulario(form);
     if (validationErrors) {
-      set({ errors: validationErrors });
+      set({ 
+        errors: validationErrors,
+        submitResult: { success: false, message: 'Revisa los campos marcados en rojo.' }
+      });
       return;
     }
 
@@ -156,7 +200,7 @@ export const useCampanaStore = create<CampanaStore>((set, get) => ({
 
     try {
       // 1. Crear o actualizar la campaña como borrador
-      const fd = buildFormData(form, flyer);
+      const fd = buildFormData(form, flyer, adjuntos);
       let createRes;
       if (id) {
         createRes = await actualizarCampana(id, fd);
@@ -179,6 +223,13 @@ export const useCampanaStore = create<CampanaStore>((set, get) => ({
 
       if (approveRes.success) {
         localStorage.removeItem(STORAGE_KEY);
+        useNotificationStore.getState().agregarNotificacion({
+          tipo: 'campaign_approved',
+          titulo: 'Campaña Aprobada',
+          mensaje: `La campaña "${form.asunto}" fue aprobada y quedó lista para su envío.`,
+          urlDestino: `/campanas/${createRes.data.id}`,
+          timestamp: new Date().toISOString(),
+        });
         set({
           submitResult: {
             success: true,
@@ -188,10 +239,17 @@ export const useCampanaStore = create<CampanaStore>((set, get) => ({
           },
         });
       } else {
+        const errorMsg = approveRes.error?.message ?? 'La campaña se creó pero no se pudo aprobar.';
+        const fieldErrors = approveRes.error?.details?.reduce((acc: Record<string, string>, curr: any) => {
+          acc[curr.field] = curr.message;
+          return acc;
+        }, {}) || {};
+        
         set({
+          errors: fieldErrors,
           submitResult: {
             success: false,
-            message: approveRes.error?.message ?? 'La campaña se creó pero no se pudo aprobar.',
+            message: errorMsg,
           },
         });
       }
@@ -205,7 +263,7 @@ export const useCampanaStore = create<CampanaStore>((set, get) => ({
 }));
 
 // ── Helper ────────────────────────────────────────────────
-function buildFormData(form: CampanaFormData, flyer: File | null): FormData {
+export function buildFormData(form: CampanaFormData, flyer: File | null, adjuntos: File[]): FormData {
   const fd = new FormData();
   fd.append('asunto', form.asunto);
   fd.append('cuerpo_html', form.cuerpo_html);
@@ -217,9 +275,23 @@ function buildFormData(form: CampanaFormData, flyer: File | null): FormData {
   if (form.link_inscripcion) {
     fd.append('link_inscripcion', form.link_inscripcion);
   }
+  if (form.link_nacion) {
+    fd.append('link_nacion', form.link_nacion);
+  }
+  if (form.link_provincia) {
+    fd.append('link_provincia', form.link_provincia);
+  }
 
   if (flyer) {
     fd.append('flyer', flyer);
+  }
+
+  // Múltiples adjuntos: subir como 'adjuntos'
+  if (adjuntos && adjuntos.length > 0) {
+    adjuntos.forEach((file) => fd.append('adjuntos', file));
+  } else if (form.adjuntos_extras && form.adjuntos_extras.length > 0) {
+    // Al editar sin subir nuevos archivos, preservar los existentes como JSON
+    fd.append('adjuntos_extras', JSON.stringify(form.adjuntos_extras));
   }
 
   return fd;

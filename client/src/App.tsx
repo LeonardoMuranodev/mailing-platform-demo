@@ -1,8 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Routes, Route, useLocation, Link, Navigate } from 'react-router-dom';
-import { Mail, BarChart3, Users, Settings, LogOut, UserCircle2, AlertTriangle, LifeBuoy, Menu, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Routes, Route, useLocation, Link, Navigate, useNavigate } from 'react-router-dom';
+import { Mail, BarChart3, Users, Settings, LogOut, UserCircle2, AlertTriangle, LifeBuoy, Menu, X, ChevronDown, Clock, ShieldAlert } from 'lucide-react';
 import { useAuthStore } from './stores/authStore';
+import { useNotificationStore } from './stores/useNotificationStore';
+import { GeminiNotificationContainer } from './components/GeminiNotificationContainer';
+import { NotificationBell } from './components/NotificationBell';
 import Login from './components/Login';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import Perfil from './pages/Perfil';
 import ListaCampanas from './components/ListaCampanas';
 import DetalleCampana from './components/DetalleCampana';
 import CrearCampana from './components/CrearCampana';
@@ -12,52 +19,118 @@ import CuentasSmtp from './components/CuentasSmtp';
 import DirectorioContactos from './components/DirectorioContactos';
 import GestionUsuarios from './components/GestionUsuarios';
 import Soporte from './components/Soporte';
+import HorariosSmtp from './components/HorariosSmtp';
 import ThemeToggle from './components/ThemeToggle';
 import NotFound from './components/NotFound';
-
+import Auditoria from './pages/Auditoria';
 function App() {
   const location = useLocation();
-  const { isAuthenticated, user, checkAuth, logout } = useAuthStore();
+  const navigate = useNavigate();
+  const { isAuthenticated, user, token, checkAuth, logout } = useAuthStore();
+  const { conectarSSE, desconectarSSE, setNavegarCallback } = useNotificationStore();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Bloquear scroll del fondo cuando hay modal abierto
+  useEffect(() => {
+    if (showLogoutModal) {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = '';
+      };
+    }
+  }, [showLogoutModal]);
 
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
 
+  useEffect(() => {
+    setNavegarCallback((url: string) => navigate(url));
+  }, [navigate, setNavegarCallback]);
+
+  useEffect(() => {
+    if (isAuthenticated && token) {
+      conectarSSE(token);
+    } else {
+      desconectarSSE();
+    }
+    return () => {
+      desconectarSSE();
+    };
+  }, [isAuthenticated, token, conectarSSE, desconectarSSE]);
+
   if (!isAuthenticated) {
-    return <Login />;
+    return (
+      <Routes>
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="*" element={<Login />} />
+      </Routes>
+    );
   }
 
-  const navLinks = [
-    { path: '/', label: 'Campañas', icon: <Mail size={18} /> },
-    { path: '/estadisticas', label: 'Estadísticas', icon: <BarChart3 size={18} /> },
-    { path: '/contactos', label: 'Contactos', icon: <Users size={18} /> },
-    { path: '/cuentas', label: 'Cuentas SMTP', icon: <Settings size={18} /> },
-    { path: '/soporte', label: 'Soporte', icon: <LifeBuoy size={18} /> },
+  interface NavItem {
+    path: string;
+    label: React.ReactNode;
+    icon: React.ReactNode;
+  }
+
+  const navLinks: NavItem[] = [
+    { path: '/', label: 'Campañas', icon: <Mail size={16} className="shrink-0" /> },
+    { path: '/estadisticas', label: 'Estadísticas', icon: <BarChart3 size={16} className="shrink-0" /> },
+    { path: '/contactos', label: 'Contactos', icon: <Users size={16} className="shrink-0" /> },
+    { 
+      path: '/cuentas', 
+      label: (
+        <>
+          Cuentas<span className="inline lg:hidden xl:inline">&nbsp;SMTP</span>
+        </>
+      ), 
+      icon: <Settings size={16} className="shrink-0" /> 
+    },
   ];
 
-  if (user?.rol === 'desarrollador') {
-    // Reemplaza o agrega el menú de Usuarios. El usuario pidió mantener el ícono de usuarios para contactos y usar otro, o cambiar el de contactos.
-    // Lo más simple: mantener Users para contactos, y usar UserCircle2 o Cog/Users para el de Usuarios.
-    navLinks.push({ path: '/usuarios', label: 'Usuarios', icon: <Settings size={18} /> });
+  if (user?.rol === 'desarrollador' || user?.rol === 'encargada') {
+    navLinks.push({ 
+      path: '/horarios', 
+      label: (
+        <>
+          Horarios<span className="inline lg:hidden xl:inline">&nbsp;SMTP</span>
+        </>
+      ), 
+      icon: <Clock size={16} className="shrink-0" /> 
+    });
   }
 
+  if (user?.rol === 'desarrollador') {
+    navLinks.push({ path: '/usuarios', label: 'Usuarios', icon: <UserCircle2 size={16} className="shrink-0" /> });
+    navLinks.push({ path: '/auditoria', label: 'Auditoría', icon: <ShieldAlert size={16} className="shrink-0" /> });
+  }
+
+  // Soporte siempre al final
+  navLinks.push({ path: '/soporte', label: 'Soporte', icon: <LifeBuoy size={16} className="shrink-0" /> });
+
   return (
-    <div className="min-h-screen flex flex-col bg-background text-dark transition-colors duration-300">
+    <div className="min-h-screen flex flex-col bg-background text-dark transition-colors duration-300 overflow-x-hidden">
       {/* ── Navbar ─────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 bg-surface/80 backdrop-blur-md border-b border-border transition-colors duration-300">
-        <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 py-3 min-h-[64px] flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-8">
+      <header className="sticky top-0 z-40 bg-surface/80 backdrop-blur-md border-b border-border transition-colors duration-300 overflow-x-clip">
+        <div className="w-full max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-3 xl:px-6 py-2.5 lg:py-2 min-h-[60px] flex flex-col lg:flex-row lg:items-center justify-between gap-3 lg:gap-2 xl:gap-4">
           
           <div className="flex items-center justify-between w-full lg:w-auto shrink-0">
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2 font-bold text-lg text-primary hover:text-primary-dark transition-colors">
-              <Mail size={24} className="text-primary" />
+            <Link 
+              to="/" 
+              onClick={() => setIsMobileMenuOpen(false)} 
+              className="flex items-center gap-2 font-bold text-base xl:text-lg text-primary hover:text-primary-dark transition-colors shrink-0"
+            >
+              <Mail size={22} className="text-primary shrink-0" />
               <span>GenMailer</span>
             </Link>
 
             {/* Right side controls on Mobile */}
-            <div className="flex items-center gap-2 lg:hidden">
+            <div className="flex items-center gap-1 lg:hidden">
+              <NotificationBell />
               <ThemeToggle />
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -70,7 +143,7 @@ function App() {
           </div>
 
           {/* Navigation Links */}
-          <nav className={`${isMobileMenuOpen ? 'flex' : 'hidden'} lg:flex flex-col lg:flex-row items-stretch lg:items-center gap-1.5 lg:gap-1 w-full lg:w-auto flex-1 lg:justify-center transition-all duration-300 pb-3 lg:pb-0`}>
+          <nav className={`${isMobileMenuOpen ? 'flex' : 'hidden'} lg:flex flex-col lg:flex-row items-stretch lg:items-center gap-1 lg:gap-0.5 xl:gap-1 w-full lg:w-auto flex-1 lg:justify-center transition-all duration-300 pb-3 lg:pb-0 min-w-0`}>
             {navLinks.map((link) => {
               const isActive = location.pathname === link.path || (link.path === '/' && location.pathname.startsWith('/campanas'));
               return (
@@ -78,34 +151,40 @@ function App() {
                   key={link.path}
                   to={link.path}
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex items-center gap-2 px-3 lg:px-2.5 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap
+                  className={`flex items-center gap-1.5 lg:gap-1 xl:gap-1.5 px-3 lg:px-1.5 xl:px-2.5 py-2 lg:py-1.5 rounded-lg text-sm lg:text-xs xl:text-sm font-medium transition-colors whitespace-nowrap
                     ${isActive 
-                      ? 'bg-primary/10 text-primary' 
+                      ? 'bg-primary/10 text-primary font-semibold' 
                       : 'text-muted hover:bg-background hover:text-dark'
                     }`}
                 >
                   {link.icon}
-                  {link.label}
+                  <span>{link.label}</span>
                 </Link>
               );
             })}
           </nav>
 
           {/* Actions */}
-          <div className={`${isMobileMenuOpen ? 'flex' : 'hidden'} lg:flex flex-col lg:flex-row items-stretch lg:items-center lg:justify-end gap-4 border-t lg:border-t-0 border-border pt-4 lg:pt-0 shrink-0`}>
-            <div className="hidden lg:block">
+          <div className={`${isMobileMenuOpen ? 'flex' : 'hidden'} lg:flex flex-col lg:flex-row items-stretch lg:items-center lg:justify-end gap-3 lg:gap-1.5 xl:gap-3 border-t lg:border-t-0 border-border pt-4 lg:pt-0 shrink-0`}>
+            <div className="hidden lg:flex items-center gap-1 xl:gap-1.5">
+              <NotificationBell />
               <ThemeToggle />
             </div>
             
             {user && (
-              <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 lg:pl-4 lg:border-l lg:border-border">
-                <div className="flex items-center gap-2 px-2 lg:px-0">
-                  <UserCircle2 size={20} className="text-muted shrink-0" />
-                  <div className="flex flex-col">
-                    <span className="text-sm font-semibold leading-tight">{user.nombre}</span>
-                    <span className="text-[10px] uppercase font-bold text-primary tracking-wider">{user.rol}</span>
+              <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2 lg:gap-1.5 xl:gap-2.5 lg:pl-2 xl:pl-3.5 lg:border-l lg:border-border">
+                <Link 
+                  to="/perfil" 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center gap-1.5 xl:gap-2 px-2 xl:px-3 py-1.5 rounded-lg border border-transparent hover:border-border hover:bg-surface transition-all"
+                >
+                  <UserCircle2 size={18} className="text-muted shrink-0" />
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-xs xl:text-sm font-semibold leading-tight text-dark max-w-[80px] xl:max-w-[130px] 2xl:max-w-none truncate">{user.nombre}</span>
+                    <span className="text-[9px] xl:text-[10px] uppercase font-bold text-primary tracking-wider">{user.rol}</span>
                   </div>
-                </div>
+                  <ChevronDown size={14} className="text-muted ml-0.5 opacity-50 hidden sm:block shrink-0" />
+                </Link>
                 <button 
                   onClick={() => {
                     setIsMobileMenuOpen(false);
@@ -114,7 +193,7 @@ function App() {
                   className="flex items-center justify-center gap-2 lg:gap-0 px-3 py-2 lg:p-1.5 text-muted hover:text-danger rounded-lg lg:rounded-md hover:bg-danger/10 bg-background lg:bg-transparent border lg:border-0 border-border transition-colors w-full lg:w-auto text-sm font-medium"
                   title="Cerrar Sesión"
                 >
-                  <LogOut size={18} />
+                  <LogOut size={17} />
                   <span className="lg:hidden">Cerrar Sesión</span>
                 </button>
               </div>
@@ -138,15 +217,29 @@ function App() {
             path="/usuarios" 
             element={user?.rol === 'desarrollador' ? <GestionUsuarios /> : <Navigate to="/" replace />} 
           />
+          <Route 
+            path="/horarios" 
+            element={user?.rol === 'desarrollador' || user?.rol === 'encargada' ? <HorariosSmtp /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/auditoria" 
+            element={user?.rol === 'desarrollador' ? <Auditoria /> : <Navigate to="/" replace />} 
+          />
           <Route path="/soporte" element={<Soporte />} />
+          <Route path="/perfil" element={<Perfil />} />
+          
+          {/* Prevent authenticated users from accessing login/recovery routes */}
+          <Route path="/forgot-password" element={<Navigate to="/" replace />} />
+          <Route path="/reset-password" element={<Navigate to="/" replace />} />
+          
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
 
       {/* ── Logout Modal ───────────────────────────────── */}
-      {showLogoutModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-surface rounded-xl shadow-xl w-full max-w-sm p-6 border border-border text-center">
+      {showLogoutModal && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-sm p-6 border border-border text-center animate-modal-pop">
             <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-warning/10 mb-4">
               <AlertTriangle className="h-6 w-6 text-warning" />
             </div>
@@ -172,36 +265,19 @@ function App() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── Footer ────────────────────────────────────── */}
-      <footer className="border-t border-border mt-auto py-6">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-center gap-4 text-muted text-sm font-medium">
-          <div className="flex items-center gap-1.5">
-            <span>Desarrollado por</span>
-            <a href="https://github.com/LeonardoMuranodev/mailing-platform-demo" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold flex items-center gap-1">
-              Leonardo Murano
-            </a>
-          </div>
-          <div className="hidden sm:block w-1.5 h-1.5 rounded-full bg-border"></div>
-          <div className="flex items-center gap-4">
-            <a href="https://github.com/LeonardoMuranodev" target="_blank" rel="noopener noreferrer" className="text-muted hover:text-dark transition-colors" title="Código Fuente en GitHub">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.03c3.15-.38 6.5-1.4 6.5-7.17a4.6 4.6 0 0 0-1.28-3.18 4.3 4.3 0 0 0-.12-3.14s-1-.31-3.2 1.17a11.05 11.05 0 0 0-5.8 0C7.8 1.45 6.8 1.76 6.8 1.76a4.3 4.3 0 0 0-.12 3.14 4.6 4.6 0 0 0-1.28 3.18c0 5.76 3.35 6.79 6.5 7.17a4.8 4.8 0 0 0-1 3.03v4"></path>
-                <path d="M9 20c-5 1.5-5-2.5-7-3"></path>
-              </svg>
-            </a>
-            <a href="https://www.linkedin.com/in/leonardo-murano" target="_blank" rel="noopener noreferrer" className="text-muted hover:text-[#0a66c2] transition-colors" title="Perfil de LinkedIn">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
-                <rect x="2" y="9" width="4" height="12"></rect>
-                <circle cx="4" cy="4" r="2"></circle>
-              </svg>
-            </a>
-          </div>
+      <footer className="border-t border-border mt-auto py-6 no-print">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 text-center text-muted text-sm font-medium">
+          Plataforma de Mailing y Gestión de Campañas
         </div>
       </footer>
+
+      {/* ── Notificaciones Flotantes Estilo Gemini ─────────── */}
+      <GeminiNotificationContainer />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-### 📋 Roadmap de Producción: 3F Mailer
+### 📋 Roadmap de Producción: GenMailer
 
 
 #### Fase 3: UX y Frontend (Pulido Visual)

@@ -1,4 +1,5 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Upload, X, CheckCircle2, AlertTriangle, ChevronRight, FileSpreadsheet, HelpCircle } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
@@ -103,6 +104,7 @@ const ESTADOS_VALIDOS = [
   'rebotado bandeja llena',
   'rebotado spam',
   'rebotado desconocido',
+  'mal_escrito'
 ] as const;
 type EstadoValido = typeof ESTADOS_VALIDOS[number];
 
@@ -124,7 +126,9 @@ function normalizarEstado(raw: string): EstadoValido {
   }
 
   // error_formato y otros estados de error desconocidos → rebotado desconocido
-  if (c.includes('error') || c.includes('formato') || c.includes('invalid')) return 'rebotado desconocido';
+  if (c.includes('error') || c.includes('formato') || c.includes('invalid') || c.includes('mal_escrito')) {
+    return c.includes('mal') || c.includes('escrito') || c.includes('invalid') ? 'mal_escrito' : 'rebotado desconocido';
+  }
 
   return 'funcional'; // fallback seguro
 }
@@ -321,11 +325,20 @@ export default function ImportadorVisual({ onClose, onImportComplete }: Props) {
     }
   };
 
+  // Bloqueo de scroll en el body mientras el importador esté abierto
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
+
   // ── Render ────────────────────────────────────────────────────────────────
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-surface w-full max-w-3xl rounded-2xl border border-border shadow-2xl overflow-hidden animate-fade-in flex flex-col max-h-[90vh] relative">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="bg-surface w-full max-w-3xl rounded-2xl border border-border shadow-2xl overflow-hidden animate-fade-in flex flex-col max-h-[90vh] relative my-auto">
 
         {/* Header */}
         <div className="px-6 py-4 border-b border-border flex justify-between items-center shrink-0">
@@ -639,6 +652,7 @@ export default function ImportadorVisual({ onClose, onImportComplete }: Props) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

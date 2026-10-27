@@ -17,6 +17,9 @@ services:
       # Overrides para servicios internos del compose
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_SSL=false
     volumes:
       - ./uploads:/app/uploads
       - ./logs:/app/logs
@@ -69,10 +72,10 @@ services:
       - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 15s
+      interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 5s
+      start_period: 3s
     networks:
       - mails-network
 
@@ -91,9 +94,10 @@ services:
       - db_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d genmailer"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 5s
     networks:
       - mails-network
 
@@ -111,15 +115,18 @@ services:
       - TZ=America/Argentina/Buenos_Aires
     volumes:
       - ./BACKUPS:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - mails-network
 
 # ─── Volumes ──────────────────────────────────────────────────
 volumes:
   redis_data:
     driver: local
-
   db_data:
     driver: local
-
   uploads_data:
     driver: local
 
