@@ -1,12 +1,13 @@
 import { create } from 'zustand';
 import type { AuthUser } from '../types/auth';
+import { cerrarSesionApi } from '../services/api';
 
 interface AuthState {
   token: string | null;
   user: AuthUser | null;
   isAuthenticated: boolean;
   setAuth: (token: string, user: AuthUser) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
 }
 
@@ -16,30 +17,42 @@ export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: !!localStorage.getItem('auth_token'),
 
   setAuth: (token, user) => {
-    localStorage.setItem('auth_token', token);
+    if (token) {
+      try {
+        localStorage.setItem('auth_token', token);
+      } catch {}
+    }
     set({ token, user, isAuthenticated: true });
   },
 
-  logout: () => {
-    localStorage.removeItem('auth_token');
-    set({ token: null, user: null, isAuthenticated: false });
+  logout: async () => {
+    try {
+      await cerrarSesionApi();
+    } catch (e) {
+      console.warn('Error al llamar al endpoint de logout:', e);
+    } finally {
+      localStorage.removeItem('auth_token');
+      set({ token: null, user: null, isAuthenticated: false });
+    }
   },
 
   checkAuth: async () => {
-    const token = localStorage.getItem('auth_token');
-    if (!token) return;
-
     try {
       const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
+      const token = localStorage.getItem('auth_token');
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const res = await fetch(`${API_BASE}/api/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers,
+        credentials: 'include',
       });
       
       const data = await res.json();
       
-      if (res.ok && data.success) {
+      if (res.ok && data.success && data.data?.user) {
         set({ user: data.data.user, isAuthenticated: true });
       } else {
         localStorage.removeItem('auth_token');

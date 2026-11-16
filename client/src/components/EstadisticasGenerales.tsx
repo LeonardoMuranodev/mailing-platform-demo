@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Send, Clock, CheckCircle2, Mail, RefreshCw, Download, Calendar, FilterX, BarChart3, Plus, AlertTriangle, X, HelpCircle, Info, Eye, MousePointerClick, Printer } from 'lucide-react';
+import { Send, Clock, CheckCircle2, Mail, RefreshCw, Download, FilterX, BarChart3, Plus, AlertTriangle, X, HelpCircle, Info, Eye, MousePointerClick, Printer } from 'lucide-react';
 import { obtenerEstadisticasGlobales, exportarEstadisticasCampanas } from '../services/api';
 import type { GlobalStatsResult } from '../types/stats';
 import { RUBROS_LABELS } from '../data/rubros';
-
 
 export default function EstadisticasGenerales() {
   const [stats, setStats] = useState<GlobalStatsResult | null>(null);
@@ -348,7 +347,8 @@ export default function EstadisticasGenerales() {
         )}
 
         {/* Filtros */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-8 gap-3 bg-surface p-4 rounded-xl border border-border shadow-sm flex-wrap no-print">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between mb-8 gap-4 bg-surface p-4 rounded-xl border border-border shadow-sm no-print">
+          {/* Botones de atajo rápido */}
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => {
@@ -358,56 +358,58 @@ export default function EstadisticasGenerales() {
                 setStartDate(past.toISOString().split('T')[0]);
                 setEndDate(today.toISOString().split('T')[0]);
               }}
-              className="px-3 py-1.5 text-sm bg-primary/10 text-primary font-medium rounded-lg hover:bg-primary/20 transition-colors"
+              className="flex-1 sm:flex-none px-3.5 py-2 text-sm bg-primary/10 text-primary font-medium rounded-lg hover:bg-primary/20 transition-colors h-[42px] whitespace-nowrap"
             >
               Últimos 7 días
             </button>
             <button
               onClick={handleMesActual}
-              className="px-3 py-1.5 text-sm bg-primary/10 text-primary font-medium rounded-lg hover:bg-primary/20 transition-colors"
+              className="flex-1 sm:flex-none px-3.5 py-2 text-sm bg-primary/10 text-primary font-medium rounded-lg hover:bg-primary/20 transition-colors h-[42px] whitespace-nowrap"
             >
               Mes Actual
             </button>
             <button
               onClick={handleAnoActual}
-              className="px-3 py-1.5 text-sm bg-primary/10 text-primary font-medium rounded-lg hover:bg-primary/20 transition-colors"
+              className="flex-1 sm:flex-none px-3.5 py-2 text-sm bg-primary/10 text-primary font-medium rounded-lg hover:bg-primary/20 transition-colors h-[42px] whitespace-nowrap"
             >
               Año Actual
             </button>
           </div>
           
-          <div className="hidden lg:block w-px h-6 bg-border mx-2"></div>
+          <div className="hidden lg:block w-px h-8 bg-border mx-2"></div>
           
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
+          {/* Selector de Rango Manual */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+            <div className="flex items-center gap-2 flex-1 sm:flex-none">
+              <span className="text-xs font-semibold text-muted sm:hidden shrink-0 w-12">Desde:</span>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="pl-8 pr-3 py-1.5 text-sm bg-background border border-border text-dark rounded-lg outline-none focus:border-primary transition-colors w-[150px]"
+                className="w-full sm:w-[170px] px-3.5 py-2 text-sm bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors h-[42px] cursor-pointer"
                 title="Fecha desde"
               />
-              <Calendar size={14} className="absolute left-2.5 top-2.5 text-muted" />
             </div>
-            <span className="text-muted text-sm">-</span>
-            <div className="relative">
+            <span className="hidden sm:inline text-muted text-sm font-semibold">-</span>
+            <div className="flex items-center gap-2 flex-1 sm:flex-none">
+              <span className="text-xs font-semibold text-muted sm:hidden shrink-0 w-12">Hasta:</span>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="pl-8 pr-3 py-1.5 text-sm bg-background border border-border text-dark rounded-lg outline-none focus:border-primary transition-colors w-[150px]"
+                className="w-full sm:w-[170px] px-3.5 py-2 text-sm bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors h-[42px] cursor-pointer"
                 title="Fecha hasta"
               />
-              <Calendar size={14} className="absolute left-2.5 top-2.5 text-muted" />
             </div>
             
             {(startDate || endDate) && (
               <button
                 onClick={handleLimpiarFiltros}
-                className="p-1.5 text-danger bg-danger/10 rounded-lg hover:bg-danger/20 transition-colors ml-1"
+                className="flex items-center justify-center gap-1.5 h-[42px] px-3 text-danger bg-danger/10 rounded-lg hover:bg-danger/20 transition-colors font-medium text-sm"
                 title="Limpiar filtros"
               >
                 <FilterX size={18} />
+                <span className="sm:hidden">Limpiar</span>
               </button>
             )}
           </div>

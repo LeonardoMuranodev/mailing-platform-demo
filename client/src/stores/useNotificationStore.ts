@@ -64,7 +64,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
       if (enSegundoPlano) {
         try {
-          const notif = new Notification(`GenMailer: ${payload.titulo}`, {
+          const notif = new Notification(`3F Mailer: ${payload.titulo}`, {
             body: payload.mensaje,
             icon: '/favicon.ico',
             tag: `3f-${payload.tipo}-${payload.timestamp}`,
@@ -125,8 +125,8 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       eventSourceInstance = null;
     }
 
-    const streamUrl = `${API_BASE}/api/notificaciones/stream?token=${encodeURIComponent(token)}`;
-    const es = new EventSource(streamUrl);
+    const streamUrl = `${API_BASE}/api/notificaciones/stream${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+    const es = new EventSource(streamUrl, { withCredentials: true });
     eventSourceInstance = es;
 
     es.onopen = () => {

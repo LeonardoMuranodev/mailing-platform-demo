@@ -15,7 +15,20 @@ export function getClientIdentifier(req: Request): string {
     return `user:${user.userId || user.id}`;
   }
 
-  // 2. Si viene el header Authorization Bearer, extraer userId rápidamente
+  // 2. Si viene el token en la cookie HttpOnly
+  const cookieToken = req.cookies?.auth_token;
+  if (cookieToken && typeof cookieToken === 'string') {
+    try {
+      const decoded = jwt.decode(cookieToken.trim()) as { userId?: string; id?: string } | null;
+      if (decoded?.userId || decoded?.id) {
+        return `user:${decoded.userId || decoded.id}`;
+      }
+    } catch {
+      // Ignorar fallo de decodificación
+    }
+  }
+
+  // 3. Si viene el header Authorization Bearer, extraer userId rápidamente
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     try {

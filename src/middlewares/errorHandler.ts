@@ -57,15 +57,19 @@ export function errorHandler(
     }
 
     // Allow certain specific business errors to pass through even in production
-    const isBusinessError = err.message.includes('Contraseña de aplicación') || 
+    const isBusinessError = err.message.startsWith('No se puede aprobar') ||
+                            err.message.startsWith('No está permitido') ||
+                            err.message.includes('Contraseña de aplicación') || 
                             err.message.includes('host SMTP') ||
                             err.message.includes('servidor SMTP') ||
                             err.message.includes('ya está asignado') ||
                             err.message.includes('ya tiene asignado') ||
-                            err.message.includes('ya tiene otro rubro');
+                            err.message.includes('ya tiene otro rubro') ||
+                            err.message.includes('Campaña no encontrada') ||
+                            err.message.includes('Límite');
                             
     const message = (isProduction && !isBusinessError) ? 'Error interno del servidor' : err.message;
-    const statusCode = isBusinessError ? 400 : 500;
+    const statusCode = isBusinessError ? 422 : 500;
 
     if (isBusinessError) {
       console.warn(`[BusinessError] ${err.message}`);

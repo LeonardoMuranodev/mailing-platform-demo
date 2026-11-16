@@ -198,6 +198,10 @@ export async function actualizarCuentaSmtp(
  * Elimina una cuenta SMTP por su UUID.
  */
 export async function eliminarCuentaSmtp(id: string): Promise<CuentaSmtp | null> {
+  const cuentaQuery = `SELECT * FROM cuentas_smtp WHERE id = $1`;
+  const cuentaResult = await dbPool.query<CuentaSmtp>(cuentaQuery, [id]);
+  const cuentaActual = cuentaResult.rows[0];
+
   const query = `DELETE FROM cuentas_smtp WHERE id = $1 RETURNING *`;
   const result = await dbPool.query<CuentaSmtp>(query, [id]);
   return result.rows[0] ? omitPassword(result.rows[0]) : null;
@@ -215,4 +219,30 @@ export async function toggleEstadoSmtp(id: string, nuevoEstado: string): Promise
   `;
   const result = await dbPool.query<CuentaSmtp>(query, [nuevoEstado, id]);
   return result.rows[0] ? omitPassword(result.rows[0]) : null;
+}
+
+
+/**
+ * Marca una cuenta SMTP como la cuenta principal del sistema de forma atómica.
+ */
+export async function marcarCuentaComoPrincipal(id: string): Promise<CuentaSmtp> {
+  const client = await dbPool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('UPDATE cuentas_smtp SET es_principal = false');
+    const res = await client.query<CuentaSmtp>(
+      'UPDATE cuentas_smtp SET es_principal = true, actualizado_en = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *',
+      [id]
+    );
+    if (res.rowCount === 0) {
+      throw new Error('Cuenta SMTP no encontrada');
+    }
+    await client.query('COMMIT');
+    return omitPassword(res.rows[0]);
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
 }

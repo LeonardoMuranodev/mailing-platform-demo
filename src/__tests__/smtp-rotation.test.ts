@@ -20,6 +20,14 @@ vi.mock('../services/telegramNotifier.js', () => ({
   notifyDbError: vi.fn().mockResolvedValue(undefined),
   notifyUncaughtException: vi.fn().mockResolvedValue(undefined),
   notifyUnhandledRejection: vi.fn().mockResolvedValue(undefined),
+  getTelegramEnvironmentInfo: vi.fn().mockReturnValue({
+    location: 'LOCAL',
+    modo: 'TEST',
+    tag: '[LOCAL | TEST]',
+    hostname: 'test-host',
+    descLocation: 'LOCAL (test-host)',
+    descModo: 'MODO TEST (Pruebas)',
+  }),
 }));
 
 vi.mock('../scripts/seedUsuarios.js', () => ({
@@ -30,7 +38,7 @@ import {
   obtenerSiguienteSmtpDisponible,
   incrementarCuotaSmtp,
 } from '../services/queueService.js';
-import { resetearContadoresSmtp } from '../services/smtpAccountService.js';
+import { resetearContadoresSmtp, marcarCuentaComoPrincipal, actualizarCuentaSmtp, eliminarCuentaSmtp } from '../services/smtpAccountService.js';
 
 describe('SMTP Rotation — Round-Robin', () => {
   beforeEach(() => {
@@ -41,10 +49,10 @@ describe('SMTP Rotation — Round-Robin', () => {
     it('debería retornar la cuenta SMTP con ultimo_uso más antiguo', async () => {
       const cuentaEsperada = {
         id: 'smtp-1',
-        email: 'cuenta5@gmail.com',
+        email: 'cuenta5@dominio.com',
         host: 'smtp.gmail.com',
         puerto: 465,
-        usuario: 'cuenta5@gmail.com',
+        usuario: 'cuenta5@dominio.com',
         password_encrypted: 'encrypted_pass',
         estado: 'activo',
         enviados_hoy: 50,
@@ -68,6 +76,7 @@ describe('SMTP Rotation — Round-Robin', () => {
       expect(queryText).toContain('ORDER BY ultimo_uso ASC NULLS FIRST');
       expect(queryText).toContain("estado = 'activo'");
       expect(queryText).toContain('enviados_hoy < limite_diario');
+      expect(queryText).toContain('es_exclusiva IS FALSE OR es_exclusiva IS NULL');
     });
 
     it('debería retornar null si no hay cuentas disponibles', async () => {
@@ -81,14 +90,72 @@ describe('SMTP Rotation — Round-Robin', () => {
     });
   });
 
+  describe('obtenerSmtpExclusivo()', () => {
+    it('debería obtener la cuenta exclusiva por ID cuando se especifica cuentaId', async () => {
+      const { obtenerSmtpExclusivo } = await import('../services/queueService.js');
+      const cuentaPrincipal = {
+        id: 'principal-uuid',
+        email: 'cuenta-principal@dominio.com',
+        host: 'smtp.gmail.com',
+        puerto: 465,
+        usuario: 'cuenta-principal@dominio.com',
+        password_encrypted: 'dummy_oauth',
+        estado: 'activo',
+        enviados_hoy: 10,
+        limite_diario: 400,
+        es_principal: true,
+        es_exclusiva: true,
+        ultimo_uso: '2024-01-01T10:00:00Z',
+        creado_en: '2024-01-01T00:00:00Z',
+        actualizado_en: '2024-01-01T00:00:00Z',
+      };
+
+      mockQuery.mockResolvedValueOnce({
+        rows: [cuentaPrincipal],
+        rowCount: 1,
+      });
+
+      const result = await obtenerSmtpExclusivo('principal-uuid');
+      expect(result).toEqual(cuentaPrincipal);
+
+      const queryText = mockQuery.mock.calls[0][0] as string;
+      const params = mockQuery.mock.calls[0][1];
+      expect(queryText).toContain('WHERE id = $1');
+      expect(params).toEqual(['principal-uuid']);
+    });
+
+    it('debería obtener la cuenta exclusiva o principal fallback cuando no se pasa cuentaId', async () => {
+      const { obtenerSmtpExclusivo } = await import('../services/queueService.js');
+      const cuentaPrincipal = {
+        id: 'principal-uuid',
+        email: 'cuenta-principal@dominio.com',
+        estado: 'activo',
+        enviados_hoy: 0,
+        limite_diario: 400,
+        es_principal: true,
+      };
+
+      mockQuery.mockResolvedValueOnce({
+        rows: [cuentaPrincipal],
+        rowCount: 1,
+      });
+
+      const result = await obtenerSmtpExclusivo();
+      expect(result).toEqual(cuentaPrincipal);
+
+      const queryText = mockQuery.mock.calls[0][0] as string;
+      expect(queryText).toContain('es_principal = true OR es_exclusiva = true');
+    });
+  });
+
   describe('incrementarCuotaSmtp()', () => {
     it('debería incrementar enviados_hoy y actualizar ultimo_uso', async () => {
       const cuentaActualizada = {
         id: 'smtp-1',
-        email: 'cuenta5@gmail.com',
+        email: 'cuenta5@dominio.com',
         host: 'smtp.gmail.com',
         puerto: 465,
-        usuario: 'cuenta5@gmail.com',
+        usuario: 'cuenta5@dominio.com',
         password_encrypted: 'encrypted_pass',
         estado: 'activo',
         enviados_hoy: 51, // incrementado
@@ -117,10 +184,10 @@ describe('SMTP Rotation — Round-Robin', () => {
     it('debería cambiar estado a "agotado" al alcanzar el límite diario (Circuit Breaker)', async () => {
       const cuentaAgotada = {
         id: 'smtp-2',
-        email: 'cuenta2@gmail.com',
+        email: 'cuenta2@dominio.com',
         host: 'smtp.gmail.com',
         puerto: 465,
-        usuario: 'cuenta2@gmail.com',
+        usuario: 'cuenta2@dominio.com',
         password_encrypted: 'encrypted_pass',
         estado: 'agotado', // cambiado por el CASE
         enviados_hoy: 400, // alcanzó el límite
@@ -172,5 +239,38 @@ describe('resetearContadoresSmtp', () => {
     expect(queryText).toContain('UPDATE cuentas_smtp');
     expect(queryText).toContain('enviados_hoy = 0');
     expect(queryText).toContain("estado = CASE WHEN estado = 'agotado' THEN 'activo' ELSE estado END");
+  });
+});
+
+describe('Gestión de Cuenta Principal GenMailer', () => {
+  beforeEach(() => {
+    resetAllMocks();
+  });
+
+  it('marcarCuentaComoPrincipal actualiza es_principal atómicamente', async () => {
+    const mockClient = {
+      query: vi.fn()
+        .mockResolvedValueOnce({}) // BEGIN
+        .mockResolvedValueOnce({}) // UPDATE es_principal = false
+        .mockResolvedValueOnce({   // UPDATE target
+          rowCount: 1,
+          rows: [{
+            id: 'smtp-1',
+            email: 'admin@dominio.com',
+            es_principal: true,
+            password_encrypted: 'clave',
+          }],
+        })
+        .mockResolvedValueOnce({}), // COMMIT
+      release: vi.fn(),
+    };
+    mockDbPool.connect.mockResolvedValueOnce(mockClient);
+
+    const res = await marcarCuentaComoPrincipal('smtp-1');
+    expect(res.es_principal).toBe(true);
+    expect(res.password_encrypted).toBe('********');
+    expect(mockClient.query).toHaveBeenCalledWith('BEGIN');
+    expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
+    expect(mockClient.release).toHaveBeenCalled();
   });
 });

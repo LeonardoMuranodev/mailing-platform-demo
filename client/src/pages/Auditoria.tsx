@@ -16,7 +16,8 @@ export default function Auditoria() {
   const fetchHistorial = async () => {
     try {
       const response = await fetch('/api/historial', {
-        headers: { 'Authorization': `Bearer ${token}` }
+        credentials: 'include',
+        headers: { 'Authorization': `Bearer ${token || ''}` }
       });
       const data = await response.json();
       if (data.success) {

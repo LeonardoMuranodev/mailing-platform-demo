@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { Search, Filter, RotateCcw, Upload, Download, Plus, Edit2, Trash2, X, Building2, AlertCircle, HelpCircle, Info } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import { Search, Filter, RotateCcw, Upload, Download, Plus, Edit2, Trash2, Building2, AlertCircle, HelpCircle, Info } from 'lucide-react';
 import {
   obtenerContactos,
   crearContacto,
@@ -17,6 +16,11 @@ import { usePermisos } from '../hooks/usePermisos';
 import { useNotificationStore } from '../stores/useNotificationStore';
 import AlertMessage from './ui/AlertMessage';
 import ImportadorVisual from './ImportadorVisual';
+import Modal from './ui/Modal';
+import ConfirmModal from './ui/ConfirmModal';
+import TablePagination from './ui/TablePagination';
+import Spinner from './ui/Spinner';
+import CustomSelect from './ui/CustomSelect';
 
 export default function DirectorioContactos() {
   const [contactos, setContactos] = useState<ContactoConRubro[]>([]);
@@ -30,6 +34,44 @@ export default function DirectorioContactos() {
   const [busqueda, setBusqueda] = useState('');
   const [estado, setEstado] = useState('');
   const [rubroId, setRubroId] = useState('');
+
+  const rubroFilterOptions = useMemo(() => [
+    { value: '', label: 'Todos los rubros' },
+    { value: '__sin_rubro__', label: 'Sin Rubro' },
+    ...RUBROS_LIST.map((r) => ({ value: r, label: RUBROS_LABELS[r] || r })),
+  ], []);
+
+  const estadoFilterOptions = useMemo(() => [
+    { value: '', label: 'Todos los estados' },
+    { value: 'funcional', label: 'Funcional' },
+    { value: 'inactivo', label: 'Inactivo' },
+    { value: 'rebotado inexistente', label: 'Rebotado Inexistente' },
+    { value: 'rebotado bandeja llena', label: 'Rebotado Bandeja Llena' },
+    { value: 'rebotado spam', label: 'Rebotado SPAM' },
+    { value: 'rebotado desconocido', label: 'Rebotado Desconocido' },
+    { value: 'mal_escrito', label: 'Mail Mal Escrito' },
+  ], []);
+
+  const modalEstadoOptions = useMemo(() => [
+    { value: 'funcional', label: 'Funcional' },
+    { value: 'inactivo', label: 'Inactivo' },
+    { value: 'rebotado inexistente', label: 'Rebotado Inexistente' },
+    { value: 'rebotado bandeja llena', label: 'Rebotado Bandeja Llena' },
+    { value: 'rebotado spam', label: 'Rebotado SPAM' },
+    { value: 'rebotado desconocido', label: 'Rebotado Desconocido' },
+    { value: 'mal_escrito', label: 'Mail Mal Escrito' },
+  ], []);
+
+  const modalTipoOptions = useMemo(() => [
+    { value: '', label: 'Sin tipo asignado' },
+    { value: 'principal', label: 'Principal' },
+    { value: 'secundario', label: 'Secundario' },
+  ], []);
+
+  const modalRubroOptions = useMemo(() => [
+    { value: '', label: 'Sin rubro asignado' },
+    ...RUBROS_LIST.map((r) => ({ value: r, label: RUBROS_LABELS[r] || r })),
+  ], []);
 
   // Bulk Selection
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -467,53 +509,47 @@ export default function DirectorioContactos() {
         </div>
       </div>
 
-      {showHelp && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto animate-fade-in">
-          <div className="bg-surface rounded-xl shadow-xl w-full max-w-lg p-6 border border-border relative my-auto animate-slide-up max-h-[90vh] overflow-y-auto">
-            <button 
-              onClick={() => setShowHelp(false)}
-              className="absolute top-4 right-4 text-muted hover:text-dark transition-colors"
-            >
-              <X size={20} />
-            </button>
-            <h3 className="text-lg font-bold text-dark mb-4 flex items-center gap-2">
-              <Info size={20} className="text-primary" />
-              ¿Cómo organizar tu base?
-            </h3>
-            
-            <div className="space-y-3.5 text-sm text-dark">
-              <div className="bg-background p-3 rounded-lg border border-border">
-                <h4 className="font-semibold text-primary mb-1">🔄 Sincronizar Sheets</h4>
-                <p className="text-muted leading-relaxed">
-                  Importa nuevos contactos desde el Excel en la nube de Google Sheets (Automático y manual).
-                </p>
-              </div>
-
-              <div className="bg-background p-3 rounded-lg border border-border">
-                <h4 className="font-semibold text-primary mb-1">📤 Exportar/Importar CSV</h4>
-                <p className="text-muted leading-relaxed">
-                  Sirve para hacer respaldos masivos o migraciones a otros sistemas de forma rápida.
-                </p>
-              </div>
-
-              <div className="bg-background p-3 rounded-lg border border-border">
-                <h4 className="font-semibold text-primary mb-1">🛡️ Estados (Rebotes)</h4>
-                <p className="text-muted leading-relaxed">
-                  Los correos que no existan o reboten pasarán a estado "Rebotado" automáticamente por el sistema, lo que evita que se les envíe en la próxima campaña cuidando la reputación de tu cuenta.
-                </p>
-              </div>
-            </div>
-            
-            <button
-              onClick={() => setShowHelp(false)}
-              className="mt-6 w-full px-4 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors"
-            >
-              Entendido
-            </button>
+      <Modal
+        isOpen={showHelp}
+        onClose={() => setShowHelp(false)}
+        maxWidth="lg"
+        title={
+          <span className="flex items-center gap-2">
+            <Info size={20} className="text-primary" />
+            ¿Cómo organizar tu base?
+          </span>
+        }
+      >
+        <div className="space-y-3.5 text-sm text-dark">
+          <div className="bg-background p-3 rounded-lg border border-border">
+            <h4 className="font-semibold text-primary mb-1">🔄 Sincronizar Sheets</h4>
+            <p className="text-muted leading-relaxed">
+              Importa nuevos contactos desde el Excel en la nube de Google Sheets (Automático y manual).
+            </p>
           </div>
-        </div>,
-        document.body
-      )}
+
+          <div className="bg-background p-3 rounded-lg border border-border">
+            <h4 className="font-semibold text-primary mb-1">📤 Exportar/Importar CSV</h4>
+            <p className="text-muted leading-relaxed">
+              Sirve para hacer respaldos masivos o migraciones a otros sistemas de forma rápida.
+            </p>
+          </div>
+
+          <div className="bg-background p-3 rounded-lg border border-border">
+            <h4 className="font-semibold text-primary mb-1">🛡️ Estados (Rebotes)</h4>
+            <p className="text-muted leading-relaxed">
+              Los correos que no existan o reboten pasarán a estado "Rebotado" automáticamente por el sistema, lo que evita que se les envíe en la próxima campaña cuidando la reputación de tu cuenta.
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => setShowHelp(false)}
+          className="mt-6 w-full px-4 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors cursor-pointer"
+        >
+          Entendido
+        </button>
+      </Modal>
 
       {syncResult && (
         <div className="mb-6">
@@ -580,36 +616,23 @@ export default function DirectorioContactos() {
               />
             </div>
           </div>
-          <div className="w-full lg:w-[200px]">
+          <div className="w-full lg:w-[220px]">
             <label className="block text-sm font-semibold text-muted mb-1.5">Rubro</label>
-            <select
+            <CustomSelect
               value={rubroId}
-              onChange={(e) => setRubroId(e.target.value)}
-              className="w-full pl-3 pr-10 py-2.5 text-sm bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors h-[42px]"
-            >
-              <option value="">Todos los rubros</option>
-              <option value="__sin_rubro__">Sin Rubro</option>
-              {RUBROS_LIST.map((r) => (
-                <option key={r} value={r}>{RUBROS_LABELS[r] || r}</option>
-              ))}
-            </select>
+              onChange={setRubroId}
+              options={rubroFilterOptions}
+              size="md"
+            />
           </div>
-          <div className="w-full lg:w-[200px]">
+          <div className="w-full lg:w-[220px]">
             <label className="block text-sm font-semibold text-muted mb-1.5">Estado</label>
-            <select
+            <CustomSelect
               value={estado}
-              onChange={(e) => setEstado(e.target.value)}
-              className="w-full pl-3 pr-10 py-2.5 text-sm bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors h-[42px]"
-            >
-              <option value="">Todos los estados</option>
-              <option value="funcional">Funcional</option>
-              <option value="inactivo">Inactivo</option>
-              <option value="rebotado inexistente">Rebotado Inexistente</option>
-              <option value="rebotado bandeja llena">Rebotado Bandeja Llena</option>
-              <option value="rebotado spam">Rebotado SPAM</option>
-              <option value="rebotado desconocido">Rebotado Desconocido</option>
-              <option value="mal_escrito">Mail Mal Escrito</option>
-            </select>
+              onChange={setEstado}
+              options={estadoFilterOptions}
+              size="md"
+            />
           </div>
           <div className="flex flex-row gap-3 w-full lg:w-auto">
             <button type="submit" className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-secondary text-white font-medium rounded-lg hover:bg-secondary-dark transition-colors shadow-sm text-sm h-[42px] whitespace-nowrap">
@@ -643,7 +666,7 @@ export default function DirectorioContactos() {
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-muted">
                     <div className="animate-pulse flex flex-col items-center">
-                      <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-3"></div>
+                      <Spinner size="md" color="primary" className="mb-3" />
                       Cargando contactos...
                     </div>
                   </td>
@@ -730,48 +753,14 @@ export default function DirectorioContactos() {
             </tbody>
           </table>
         </div>
-        {total > 0 && (
-          <div className="px-4 sm:px-6 py-4 border-t border-border flex flex-col sm:flex-row items-center justify-between bg-background gap-4">
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-center sm:text-left">
-              <span className="text-sm text-muted whitespace-nowrap">
-                Página <span className="font-medium text-dark">{page}</span> de <span className="font-medium text-dark">{totalPages}</span>
-              </span>
-              <div className="flex items-center gap-2">
-                <label htmlFor="limit" className="text-sm text-muted whitespace-nowrap">Mostrar:</label>
-                <select
-                  id="limit"
-                  value={limit}
-                  onChange={(e) => {
-                    setLimit(Number(e.target.value));
-                    setPage(1);
-                  }}
-                  className="px-2 py-1 bg-background border border-border rounded text-sm text-dark focus:outline-none focus:ring-2 focus:ring-primary/20"
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex justify-center gap-2 w-full sm:w-auto">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="flex-1 sm:flex-none px-3 py-1.5 border border-border rounded-md text-sm font-medium text-dark disabled:opacity-50 hover:bg-surface transition-colors text-center"
-              >
-                Anterior
-              </button>
-              <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="flex-1 sm:flex-none px-3 py-1.5 border border-border rounded-md text-sm font-medium text-dark disabled:opacity-50 hover:bg-surface transition-colors text-center"
-              >
-                Siguiente
-              </button>
-            </div>
-          </div>
-        )}
+        <TablePagination
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          limit={limit}
+          onPageChange={setPage}
+          onLimitChange={setLimit}
+        />
 
         {puedeEliminar && selectedIds.length > 0 && (
           <div className="px-6 py-3 border-t border-border bg-danger/5 flex items-center justify-between">
@@ -798,17 +787,14 @@ export default function DirectorioContactos() {
         )}
       </div>
 
-      {isModalOpen && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto animate-fade-in">
-          <div className="bg-surface w-full max-w-lg rounded-xl border border-border shadow-2xl overflow-hidden my-auto animate-fade-in">
-            <div className="px-6 py-4 border-b border-border flex justify-between items-center">
-              <h2 className="text-lg font-bold text-dark">{editingId ? 'Editar Contacto' : 'Nuevo Contacto'}</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-muted hover:text-dark">
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleGuardar} className="p-6 space-y-4" noValidate>
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        maxWidth="lg"
+        title={editingId ? 'Editar Contacto' : 'Nuevo Contacto'}
+        bodyClassName="p-0"
+      >
+        <form onSubmit={handleGuardar} className="p-6 space-y-4" noValidate>
               <AlertMessage type="error" message={errorMsg} />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -911,47 +897,33 @@ export default function DirectorioContactos() {
                 {/* Estado y Tipo - lado a lado */}
                 <div>
                   <label className="block text-sm font-medium text-dark mb-1">Estado</label>
-                  <select
+                  <CustomSelect
                     value={form.estado}
-                    onChange={e => setForm({ ...form, estado: e.target.value as any })}
-                    className="w-full pl-3 pr-10 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 h-[42px]"
-                  >
-                    <option value="funcional">Funcional</option>
-                    <option value="inactivo">Inactivo</option>
-                    <option value="rebotado inexistente">Rebotado Inexistente</option>
-                    <option value="rebotado bandeja llena">Rebotado Bandeja Llena</option>
-                    <option value="rebotado spam">Rebotado SPAM</option>
-                    <option value="rebotado desconocido">Rebotado Desconocido</option>
-                    <option value="mal_escrito">Mail Mal Escrito</option>
-                  </select>
+                    onChange={(val) => setForm({ ...form, estado: val as any })}
+                    options={modalEstadoOptions}
+                    size="md"
+                  />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-dark mb-1">Tipo de Contacto</label>
-                  <select
+                  <CustomSelect
                     value={form.tipo || ''}
-                    onChange={e => setForm({ ...form, tipo: e.target.value })}
-                    className="w-full pl-3 pr-10 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 h-[42px]"
-                  >
-                    <option value="">Sin tipo asignado</option>
-                    <option value="principal">Principal</option>
-                    <option value="secundario">Secundario</option>
-                  </select>
+                    onChange={(val) => setForm({ ...form, tipo: val })}
+                    options={modalTipoOptions}
+                    size="md"
+                  />
                 </div>
 
                 {/* Rubro - full width */}
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-dark mb-1">Rubro</label>
-                  <select
+                  <CustomSelect
                     value={form.rubro_id || ''}
-                    onChange={e => setForm({ ...form, rubro_id: e.target.value })}
-                    className="w-full pl-3 pr-10 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 h-[42px]"
-                  >
-                    <option value="">Sin rubro asignado</option>
-                    {RUBROS_LIST.map(r => (
-                      <option key={r} value={r}>{RUBROS_LABELS[r] || r}</option>
-                    ))}
-                  </select>
+                    onChange={(val) => setForm({ ...form, rubro_id: val })}
+                    options={modalRubroOptions}
+                    size="md"
+                  />
                 </div>
               </div>
 
@@ -959,24 +931,21 @@ export default function DirectorioContactos() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-border bg-background text-dark rounded-lg hover:bg-surface font-medium transition-colors"
+                  className="px-4 py-2 border border-border bg-background text-dark rounded-lg hover:bg-surface font-medium transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark font-medium transition-colors disabled:opacity-70 flex items-center gap-2"
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark font-medium transition-colors disabled:opacity-70 flex items-center gap-2 cursor-pointer"
                 >
-                  {saving && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
+                  {saving && <Spinner size="sm" color="white" />}
                   {editingId ? 'Guardar Cambios' : 'Crear Contacto'}
                 </button>
               </div>
             </form>
-          </div>
-        </div>,
-        document.body
-      )}
+      </Modal>
 
       {isImportModalOpen && (
         <ImportadorVisual
@@ -986,68 +955,29 @@ export default function DirectorioContactos() {
       )}
 
       {/* Modal de Confirmación de Eliminación */}
-      {deleteConfirmId && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4 overflow-y-auto">
-          <div className="bg-surface rounded-xl shadow-xl w-full max-w-sm p-6 animate-fade-in border border-border text-center my-auto">
-            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-danger/10 mb-4">
-              <Trash2 className="h-6 w-6 text-danger" />
-            </div>
-            <h3 className="text-lg font-semibold text-dark mb-2">¿Eliminar contacto?</h3>
-            <p className="text-sm text-muted mb-6">
-              Esta acción no se puede deshacer. Se borrarán los datos del directorio.
-            </p>
-            <div className="flex justify-center gap-3">
-              <button
-                onClick={() => setDeleteConfirmId(null)}
-                className="px-4 py-2 text-sm font-medium text-dark bg-background border border-border rounded-lg hover:bg-surface transition-colors w-full"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmEliminar}
-                className="px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg hover:bg-danger-dark transition-colors w-full"
-              >
-                Sí, Eliminar
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <ConfirmModal
+        isOpen={Boolean(deleteConfirmId)}
+        onClose={() => setDeleteConfirmId(null)}
+        onConfirm={confirmEliminar}
+        title="¿Eliminar contacto?"
+        description="Esta acción no se puede deshacer. Se borrarán los datos del directorio."
+        confirmText="Sí, Eliminar"
+        variant="danger"
+        maxWidth="sm"
+      />
 
       {/* Modal de Confirmación de Eliminación Masiva */}
-      {bulkDeleteConfirm && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4 overflow-y-auto">
-          <div className="bg-surface rounded-xl shadow-xl w-full max-w-sm p-6 animate-fade-in border border-border text-center my-auto">
-            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-danger/10 mb-4">
-              <Trash2 className="h-6 w-6 text-danger" />
-            </div>
-            <h3 className="text-lg font-semibold text-dark mb-2">
-              ¿Eliminar {selectedIds.length} contacto{selectedIds.length > 1 ? 's' : ''}?
-            </h3>
-            <p className="text-sm text-muted mb-6">
-              Esta acción no se puede deshacer. Se borrarán los datos de {selectedIds.length} contacto{selectedIds.length > 1 ? 's' : ''} del directorio.
-            </p>
-            <div className="flex justify-center gap-3">
-              <button
-                onClick={() => setBulkDeleteConfirm(false)}
-                className="px-4 py-2 text-sm font-medium text-dark bg-background border border-border rounded-lg hover:bg-surface transition-colors w-full"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleBulkDelete}
-                disabled={bulkDeleting}
-                className="px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg hover:bg-danger-dark transition-colors w-full disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {bulkDeleting && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
-                Sí, Eliminar Todos
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <ConfirmModal
+        isOpen={bulkDeleteConfirm}
+        onClose={() => setBulkDeleteConfirm(false)}
+        onConfirm={handleBulkDelete}
+        isLoading={bulkDeleting}
+        title={`¿Eliminar ${selectedIds.length} contacto${selectedIds.length > 1 ? 's' : ''}?`}
+        description={`Esta acción no se puede deshacer. Se borrarán los datos de ${selectedIds.length} contacto${selectedIds.length > 1 ? 's' : ''} del directorio.`}
+        confirmText="Sí, Eliminar Todos"
+        variant="danger"
+        maxWidth="sm"
+      />
     </div>
   );
 }

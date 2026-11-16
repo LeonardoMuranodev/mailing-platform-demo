@@ -20,7 +20,7 @@ async function fetchApi<T>(url: string, options: RequestInit = {}): Promise<ApiR
       headers.set('Authorization', `Bearer ${token}`);
     }
 
-    const res = await fetch(url, { ...options, headers });
+    const res = await fetch(url, { ...options, headers, credentials: 'include' });
 
     if (res.status === 401) {
       localStorage.removeItem('auth_token');
@@ -504,4 +504,19 @@ export async function buscarEmpresasApi(q: string): Promise<ApiResponse<Array<{ 
   const query = new URLSearchParams();
   if (q) query.append('q', q);
   return fetchApi<Array<{ id: string; nombre: string; cuit: string | null; rubro_id?: string | null }>>(`${API_BASE}/api/empresas?${query.toString()}`);
+}
+
+// ── AUTENTICACIÓN ──────────────────────────────────────────
+
+export async function cerrarSesionApi(): Promise<ApiResponse<{ message: string }>> {
+  return fetchApi<{ message: string }>(`${API_BASE}/api/auth/logout`, {
+    method: 'POST',
+  });
+}
+
+
+export async function marcarCuentaSmtpPrincipal(id: string): Promise<ApiResponse<CuentaSmtp>> {
+  return fetchApi<CuentaSmtp>(`${API_BASE}/api/smtp/${id}/principal`, {
+    method: 'PATCH',
+  });
 }

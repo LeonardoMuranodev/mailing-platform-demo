@@ -7,7 +7,8 @@ export type RealtimeEventType =
   | 'smtp_quota_warning'
   | 'smtp_account_issue'
   | 'test_mail_sent'
-  | 'test_mail_error';
+  | 'test_mail_error'
+  | 'general';
 
 export interface RealtimePayload {
   tipo: RealtimeEventType;

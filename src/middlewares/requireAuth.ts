@@ -17,9 +17,14 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   const authHeader = req.headers.authorization;
   let token: string | undefined;
 
-  if (authHeader && authHeader.startsWith('Bearer ')) {
+  // 1. Priorizar Cookie HttpOnly segura anti-XSS
+  if (req.cookies && typeof req.cookies.auth_token === 'string' && req.cookies.auth_token.trim()) {
+    token = req.cookies.auth_token.trim();
+  } else if (authHeader && authHeader.startsWith('Bearer ')) {
+    // 2. Fallback a header Authorization para APIs, scripts y tests
     token = authHeader.split(' ')[1];
   } else if (typeof req.query.token === 'string' && req.query.token.trim()) {
+    // 3. Fallback a query parameter para descargas o SSE si aplica
     token = req.query.token.trim();
   }
 

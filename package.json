@@ -31,7 +31,8 @@
     "ts-node": "^10.9.2",
     "tsx": "^4.23.12",
     "typescript": "~5.7.3",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "@types/cookie-parser": "^1.4.10"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -53,6 +54,7 @@
     "svix": "^2.9.0",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "cookie-parser": "^1.4.7"
   }
 }

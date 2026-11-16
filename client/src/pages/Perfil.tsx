@@ -31,7 +31,8 @@ export default function Perfil() {
   const fetchHistorial = async () => {
     try {
       const response = await fetch('/api/historial/me', {
-        headers: { 'Authorization': `Bearer ${useAuthStore.getState().token}` }
+        credentials: 'include',
+        headers: { 'Authorization': `Bearer ${useAuthStore.getState().token || ''}` }
       });
       const data = await response.json();
       if (data.success) {
@@ -73,9 +74,10 @@ export default function Perfil() {
     try {
       const response = await fetch('/api/auth/change-password', {
         method: 'POST',
+        credentials: 'include',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${useAuthStore.getState().token}`
+          'Authorization': `Bearer ${useAuthStore.getState().token || ''}`
         },
         body: JSON.stringify({ currentPassword, newPassword }),
       });

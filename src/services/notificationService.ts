@@ -1,12 +1,26 @@
 import nodemailer from 'nodemailer';
 import { config } from '../config/env.js';
+import { getTelegramEnvironmentInfo } from './telegramNotifier.js';
 import fs from 'node:fs';
 import path from 'node:path';
 
+/**
+ * Retorna la casilla de correo oficial que debe recibir todos los avisos y reportes del sistema (Gmail):
+ * - MODO TEST / PRUEBA: admin-test@dominio.com
+ * - PRODUCCIÓN REAL: admin@dominio.com
+ */
+export function getDestinatarioAvisos(): string {
+  return config.modoPrueba ? 'admin-test@dominio.com' : 'admin@dominio.com';
+}
+
+
 export async function notificarSoporte(tipo: string, descripcion: string, usuario: { nombre: string; email: string }, adjuntoUrl?: string) {
   const { telegramChatId, telegramToken } = config.notifier;
+  const env = getTelegramEnvironmentInfo();
 
-  let msg = `🛠 *Nuevo Reporte de Soporte*\n\n`;
+  let msg = `🛠 \`${env.tag}\` *Reporte de Soporte*\n\n`;
+  msg += `🌐 *Origen:* ${env.descLocation}\n`;
+  msg += `⚙️ *Modo:* ${env.descModo}\n`;
   msg += `*Usuario:* ${usuario.nombre} (${usuario.email})\n`;
   msg += `*Tipo:* ${tipo.toUpperCase()}\n`;
   msg += `*Descripción:* ${descripcion}\n`;
@@ -139,7 +153,7 @@ export async function notificarCampanaTerminada(campanaId: string, asunto: strin
           <tr>
             <td style="background-color: #f8fafc; padding: 20px 30px; border-top: 1px solid #e2e8f0; text-align: center;">
               <p style="margin: 0; font-size: 12px; color: #718096; line-height: 1.4;">
-                Este es un mensaje automático de la Plataforma de Envíos
+                Este es un mensaje automático del sistema de envíos de la Plataforma de Envíos
               </p>
             </td>
           </tr>
@@ -153,9 +167,10 @@ export async function notificarCampanaTerminada(campanaId: string, asunto: strin
 </body>
 </html>`;
 
+      const destinatario = getDestinatarioAvisos();
       const mailOptions: any = {
-        from: `"Sistema de Correos" <${smtpUser}>`,
-        to: config.alertEmailDestination || smtpUser,
+        from: `"Sistema de Correos — 3F" <${smtpUser}>`,
+        to: destinatario,
         subject: `Campaña Finalizada: ${asunto}`,
         html: htmlMsg
       };
@@ -169,8 +184,12 @@ export async function notificarCampanaTerminada(campanaId: string, asunto: strin
 
 export async function notificarCuotaGlobalAgotada() {
   const { smtpHost, smtpPort, smtpUser, smtpPass, telegramChatId, telegramToken } = config.notifier;
+  const env = getTelegramEnvironmentInfo();
 
-  const msg = `⚠️ *Cuota Excedida - GenMailer*\n\nTodas las cuentas llegaron al limite de envio de 500 mails HOY.`;
+  const msg = `⚠️ \`${env.tag}\` *Cuota Excedida — GenMailer*\n\n` +
+              `🌐 *Origen:* ${env.descLocation}\n` +
+              `⚙️ *Modo:* ${env.descModo}\n\n` +
+              `Todas las cuentas llegaron al límite de envío de 500 mails HOY.`;
 
   // Enviar a Telegram
   if (telegramChatId && telegramToken) {
@@ -267,7 +286,7 @@ export async function notificarCuotaGlobalAgotada() {
                 </tbody>
               </table>
 
-              <!-- Caja de Gestión Operativa -->
+              <!-- Caja de Gestión Operativa (Naranja 3F) -->
               <div style="background-color: #fffaf0; border-left: 4px solid #E87722; padding: 16px 18px; border-radius: 4px; margin-top: 25px;">
                 <span style="font-size: 12px; font-weight: 700; color: #E87722; text-transform: uppercase; letter-spacing: 0.5px;">Gestión de Cola Pendiente</span>
                 <p style="margin: 4px 0 0 0; font-size: 14px; color: #744210; line-height: 1.5;">
@@ -282,7 +301,7 @@ export async function notificarCuotaGlobalAgotada() {
           <tr>
             <td style="background-color: #f8fafc; padding: 20px 30px; border-top: 1px solid #e2e8f0; text-align: center;">
               <p style="margin: 0; font-size: 12px; color: #718096; line-height: 1.4;">
-                Este es un mensaje automático de la Plataforma de Envíos
+                Este es un mensaje automático del sistema de envíos de la Plataforma de Envíos
               </p>
             </td>
           </tr>
@@ -296,9 +315,10 @@ export async function notificarCuotaGlobalAgotada() {
 </body>
 </html>`;
 
+      const destinatario = getDestinatarioAvisos();
       const mailOptions: any = {
-        from: `"Alerta Sistema" <${smtpUser}>`,
-        to: smtpUser,
+        from: `"Alerta Sistema — 3F" <${smtpUser}>`,
+        to: destinatario,
         subject: `⚠️ Límite de Cuota Diaria Alcanzado`,
         html: htmlMsg
       };
@@ -310,15 +330,26 @@ export async function notificarCuotaGlobalAgotada() {
   }
 }
 
-export async function notificarCuentaProblema(email: string, tipo: 'agotada' | 'bloqueada', detalle: string) {
+export async function notificarCuentaProblema(
+  email: string, 
+  tipo: 'agotada' | 'bloqueada' | 'circuit_breaker', 
+  detalle: string
+) {
   const { telegramChatId, telegramToken } = config.notifier;
 
   const emoji = tipo === 'agotada' ? '⚠️' : '🚨';
-  const accion = tipo === 'agotada' 
-    ? 'alcanzó su cuota diaria' 
-    : 'fue DESACTIVADA (Bloqueo o requerimiento de verificación en Google)';
+  let accion = 'fue DESACTIVADA (Bloqueo o requerimiento de verificación en Google)';
+  if (tipo === 'agotada') {
+    accion = 'alcanzó su cuota diaria';
+  } else if (tipo === 'circuit_breaker') {
+    accion = 'fue DESACTIVADA preventivamente por el sistema (Circuit Breaker: Umbral de rebotes superado)';
+  }
 
-  const msg = `${emoji} *Atención - Cuenta SMTP*\n\nLa cuenta \`${email}\` ${accion}.\n\n*Detalle:* ${detalle}`;
+  const env = getTelegramEnvironmentInfo();
+  const msg = `${emoji} \`${env.tag}\` *Atención Cuenta SMTP*\n\n` +
+              `🌐 *Origen:* ${env.descLocation}\n` +
+              `⚙️ *Modo:* ${env.descModo}\n\n` +
+              `La cuenta \`${email}\` ${accion}.\n\n*Detalle:* ${detalle}`;
 
   if (telegramChatId && telegramToken) {
     try {
@@ -345,13 +376,7 @@ export async function enviarMailPrueba(
   adjuntosExtras?: Array<{ url: string; nombre_original?: string }> | null
 ) {
   const { smtpHost, smtpPort, smtpUser, smtpPass } = config.notifier;
-  const destinatario = config.testEmailRecipient || (config.modoPrueba
-    ? config.imapTest[0]?.user
-    : config.imapProd[0]?.user);
-
-  if (!destinatario) {
-    throw new Error('No se encontró el destinatario (IMAP1_USER o IMAP1_TEST_USER) en la configuración.');
-  }
+  const destinatario = getDestinatarioAvisos();
 
   if (smtpHost && smtpUser) {
     const transporter = nodemailer.createTransport({

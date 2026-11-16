@@ -21,6 +21,14 @@ vi.mock('../services/telegramNotifier.js', () => ({
   notifyDbError: vi.fn().mockResolvedValue(undefined),
   notifyUncaughtException: vi.fn().mockResolvedValue(undefined),
   notifyUnhandledRejection: vi.fn().mockResolvedValue(undefined),
+  getTelegramEnvironmentInfo: vi.fn().mockReturnValue({
+    location: 'LOCAL',
+    modo: 'TEST',
+    tag: '[LOCAL | TEST]',
+    hostname: 'test-host',
+    descLocation: 'LOCAL (test-host)',
+    descModo: 'MODO TEST (Pruebas)',
+  }),
 }));
 
 // Mockear seed para que no corra
@@ -31,6 +39,8 @@ vi.mock('../scripts/seedUsuarios.js', () => ({
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { login, verificarToken } from '../services/authService.js';
+import { requireAuth } from '../middlewares/requireAuth.js';
+import { authController } from '../controllers/authController.js';
 import { config } from '../config/env.js';
 import type { JwtPayload } from '../types/usuario.js';
 
@@ -135,6 +145,155 @@ describe('Auth Service', () => {
       });
 
       expect(() => verificarToken(token)).toThrow('Token inválido o expirado');
+    });
+  });
+
+  describe('requireAuth Middleware (Cookies HttpOnly vs Bearer)', () => {
+    it('debe autenticar exitosamente extrayendo el token desde la Cookie HttpOnly auth_token', async () => {
+      const payload: JwtPayload = {
+        userId: 'uuid-cookie-1',
+        email: 'cookie@organizacion.com',
+        rol: 'desarrollador',
+      };
+      const token = jwt.sign(payload, config.jwt.secret, { expiresIn: '1h' });
+
+      mockQuery.mockResolvedValueOnce({
+        rows: [{ id: 'uuid-cookie-1', rol: 'desarrollador' }],
+        rowCount: 1,
+      });
+
+      const req = {
+        cookies: { auth_token: token },
+        headers: {},
+        query: {},
+      } as any;
+      const res = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn(),
+      } as any;
+      const next = vi.fn();
+
+      await requireAuth(req, res, next);
+
+      expect(next).toHaveBeenCalled();
+      expect(req.user).toBeDefined();
+      expect(req.user.userId).toBe('uuid-cookie-1');
+      expect(req.user.email).toBe('cookie@organizacion.com');
+    });
+
+    it('debe autenticar exitosamente mediante header Authorization Bearer como fallback', async () => {
+      const payload: JwtPayload = {
+        userId: 'uuid-bearer-1',
+        email: 'bearer@organizacion.com',
+        rol: 'encargada',
+      };
+      const token = jwt.sign(payload, config.jwt.secret, { expiresIn: '1h' });
+
+      mockQuery.mockResolvedValueOnce({
+        rows: [{ id: 'uuid-bearer-1', rol: 'encargada' }],
+        rowCount: 1,
+      });
+
+      const req = {
+        cookies: {},
+        headers: { authorization: `Bearer ${token}` },
+        query: {},
+      } as any;
+      const res = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn(),
+      } as any;
+      const next = vi.fn();
+
+      await requireAuth(req, res, next);
+
+      expect(next).toHaveBeenCalled();
+      expect(req.user).toBeDefined();
+      expect(req.user.userId).toBe('uuid-bearer-1');
+    });
+
+    it('debe rechazar con 401 si no hay ni cookie ni header ni query token', async () => {
+      const req = {
+        cookies: {},
+        headers: {},
+        query: {},
+      } as any;
+      const res = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn(),
+      } as any;
+      const next = vi.fn();
+
+      await requireAuth(req, res, next);
+
+      expect(next).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          error: expect.objectContaining({ code: 'UNAUTHORIZED' }),
+        })
+      );
+    });
+  });
+
+  describe('authController (Emisión y Limpieza de Cookie HttpOnly)', () => {
+    it('login debe emitir cookie auth_token con HttpOnly', async () => {
+      const password = 'pass';
+      const hash = await bcrypt.hash(password, 10);
+      mockQuery.mockResolvedValueOnce({
+        rows: [{ id: 'usr-1', nombre: 'Admin', email: 'admin@organizacion.com', password_hash: hash, rol: 'desarrollador' }],
+        rowCount: 1,
+      });
+
+      const req = { body: { email: 'admin@organizacion.com', password } } as any;
+      const res = {
+        cookie: vi.fn(),
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn(),
+      } as any;
+      const next = vi.fn();
+
+      await authController.login(req, res, next);
+
+      expect(res.cookie).toHaveBeenCalledWith(
+        'auth_token',
+        expect.any(String),
+        expect.objectContaining({
+          httpOnly: true,
+          path: '/',
+        })
+      );
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: true,
+        })
+      );
+    });
+
+    it('logout debe limpiar cookie auth_token con path="/"', async () => {
+      const req = {} as any;
+      const res = {
+        clearCookie: vi.fn(),
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn(),
+      } as any;
+
+      await authController.logout(req, res);
+
+      expect(res.clearCookie).toHaveBeenCalledWith(
+        'auth_token',
+        expect.objectContaining({
+          httpOnly: true,
+          path: '/',
+        })
+      );
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: true,
+          data: expect.objectContaining({ message: expect.stringContaining('Sesión cerrada') }),
+        })
+      );
     });
   });
 });

@@ -61,7 +61,7 @@ export default function VistaPrevia() {
       {/* ═══ EMAIL TEMPLATE ═══ */}
       <div className="email-preview-paper animate-fade-in">
 
-        {/* ── Header: Banner de Dirección de Producción (Supabase) ── */}
+        {/* ── Header: Banner Institucional ── */}
         <div className="email-template-header">
           <img
             src={HEADER_URL}

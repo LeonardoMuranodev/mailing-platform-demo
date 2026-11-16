@@ -35,3 +35,6 @@ smtpRouter.delete('/:id', requireRole(['desarrollador', 'encargada']), smtpContr
 
 // PATCH /api/smtp/:id/toggle — Activar/desactivar cuenta
 smtpRouter.patch('/:id/toggle', requireRole(['desarrollador', 'encargada']), smtpController.toggleEstado);
+
+// PATCH /api/smtp/:id/principal — Marcar cuenta como principal
+smtpRouter.patch('/:id/principal', requireRole(['desarrollador', 'encargada']), smtpController.marcarPrincipal);

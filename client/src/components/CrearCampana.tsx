@@ -1,14 +1,48 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { Mail, CheckCircle2, Save, Eye, ArrowLeft, Plus, List, FileText, HelpCircle, X, Info, ArrowUp, AlertTriangle } from 'lucide-react';
+import { Mail, CheckCircle2, Save, Eye, ArrowLeft, Plus, List, FileText, HelpCircle, X, Info, ArrowUp, AlertTriangle, Users, UserCheck, ShieldCheck, Search } from 'lucide-react';
 import { useCampanaStore, buildFormData } from '../stores/campanaStore';
 import TiptapEditor from './TiptapEditor';
 import FlyerUpload from './FlyerUpload';
 import { RUBROS_LIST, RUBROS_LABELS } from '../data/rubros';
 import AlertMessage from './ui/AlertMessage';
-import { enviarMailPruebaCampana, obtenerCampanaPorId } from '../services/api';
+import CustomSelect from './ui/CustomSelect';
+import { enviarMailPruebaCampana, obtenerCampanaPorId, obtenerContactos } from '../services/api';
 import { useNotificationStore } from '../stores/useNotificationStore';
+
+const isValidEmailAddress = (email: string): boolean => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((email || '').trim());
+};
+
+function parseRawEmails(text: string) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const tokens = text
+    .split(/[\r\n,;]+/)
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean);
+
+  const validSet = new Set<string>();
+  let duplicatesCount = 0;
+  let invalidCount = 0;
+
+  for (const token of tokens) {
+    if (!emailRegex.test(token)) {
+      invalidCount++;
+    } else if (validSet.has(token)) {
+      duplicatesCount++;
+    } else {
+      validSet.add(token);
+    }
+  }
+
+  return {
+    validEmails: Array.from(validSet),
+    totalTokens: tokens.length,
+    duplicatesCount,
+    invalidCount,
+  };
+}
 
 export default function CrearCampana() {
   const navigate = useNavigate();
@@ -19,6 +53,71 @@ export default function CrearCampana() {
     () => !!(useCampanaStore.getState().adjuntosNames.length > 0) || !!useCampanaStore.getState().form.adjuntos_extras?.length
   );
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [rawManualEmails, setRawManualEmails] = useState(() => {
+    const current = useCampanaStore.getState().form.destinatarios_manuales;
+    return Array.isArray(current) ? current.join('\n') : '';
+  });
+
+  const handleManualEmailsChange = (text: string) => {
+    setRawManualEmails(text);
+    const { validEmails } = parseRawEmails(text);
+    setField('destinatarios_manuales', validEmails);
+  };
+
+  // Estados para autocompletado y sugerencias de contactos en audiencia específica
+  const [searchEmailInput, setSearchEmailInput] = useState('');
+  const [sugerenciasContactos, setSugerenciasContactos] = useState<Array<{ id: string; email: string; empresa_nombre?: string | null; rubro_nombre?: string | null }>>([]);
+  const [isSearchingContactos, setIsSearchingContactos] = useState(false);
+  const [showSugerencias, setShowSugerencias] = useState(false);
+  const [showBulkTextarea, setShowBulkTextarea] = useState(false);
+
+  useEffect(() => {
+    const term = searchEmailInput.trim();
+    if (term.length < 2) {
+      setSugerenciasContactos([]);
+      setShowSugerencias(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearchingContactos(true);
+      try {
+        const res = await obtenerContactos({ busqueda: term, limit: 6, estado: 'funcional' });
+        if (res.success && res.data?.data) {
+          setSugerenciasContactos(res.data.data);
+          setShowSugerencias(true);
+        }
+      } catch (err) {
+        console.error('Error buscando sugerencias de contactos:', err);
+      } finally {
+        setIsSearchingContactos(false);
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [searchEmailInput]);
+
+  const addSpecificEmail = (email: string) => {
+    const clean = email.trim().toLowerCase();
+    if (!clean) return;
+    const current = parseRawEmails(rawManualEmails).validEmails;
+    if (!current.includes(clean)) {
+      const nextList = [...current, clean];
+      setRawManualEmails(nextList.join('\n'));
+      setField('destinatarios_manuales', nextList);
+    }
+    setSearchEmailInput('');
+    setShowSugerencias(false);
+  };
+
+  const removeSpecificEmail = (emailToRemove: string) => {
+    const current = parseRawEmails(rawManualEmails).validEmails;
+    const nextList = current.filter((e) => e !== emailToRemove);
+    setRawManualEmails(nextList.join('\n'));
+    setField('destinatarios_manuales', nextList);
+  };
+
+  const manualStats = parseRawEmails(rawManualEmails);
 
   // Bloqueo de scroll en el body mientras cualquier modal esté abierto
   const submitSuccess = useCampanaStore((s) => s.submitResult?.success);
@@ -125,6 +224,16 @@ export default function CrearCampana() {
           setField('prioridad', campana.prioridad);
           setField('para_todos_rubros', campana.para_todos_rubros);
           setField('rubros_seleccionados', campana.rubros_seleccionados);
+          if (campana.tipo_audiencia) setField('tipo_audiencia', campana.tipo_audiencia);
+          if (campana.destinatarios_manuales) {
+            const dests = Array.isArray(campana.destinatarios_manuales)
+              ? campana.destinatarios_manuales
+              : (typeof campana.destinatarios_manuales === 'string'
+                  ? JSON.parse(campana.destinatarios_manuales)
+                  : []);
+            setField('destinatarios_manuales', dests);
+            setRawManualEmails(dests.join('\n'));
+          }
         }
       }).catch(err => console.error('Error loading campaign:', err));
     } else {
@@ -768,90 +877,378 @@ export default function CrearCampana() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t border-border">
-             {/* Prioridad */}
-             <div>
+          {/* Prioridad de Despacho */}
+          <div className="pt-4 border-t border-border">
+            <div className="max-w-xs">
               <label htmlFor="prioridad" className="block text-base font-semibold text-dark mb-1.5">
-                Prioridad
+                Prioridad de Despacho
               </label>
-              <select
+              <CustomSelect
                 id="prioridad"
                 value={form.prioridad}
-                onChange={(e) => setField('prioridad', e.target.value as 'alta' | 'media' | 'baja')}
+                onChange={(val) => setField('prioridad', val as 'alta' | 'media' | 'baja')}
                 disabled={isSubmittedSuccessfully}
-                className="w-full px-4 py-2.5 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                <option value="alta">Alta</option>
-                <option value="media">Media</option>
-                <option value="baja">Baja</option>
-              </select>
-            </div>
-
-            {/* Configuración de Destinatarios */}
-            <div>
-              <div className="mb-4">
-                <label className="flex items-center gap-3 cursor-pointer group">
-                  <div className="relative">
-                    <input
-                      type="checkbox"
-                      className="sr-only"
-                      checked={form.para_todos_rubros}
-                      onChange={(e) => setField('para_todos_rubros', e.target.checked)}
-                      disabled={isSubmittedSuccessfully}
-                    />
-                    <div className={`block w-14 h-8 rounded-full transition-colors ${form.para_todos_rubros ? 'bg-primary' : 'bg-border'}`}></div>
-                    <div className={`absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${form.para_todos_rubros ? 'transform translate-x-6' : ''}`}></div>
-                  </div>
-                  <div className="text-base font-semibold text-dark group-hover:text-primary transition-colors">
-                    Enviar a todos los rubros
-                  </div>
-                </label>
-                <p className="text-muted text-sm mt-1 ml-17">
-                  Si se desmarca, podrás seleccionar rubros específicos.
-                </p>
-              </div>
+                options={[
+                  { value: 'alta', label: 'Alta' },
+                  { value: 'media', label: 'Media' },
+                  { value: 'baja', label: 'Baja' },
+                ]}
+                size="md"
+              />
             </div>
           </div>
 
-          {/* Selector de Rubros (Condicional) */}
-          {!form.para_todos_rubros && (
-            <div className="pt-4 border-t border-border animate-fade-in">
-              <label className="block text-base font-semibold text-dark mb-3">
-                Seleccionar Rubros Destinatarios
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[300px] overflow-y-auto p-4 bg-background rounded-lg border border-border">
-                {/* Opción especial: Sin rubro */}
-                <label key="__sin_rubro__" className="flex items-center gap-2.5 cursor-pointer hover:bg-surface p-2 rounded transition-colors border border-border bg-surface/50">
-                  <input
-                    type="checkbox"
-                    checked={form.rubros_seleccionados.includes('__sin_rubro__')}
-                    onChange={() => toggleRubro('__sin_rubro__')}
-                    disabled={isSubmittedSuccessfully}
-                    className="w-4 h-4 text-primary rounded border-border focus:ring-primary"
-                  />
-                  <span className="text-dark select-none font-semibold">
-                    Sin rubro asignado
-                  </span>
-                </label>
+          {/* Configuración de Audiencia y Destinatarios */}
+          <div className="pt-4 border-t border-border">
+            <label className="block text-base font-semibold text-dark mb-3">
+              Audiencia Destinataria
+            </label>
 
-                {RUBROS_LIST.map((rubro) => (
-                  <label key={rubro} className="flex items-center gap-2.5 cursor-pointer hover:bg-surface p-2 rounded transition-colors">
-                    <input
-                      type="checkbox"
-                      checked={form.rubros_seleccionados.includes(rubro)}
-                      onChange={() => toggleRubro(rubro)}
-                      disabled={isSubmittedSuccessfully}
-                      className="w-4 h-4 text-primary rounded border-border focus:ring-primary"
-                    />
-                    <span className="text-dark select-none">
-                      {RUBROS_LABELS[rubro] || rubro}
-                    </span>
-                  </label>
-                ))}
-              </div>
-              {errors.rubros_seleccionados && <p className="text-danger text-sm mt-2">{errors.rubros_seleccionados}</p>}
+            {/* Selector de modo: Rubros vs Manual */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+              <button
+                type="button"
+                onClick={() => setField('tipo_audiencia', 'rubros')}
+                disabled={isSubmittedSuccessfully}
+                className={`flex items-start gap-3.5 p-4 rounded-xl border text-left transition-all ${
+                  form.tipo_audiencia !== 'manual'
+                    ? 'border-primary bg-primary/5 ring-2 ring-primary/20 shadow-sm'
+                    : 'border-border bg-surface hover:border-muted hover:bg-surface/80'
+                }`}
+              >
+                <div className={`p-2.5 rounded-lg ${form.tipo_audiencia !== 'manual' ? 'bg-primary text-white' : 'bg-background text-muted'}`}>
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="font-semibold text-dark text-sm flex items-center gap-1.5">
+                    Base General por Rubros
+                    {form.tipo_audiencia !== 'manual' && (
+                      <span className="text-[11px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full font-medium">Activo</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted mt-1 leading-relaxed">
+                    Campaña masiva. Rota automáticamente entre las cuentas activas configuradas.
+                  </p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setField('tipo_audiencia', 'manual')}
+                disabled={isSubmittedSuccessfully}
+                className={`flex items-start gap-3.5 p-4 rounded-xl border text-left transition-all ${
+                  form.tipo_audiencia === 'manual'
+                    ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 ring-2 ring-emerald-500/20 shadow-sm'
+                    : 'border-border bg-surface hover:border-muted hover:bg-surface/80'
+                }`}
+              >
+                <div className={`p-2.5 rounded-lg ${form.tipo_audiencia === 'manual' ? 'bg-emerald-600 text-white' : 'bg-background text-muted'}`}>
+                  <UserCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="font-semibold text-dark text-sm flex items-center gap-1.5">
+                    Destinatarios Específicos
+                    {form.tipo_audiencia === 'manual' && (
+                      <span className="text-[11px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded-full font-medium">Cuenta Principal</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted mt-1 leading-relaxed">
+                    Pegá una lista manual de correos. Despacha exclusivamente desde la cuenta oficial <strong className="font-semibold text-dark">cuenta principal</strong>.
+                  </p>
+                </div>
+              </button>
             </div>
-          )}
+
+            {/* Contenido condicional: Audiencia Manual con Sugerencias */}
+            {form.tipo_audiencia === 'manual' ? (
+              <div className="space-y-4 animate-fade-in bg-surface p-4 sm:p-5 rounded-xl border border-emerald-500/30">
+                {/* Buscador interactivo con autocompletado desde la BD */}
+                <div className="relative">
+                  <label className="block text-sm font-semibold text-dark mb-1.5 flex items-center justify-between">
+                    <span>Buscar contacto en la base o escribir correo:</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowBulkTextarea(!showBulkTextarea)}
+                      className="text-xs text-emerald-700 hover:text-emerald-900 dark:text-emerald-400 font-semibold underline transition-colors"
+                    >
+                      {showBulkTextarea ? 'Ocultar editor masivo' : '📋 Pegar lista en bloque'}
+                    </button>
+                  </label>
+
+                  <div className="relative flex items-center">
+                    <Search className="w-4 h-4 text-muted absolute left-3.5 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={searchEmailInput}
+                      onChange={(e) => setSearchEmailInput(e.target.value)}
+                      onFocus={() => { if (sugerenciasContactos.length > 0) setShowSugerencias(true); }}
+                      onBlur={() => setTimeout(() => setShowSugerencias(false), 200)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const val = searchEmailInput.trim();
+                          if (isValidEmailAddress(val)) {
+                            addSpecificEmail(val);
+                          } else if (sugerenciasContactos.length > 0) {
+                            addSpecificEmail(sugerenciasContactos[0].email);
+                          }
+                        }
+                      }}
+                      placeholder="Escribí nombre de empresa o correo (ej: crisppino, araujo@gmail.com)..."
+                      className="w-full pl-10 pr-24 py-2.5 bg-background border border-border rounded-lg text-sm text-dark placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors"
+                    />
+                    {searchEmailInput.trim() && (
+                      <button
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          const val = searchEmailInput.trim();
+                          if (isValidEmailAddress(val)) {
+                            addSpecificEmail(val);
+                          } else if (sugerenciasContactos.length > 0) {
+                            addSpecificEmail(sugerenciasContactos[0].email);
+                          }
+                        }}
+                        className="absolute right-2 px-3 py-1 bg-emerald-600 text-white text-xs font-semibold rounded-md hover:bg-emerald-700 transition-colors"
+                      >
+                        Agregar
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Dropdown de Sugerencias desde la Base de Datos */}
+                  {showSugerencias && (
+                    <div className="absolute z-30 left-0 right-0 mt-1 bg-surface border border-border rounded-lg shadow-xl overflow-hidden divide-y divide-border/60 animate-fade-in max-h-60 overflow-y-auto">
+                      {isSearchingContactos ? (
+                        <div className="p-3 text-xs text-muted text-center flex items-center justify-center gap-2">
+                          <span className="w-3.5 h-3.5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></span>
+                          Buscando en la base de contactos...
+                        </div>
+                      ) : (
+                        <>
+                          {sugerenciasContactos.map((sug) => {
+                            const yaAgregado = manualStats.validEmails.includes(sug.email.toLowerCase());
+                            return (
+                              <button
+                                key={sug.id}
+                                type="button"
+                                onMouseDown={() => addSpecificEmail(sug.email)}
+                                disabled={yaAgregado}
+                                className={`w-full px-4 py-2.5 text-left text-sm flex items-center justify-between gap-3 transition-colors ${
+                                  yaAgregado
+                                    ? 'bg-background/50 opacity-60 cursor-not-allowed'
+                                    : 'hover:bg-emerald-500/10 cursor-pointer'
+                                }`}
+                              >
+                                <div className="min-w-0">
+                                  <div className="font-semibold text-dark truncate">
+                                    {sug.email}
+                                  </div>
+                                  {sug.empresa_nombre && (
+                                    <div className="text-xs text-muted truncate">
+                                      🏢 {sug.empresa_nombre}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  {sug.rubro_nombre && (
+                                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-border/60 text-dark/70 font-medium capitalize">
+                                      {sug.rubro_nombre}
+                                    </span>
+                                  )}
+                                  {yaAgregado ? (
+                                    <span className="text-xs text-emerald-600 font-medium">Agregado</span>
+                                  ) : (
+                                    <span className="text-xs text-emerald-600 font-semibold flex items-center gap-0.5">
+                                      <Plus className="w-3.5 h-3.5" /> Sumar
+                                    </span>
+                                  )}
+                                </div>
+                              </button>
+                            );
+                          })}
+
+                          {isValidEmailAddress(searchEmailInput.trim()) &&
+                            !sugerenciasContactos.some((s) => s.email.toLowerCase() === searchEmailInput.trim().toLowerCase()) && (
+                              <button
+                                type="button"
+                                onMouseDown={() => addSpecificEmail(searchEmailInput.trim())}
+                                className="w-full px-4 py-2.5 text-left text-sm flex items-center justify-between gap-3 hover:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-medium bg-emerald-50/50 dark:bg-emerald-950/20"
+                              >
+                                <span>➕ Agregar <strong className="font-mono">{searchEmailInput.trim()}</strong> como destinatario</span>
+                                <span className="text-xs font-semibold">Nuevo</span>
+                              </button>
+                            )}
+
+                          {sugerenciasContactos.length === 0 && !isValidEmailAddress(searchEmailInput.trim()) && (
+                            <div className="p-3 text-xs text-muted text-center">
+                              No se encontraron contactos con "{searchEmailInput}". Podés escribir el email completo y presionar Enter.
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Lista visual de Destinatarios Agregados (Pills) */}
+                {manualStats.validEmails.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs text-muted">
+                      <span>Destinatarios seleccionados ({manualStats.validEmails.length}):</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRawManualEmails('');
+                          setField('destinatarios_manuales', []);
+                        }}
+                        className="text-danger hover:underline font-medium"
+                      >
+                        Vaciar lista
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-2.5 bg-background rounded-lg border border-border">
+                      {manualStats.validEmails.map((email) => (
+                        <span
+                          key={email}
+                          className="inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 rounded-full text-xs font-mono font-semibold bg-emerald-100 text-emerald-950 border border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-700/60 shadow-xs"
+                        >
+                          {email}
+                          <button
+                            type="button"
+                            onClick={() => removeSpecificEmail(email)}
+                            className="p-0.5 rounded-full hover:bg-emerald-200 dark:hover:bg-emerald-800 text-emerald-800 hover:text-emerald-950 dark:text-emerald-300 dark:hover:text-emerald-100 transition-colors"
+                            title="Eliminar destinatario"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Editor masivo textarea (colapsable) */}
+                {showBulkTextarea && (
+                  <div className="space-y-1.5 pt-2 border-t border-border/80 animate-fade-in">
+                    <div className="flex items-center justify-between text-xs text-muted">
+                      <span>Editor masivo de correos (separados por coma, punto y coma o enter):</span>
+                    </div>
+                    <textarea
+                      rows={4}
+                      value={rawManualEmails}
+                      onChange={(e) => handleManualEmailsChange(e.target.value)}
+                      disabled={isSubmittedSuccessfully}
+                      placeholder={"director@organizacion.com\nsecretaria@empresa.com\ncontacto@asociacion.org.ar"}
+                      className="w-full px-4 py-3 bg-background border border-border rounded-lg text-sm text-dark font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors disabled:opacity-60 disabled:cursor-not-allowed placeholder:text-muted/60"
+                    />
+                  </div>
+                )}
+
+                {/* Chips de validación en tiempo real */}
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-950 border border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800 shadow-xs">
+                    <span className="w-2 h-2 rounded-full bg-emerald-600 dark:bg-emerald-400"></span>
+                    {manualStats.validEmails.length} correos válidos detectados
+                  </span>
+
+                  {manualStats.duplicatesCount > 0 && (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-950 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800 shadow-xs">
+                      <span className="w-2 h-2 rounded-full bg-amber-600 dark:bg-amber-400"></span>
+                      {manualStats.duplicatesCount} duplicados omitidos
+                    </span>
+                  )}
+
+                  {manualStats.invalidCount > 0 && (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-950 border border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800 shadow-xs">
+                      <span className="w-2 h-2 rounded-full bg-rose-600 dark:bg-rose-400"></span>
+                      {manualStats.invalidCount} inválidos descartados
+                    </span>
+                  )}
+                </div>
+
+                {errors.destinatarios_manuales && (
+                  <p className="text-danger text-sm font-medium">{errors.destinatarios_manuales}</p>
+                )}
+
+                {/* Aviso informativo de seguridad de cuenta institucional */}
+                <div className="flex items-start gap-3 p-3.5 bg-background rounded-lg border border-border text-xs text-dark/80">
+                  <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="text-dark block mb-0.5">Cuenta emisora oficial blindada:</strong>
+                    Esta campaña se despachará a través de la <strong className="font-semibold text-dark">cuenta de envío principal</strong> configurada.
+                    Las campañas masivas generales tienen restringido el uso de esta cuenta, por lo que ambas pueden funcionar simultáneamente sin riesgo de bloqueos.
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Contenido condicional: Segmentación por Rubros */
+              <div className="animate-fade-in space-y-4">
+                <div className="mb-4">
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <div className="relative">
+                      <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={form.para_todos_rubros}
+                        onChange={(e) => setField('para_todos_rubros', e.target.checked)}
+                        disabled={isSubmittedSuccessfully}
+                      />
+                      <div className={`block w-14 h-8 rounded-full transition-colors ${form.para_todos_rubros ? 'bg-primary' : 'bg-border'}`}></div>
+                      <div className={`absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${form.para_todos_rubros ? 'transform translate-x-6' : ''}`}></div>
+                    </div>
+                    <div className="text-base font-semibold text-dark group-hover:text-primary transition-colors">
+                      Enviar a todos los rubros
+                    </div>
+                  </label>
+                  <p className="text-muted text-sm mt-1 ml-17">
+                    Si se desmarca, podrás seleccionar rubros específicos.
+                  </p>
+                </div>
+
+                {/* Selector de Rubros (Condicional) */}
+                {!form.para_todos_rubros && (
+                  <div className="pt-4 border-t border-border animate-fade-in">
+                    <label className="block text-base font-semibold text-dark mb-3">
+                      Seleccionar Rubros Destinatarios
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[300px] overflow-y-auto p-4 bg-background rounded-lg border border-border">
+                      {/* Opción especial: Sin rubro */}
+                      <label key="__sin_rubro__" className="flex items-center gap-2.5 cursor-pointer hover:bg-surface p-2 rounded transition-colors border border-border bg-surface/50">
+                        <input
+                          type="checkbox"
+                          checked={form.rubros_seleccionados.includes('__sin_rubro__')}
+                          onChange={() => toggleRubro('__sin_rubro__')}
+                          disabled={isSubmittedSuccessfully}
+                          className="w-4 h-4 text-primary rounded border-border focus:ring-primary"
+                        />
+                        <span className="text-dark select-none font-semibold">
+                          Sin rubro asignado
+                        </span>
+                      </label>
+
+                      {RUBROS_LIST.map((rubro) => (
+                        <label key={rubro} className="flex items-center gap-2.5 cursor-pointer hover:bg-surface p-2 rounded transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={form.rubros_seleccionados.includes(rubro)}
+                            onChange={() => toggleRubro(rubro)}
+                            disabled={isSubmittedSuccessfully}
+                            className="w-4 h-4 text-primary rounded border-border focus:ring-primary"
+                          />
+                          <span className="text-dark select-none">
+                            {RUBROS_LABELS[rubro] || rubro}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    {errors.rubros_seleccionados && <p className="text-danger text-sm mt-2">{errors.rubros_seleccionados}</p>}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Footer Actions */}

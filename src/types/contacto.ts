@@ -11,6 +11,7 @@ export interface Contacto {
   cuit: string | null;
   creado_en: string;
   actualizado_en: string | null;
+  es_contacto_base?: boolean;
 }
 
 export interface ContactoConRubro extends Contacto {
@@ -24,6 +25,7 @@ export interface CrearContactoInput {
   rubro_id?: string | null;
   tipo?: string;
   estado?: EstadoContacto;
+  es_contacto_base?: boolean;
 }
 
 export interface ActualizarContactoInput {
@@ -33,6 +35,7 @@ export interface ActualizarContactoInput {
   rubro_id?: string | null;
   tipo?: string;
   estado?: EstadoContacto;
+  es_contacto_base?: boolean;
 }
 
 export interface ListarContactosQuery {
@@ -41,6 +44,7 @@ export interface ListarContactosQuery {
   busqueda?: string;
   rubro_id?: string;
   estado?: EstadoContacto;
+  es_contacto_base?: boolean;
 }
 
 export interface ContactosResponse {
@@ -48,4 +52,5 @@ export interface ContactosResponse {
   total: number;
   page: number;
   limit: number;
+  totalPages: number;
 }

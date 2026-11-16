@@ -1,6 +1,61 @@
+import os from 'os';
 import { config } from '../config/env.js';
 
 /** Intervalo mínimo entre mensajes de Telegram (ms) para evitar flood */
+export interface TelegramEnvironmentInfo {
+  location: 'LOCAL' | 'NUBE';
+  modo: 'TEST' | 'PROD';
+  tag: string;
+  hostname: string;
+  descLocation: string;
+  descModo: string;
+}
+
+/**
+ * Determina el entorno y modo de ejecución actual para rotular alertas de Telegram.
+ */
+export function getTelegramEnvironmentInfo(): TelegramEnvironmentInfo {
+  const envLocation = (
+    process.env.SERVER_LOCATION ||
+    process.env.APP_LOCATION ||
+    process.env.LOCATION ||
+    ''
+  ).toUpperCase();
+
+  let location: 'LOCAL' | 'NUBE';
+  if (envLocation === 'NUBE' || envLocation === 'REMOTO' || envLocation === 'PROD') {
+    location = 'NUBE';
+  } else if (envLocation === 'LOCAL' || envLocation === 'DEV') {
+    location = 'LOCAL';
+  } else {
+    // Detección automática:
+    // Windows, localhost en URL o NODE_ENV !== 'production' indican entorno local
+    const isWindows = process.platform === 'win32';
+    const hasLocalUrl =
+      config.appUrl.includes('localhost') ||
+      config.publicApiUrl.includes('localhost') ||
+      config.appUrl.includes('127.0.0.1');
+    const isDev = process.env.NODE_ENV !== 'production';
+
+    location = isWindows || hasLocalUrl || isDev ? 'LOCAL' : 'NUBE';
+  }
+
+  const modo: 'TEST' | 'PROD' = config.modoPrueba ? 'TEST' : 'PROD';
+  const tag = `[${location} | ${modo}]`;
+  const hostname = os.hostname();
+  const descLocation = location === 'LOCAL' ? `LOCAL (${hostname})` : `NUBE / REMOTO (${hostname})`;
+  const descModo = config.modoPrueba ? 'MODO TEST (Pruebas)' : 'PRODUCCIÓN REAL';
+
+  return {
+    location,
+    modo,
+    tag,
+    hostname,
+    descLocation,
+    descModo,
+  };
+}
+
 const THROTTLE_MS = 30_000;
 
 /** Timestamp del último mensaje enviado */
@@ -45,9 +100,13 @@ export async function notifyError(context: string, error: Error | string): Promi
 
   pendingCount = 0;
 
+  const env = getTelegramEnvironmentInfo();
+
   const text = [
-    `🚨 *ERROR CRÍTICO — GenMailer*`,
+    `🚨 \`${env.tag}\` *ERROR CRÍTICO — GenMailer*`,
     ``,
+    `🌐 *Origen:* ${escapeMarkdown(env.descLocation)}`,
+    `⚙️ *Modo:* ${escapeMarkdown(env.descModo)}`,
     `📍 *Contexto:* ${escapeMarkdown(context)}`,
     `⏰ *Fecha:* ${timestamp}`,
     ``,

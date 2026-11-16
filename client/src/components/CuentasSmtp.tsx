@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { Mail, Settings, Plus, Edit2, Trash2, Eye, EyeOff, Server, ToggleLeft, ToggleRight, HelpCircle, X, Info, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Mail, Settings, Plus, Edit2, Trash2, Eye, EyeOff, Server, ToggleLeft, ToggleRight, HelpCircle, Info, ShieldCheck, CheckCircle2, Star } from 'lucide-react';
 import {
   obtenerCuentasSmtp,
   crearCuentaSmtp,
@@ -8,10 +7,15 @@ import {
   eliminarCuentaSmtp,
   toggleEstadoSmtp,
   obtenerSmtpLogs,
+  marcarCuentaSmtpPrincipal,
 } from '../services/api';
 import type { CuentaSmtp } from '../types/smtp';
 import AlertMessage from './ui/AlertMessage';
+import Modal from './ui/Modal';
+import ConfirmModal from './ui/ConfirmModal';
+import Spinner from './ui/Spinner';
 import { usePermisos } from '../hooks/usePermisos';
+
 
 const esCuentaOAuthUI = (email: string, listaCuentas: CuentaSmtp[] = []) => {
   const cuenta = listaCuentas.find(c => c.email.toLowerCase().trim() === (email || '').toLowerCase().trim());
@@ -80,6 +84,24 @@ export default function CuentasSmtp() {
     fetchCuentas();
   }, []);
 
+  
+  const handleMarcarPrincipal = async (id: string) => {
+    try {
+      const res = await marcarCuentaSmtpPrincipal(id);
+      if (res.success) {
+        setCuentas(prev => prev.map(c => ({
+          ...c,
+          es_principal: c.id === id
+        })));
+      } else {
+        alert(res.error?.message || 'Error al establecer cuenta principal');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error de conexión al establecer cuenta principal');
+    }
+  };
+
   const handleToggleEstado = async (id: string, estadoActual: string) => {
     const nuevoEstado = estadoActual === 'activo' ? 'inactivo' : 'activo';
     setCuentas(prev => prev.map(c => c.id === id ? { ...c, estado: nuevoEstado as any } : c));
@@ -111,10 +133,11 @@ export default function CuentasSmtp() {
 
   const openEditarModal = (cuenta: CuentaSmtp) => {
     setEditingId(cuenta.id);
+    const es3f = false;
     setForm({
       email: cuenta.email,
       password_encrypted: '',
-      limite_diario: cuenta.limite_diario,
+      limite_diario: es3f ? 100 : cuenta.limite_diario,
       minimo_por_ejecucion: cuenta.minimo_por_ejecucion || 5,
       maximo_por_ejecucion: cuenta.maximo_por_ejecucion || 25,
     });
@@ -138,13 +161,14 @@ export default function CuentasSmtp() {
 
     try {
       if (editingId) {
+        const es3f = false;
         const payload: any = {
           email: form.email,
-          limite_diario: form.limite_diario,
+          limite_diario: es3f ? 100 : form.limite_diario,
           minimo_por_ejecucion: form.minimo_por_ejecucion,
           maximo_por_ejecucion: form.maximo_por_ejecucion,
         };
-        if (form.password_encrypted) {
+        if (form.password_encrypted && !es3f) {
           payload.password_encrypted = form.password_encrypted;
         }
         const res = await actualizarCuentaSmtp(editingId, payload);
@@ -218,58 +242,52 @@ export default function CuentasSmtp() {
         </div>
       </div>
 
-      {showHelp && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto animate-fade-in">
-          <div className="bg-surface rounded-xl shadow-xl w-full max-w-lg p-6 border border-border relative my-auto animate-slide-up max-h-[90vh] overflow-y-auto">
-            <button 
-              onClick={() => setShowHelp(false)}
-              className="absolute top-4 right-4 text-muted hover:text-dark transition-colors"
-            >
-              <X size={20} />
-            </button>
-            <h3 className="text-lg font-bold text-dark mb-4 flex items-center gap-2">
-              <Info size={20} className="text-primary" />
-              ¿Para qué sirven estas cuentas?
-            </h3>
-            
-            <div className="space-y-3.5 text-sm text-dark">
-              <div className="bg-background p-3 rounded-lg border border-border">
-                <h4 className="font-semibold text-primary mb-1">🔧 Despacho de correos</h4>
-                <p className="text-muted leading-relaxed">
-                  Las cuentas configuradas aquí son las que se utilizarán "por detrás" para enviar los correos a los destinatarios.
-                </p>
-              </div>
-
-              <div className="bg-background p-3 rounded-lg border border-border">
-                <h4 className="font-semibold text-primary mb-1">⚖️ Distribución de Carga</h4>
-                <p className="text-muted leading-relaxed">
-                  El sistema distribuye la carga automáticamente: usa una cuenta, luego otra, y así sucesivamente para evitar bloqueos por spam de Gmail y cuidar la reputación.
-                </p>
-              </div>
-
-              <div className="bg-background p-3 rounded-lg border border-border">
-                <h4 className="font-semibold text-primary mb-1">🔑 Contraseña de Aplicación</h4>
-                <p className="text-muted leading-relaxed">
-                  Para conectar una cuenta de Google Workspace o Gmail gratuita, recordá generar una "Contraseña de aplicación" desde la configuración de seguridad de Google.
-                </p>
-              </div>
-            </div>
-            
-            <button
-              onClick={() => setShowHelp(false)}
-              className="mt-6 w-full px-4 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors"
-            >
-              Entendido
-            </button>
+      <Modal
+        isOpen={showHelp}
+        onClose={() => setShowHelp(false)}
+        maxWidth="lg"
+        title={
+          <span className="flex items-center gap-2">
+            <Info size={20} className="text-primary" />
+            ¿Para qué sirven estas cuentas?
+          </span>
+        }
+      >
+        <div className="space-y-3.5 text-sm text-dark">
+          <div className="bg-background p-3 rounded-lg border border-border">
+            <h4 className="font-semibold text-primary mb-1">🔧 Despacho de correos</h4>
+            <p className="text-muted leading-relaxed">
+              Las cuentas configuradas aquí son las que se utilizarán "por detrás" para enviar los correos a los destinatarios.
+            </p>
           </div>
-        </div>,
-        document.body
-      )}
+
+          <div className="bg-background p-3 rounded-lg border border-border">
+            <h4 className="font-semibold text-primary mb-1">⚖️ Distribución de Carga</h4>
+            <p className="text-muted leading-relaxed">
+              El sistema distribuye la carga automáticamente: usa una cuenta, luego otra, y así sucesivamente para evitar bloqueos por spam de Gmail y cuidar la reputación.
+            </p>
+          </div>
+
+          <div className="bg-background p-3 rounded-lg border border-border">
+            <h4 className="font-semibold text-primary mb-1">🔑 Contraseña de Aplicación</h4>
+            <p className="text-muted leading-relaxed">
+              Para conectar una cuenta de Google Workspace o Gmail gratuita, recordá generar una "Contraseña de aplicación" desde la configuración de seguridad de Google.
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => setShowHelp(false)}
+          className="mt-6 w-full px-4 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors cursor-pointer"
+        >
+          Entendido
+        </button>
+      </Modal>
 
       {loading ? (
         <div className="flex justify-center py-12 text-muted">
           <div className="animate-pulse flex flex-col items-center">
-            <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-3"></div>
+            <Spinner size="md" color="primary" className="mb-3" />
             Cargando cuentas...
           </div>
         </div>
@@ -309,6 +327,14 @@ export default function CuentasSmtp() {
                             OAuth 2.0
                           </span>
                         )}
+
+                        {cuenta.es_principal && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                            <Star size={11} className="fill-amber-500 text-amber-500" />
+                            Cuenta Principal
+                          </span>
+                        )}
+
                       </div>
                     </div>
                   </div>
@@ -338,6 +364,18 @@ export default function CuentasSmtp() {
                       <div className="flex items-center gap-2">
                         {puedeEditar && (
                           <>
+                            <button
+                              onClick={() => handleMarcarPrincipal(cuenta.id)}
+                              className={`p-1.5 rounded-md transition-colors ${
+                                cuenta.es_principal
+                                  ? 'text-amber-500 bg-amber-500/10 cursor-default'
+                                  : 'text-muted hover:text-amber-500 hover:bg-amber-500/10'
+                              }`}
+                              title={cuenta.es_principal ? 'Cuenta principal activa' : 'Establecer como cuenta principal'}
+                              disabled={cuenta.es_principal}
+                            >
+                              <Star size={16} className={cuenta.es_principal ? 'fill-amber-500 text-amber-500' : ''} />
+                            </button>
                             <button
                               onClick={() => handleToggleEstado(cuenta.id, cuenta.estado)}
                               className={`p-1.5 rounded-md transition-colors ${
@@ -427,146 +465,129 @@ export default function CuentasSmtp() {
 
 
       {/* Modal Crear/Editar */}
-      {isModalOpen && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto animate-fade-in">
-          <div className="bg-surface w-full max-w-md rounded-xl border border-border shadow-2xl overflow-hidden my-auto animate-fade-in">
-            <div className="px-6 py-4 border-b border-border flex justify-between items-center">
-              <h2 className="text-lg font-bold text-dark">{editingId ? 'Editar Cuenta SMTP' : 'Conectar Cuenta Gmail'}</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-muted hover:text-dark">✕</button>
-            </div>
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        maxWidth="md"
+        title={editingId ? 'Editar Cuenta SMTP' : 'Conectar Cuenta Gmail'}
+        bodyClassName="p-0"
+      >
+        <form onSubmit={handleGuardar} className="p-6 space-y-4" noValidate>
+          <AlertMessage type="error" message={errorMsg} />
+
+          <div>
+            <label className="block text-sm font-medium text-dark mb-1">Correo Electrónico</label>
+            <input 
+              type="text" 
+              value={form.email}
+              
+              onChange={e => setForm({...form, email: e.target.value})}
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-70 disabled:cursor-not-allowed"
+              placeholder="ejemplo@gmail.com"
+            />
             
-            <form onSubmit={handleGuardar} className="p-6 space-y-4" noValidate>
-              <AlertMessage type="error" message={errorMsg} />
-
-              <div>
-                <label className="block text-sm font-medium text-dark mb-1">Correo Electrónico (Gmail)</label>
-                <input 
-                  type="text" 
-                  value={form.email}
-                  onChange={e => setForm({...form, email: e.target.value})}
-                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  placeholder="ejemplo@gmail.com"
-                />
-              </div>
-
-              {esCuentaOAuthUI(form.email, cuentas) ? (
-                <div className="p-3.5 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs text-blue-700 dark:text-blue-300">
-                  <div className="flex items-center gap-2 font-semibold mb-1">
-                    <CheckCircle2 size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
-                    <span>Autenticación oficial OAuth 2.0 (Gmail API)</span>
-                  </div>
-                  <p className="leading-relaxed">
-                    Esta cuenta se autentica mediante tokens seguros y permanentes de Google Cloud. No requiere contraseña de aplicación.
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  <label className="block text-sm font-medium text-dark mb-1">Contraseña de Aplicación {editingId ? <span className="text-muted text-xs font-normal ml-1">(Dejar en blanco para no cambiar)</span> : <span className="text-danger">*</span>}</label>
-                  <div className="relative">
-                    <input 
-                      type={showPassword ? "text" : "password"} 
-                      value={form.password_encrypted}
-                      onChange={e => setForm({...form, password_encrypted: e.target.value})}
-                      className="w-full px-3 py-2 pr-10 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      placeholder={editingId ? "••••••••" : "Contraseña de 16 caracteres"}
-                      required={!editingId}
-                    />
-                    <button 
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-2.5 text-muted hover:text-dark"
-                    >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                  <p className="text-xs text-muted mt-1.5">No es la clave de tu cuenta, sino la <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer" className="text-primary hover:underline">Contraseña de Aplicación generada en Google</a> (16 letras).</p>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-dark mb-1">Límite Diario de Envíos</label>
-                <input 
-                  type="number" max={500} min={1} 
-                  value={form.limite_diario}
-                  onChange={e => setForm({...form, limite_diario: parseInt(e.target.value) || 0})}
-                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50"
-                />
-                <p className="text-xs text-muted mt-1.5">Google permite máximo 500 al día. Recomendamos 400 por seguridad.</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-dark mb-1">Mínimos envíos por ejecución</label>
-                  <input 
-                    type="number" 
-                    value={form.minimo_por_ejecucion}
-                    onChange={e => setForm({...form, minimo_por_ejecucion: parseInt(e.target.value) || 0})}
-                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-dark mb-1">Máximos envíos por ejecución</label>
-                  <input 
-                    type="number" 
-                    value={form.maximo_por_ejecucion}
-                    onChange={e => setForm({...form, maximo_por_ejecucion: parseInt(e.target.value) || 0})}
-                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-4 flex justify-end gap-3">
-                <button 
-                  type="button" 
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-border bg-background text-dark rounded-lg hover:bg-surface font-medium transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit" 
-                  disabled={saving}
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark font-medium transition-colors disabled:opacity-70 flex items-center gap-2"
-                >
-                  {saving && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
-                  {editingId ? 'Guardar Cambios' : 'Conectar Cuenta'}
-                </button>
-              </div>
-            </form>
           </div>
-        </div>,
-        document.body
-      )}
+
+          {esCuentaOAuthUI(form.email, cuentas) ? (
+            <div className="p-3.5 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs text-blue-700 dark:text-blue-300">
+              <div className="flex items-center gap-2 font-semibold mb-1">
+                <CheckCircle2 size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                <span>Autenticación oficial OAuth 2.0 (Gmail API)</span>
+              </div>
+              <p className="leading-relaxed">
+                Esta cuenta se autentica mediante tokens seguros y permanentes de Google Cloud. No requiere contraseña de aplicación.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium text-dark mb-1">Contraseña de Aplicación {editingId ? <span className="text-muted text-xs font-normal ml-1">(Dejar en blanco para no cambiar)</span> : <span className="text-danger">*</span>}</label>
+              <div className="relative">
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  value={form.password_encrypted}
+                  onChange={e => setForm({...form, password_encrypted: e.target.value})}
+                  className="w-full px-3 py-2 pr-10 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  placeholder={editingId ? "••••••••" : "Contraseña de 16 caracteres"}
+                  required={!editingId}
+                />
+                <button 
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-2.5 text-muted hover:text-dark cursor-pointer"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              <p className="text-xs text-muted mt-1.5">No es la clave de tu cuenta, sino la <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer" className="text-primary hover:underline">Contraseña de Aplicación generada en Google</a> (16 letras).</p>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-dark mb-1">Límite Diario de Envíos</label>
+            <input 
+              type="number" 
+              max={500} 
+              min={1} 
+              value={form.limite_diario}
+              
+              onChange={e => setForm({...form, limite_diario: parseInt(e.target.value) || 0})}
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-75 disabled:cursor-not-allowed"
+            />
+            <p className="text-xs text-muted mt-1.5">Google permite máximo 500 al día. Recomendamos 400 por seguridad.</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-dark mb-1">Mínimos envíos por ejecución</label>
+              <input 
+                type="number" 
+                value={form.minimo_por_ejecucion}
+                onChange={e => setForm({...form, minimo_por_ejecucion: parseInt(e.target.value) || 0})}
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-dark mb-1">Máximos envíos por ejecución</label>
+              <input 
+                type="number" 
+                value={form.maximo_por_ejecucion}
+                onChange={e => setForm({...form, maximo_por_ejecucion: parseInt(e.target.value) || 0})}
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
+            </div>
+          </div>
+
+          <div className="pt-4 flex justify-end gap-3">
+            <button 
+              type="button" 
+              onClick={() => setIsModalOpen(false)}
+              className="px-4 py-2 border border-border bg-background text-dark rounded-lg hover:bg-surface font-medium transition-colors cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button 
+              type="submit" 
+              disabled={saving}
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark font-medium transition-colors disabled:opacity-70 flex items-center gap-2 cursor-pointer"
+            >
+              {saving && <Spinner size="sm" color="white" />}
+              {editingId ? 'Guardar Cambios' : 'Conectar Cuenta'}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Modal de Confirmación de Eliminación */}
-      {deleteConfirmId && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4 overflow-y-auto">
-          <div className="bg-surface rounded-xl shadow-xl w-full max-w-sm p-6 animate-fade-in border border-border text-center my-auto">
-            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-danger/10 mb-4">
-              <Trash2 className="h-6 w-6 text-danger" />
-            </div>
-            <h3 className="text-lg font-semibold text-dark mb-2">¿Eliminar cuenta?</h3>
-            <p className="text-sm text-muted mb-6">
-              Esta acción no se puede deshacer. Esto no afectará el historial de envíos ya procesados.
-            </p>
-            <div className="flex justify-center gap-3">
-              <button
-                onClick={() => setDeleteConfirmId(null)}
-                className="px-4 py-2 text-sm font-medium text-dark bg-background border border-border rounded-lg hover:bg-surface transition-colors w-full"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmEliminar}
-                className="px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg hover:bg-danger-dark transition-colors w-full"
-              >
-                Sí, Eliminar
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <ConfirmModal
+        isOpen={Boolean(deleteConfirmId)}
+        onClose={() => setDeleteConfirmId(null)}
+        onConfirm={confirmEliminar}
+        title="¿Eliminar cuenta?"
+        description="Esta acción no se puede deshacer. Esto no afectará el historial de envíos ya procesados."
+        confirmText="Sí, Eliminar"
+        variant="danger"
+        maxWidth="sm"
+      />
     </div>
   );
 }

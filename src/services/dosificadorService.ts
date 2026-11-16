@@ -15,6 +15,7 @@ export interface ParametrosCalculoRitmo {
   fechasExcluidas?: string[]; // ['YYYY-MM-DD']
   horaInicio?: string; // '09:00'
   horaFin?: string; // '17:00'
+  intervaloMinutos?: number; // Frecuencia de ejecución en minutos (ej. 30)
   minGlobalPorHora: number;
   maxGlobalPorHora: number;
 }
@@ -98,7 +99,7 @@ export function contarDiasOperativos(
  * Calcula la cantidad de ejecuciones de worker por día según hora de inicio y fin.
  * Por ejemplo: de '09:00' a '17:00' son 9 ejecuciones (9, 10, 11, 12, 13, 14, 15, 16, 17).
  */
-export function calcularEjecucionesDiarias(horaInicio: string = '09:00', horaFin: string = '17:00'): number {
+export function calcularEjecucionesDiarias(horaInicio: string = '09:00', horaFin: string = '17:00', intervaloMinutos: number = 60): number {
   const inicioH = parseInt(horaInicio.split(':')[0], 10);
   const finH = parseInt(horaFin.split(':')[0], 10);
 
@@ -106,7 +107,8 @@ export function calcularEjecucionesDiarias(horaInicio: string = '09:00', horaFin
     return 9; // Fallback estándar
   }
 
-  return finH - inicioH + 1;
+  const porHora = Math.max(1, Math.floor(60 / (intervaloMinutos || 60)));
+  return (finH - inicioH + 1) * porHora;
 }
 
 /**
@@ -122,11 +124,12 @@ export function calcularObjetivoHora(params: ParametrosCalculoRitmo): ResultadoC
     fechasExcluidas = [],
     horaInicio = '09:00',
     horaFin = '17:00',
+    intervaloMinutos = 60,
     minGlobalPorHora,
     maxGlobalPorHora,
   } = params;
 
-  const ejecucionesDiarias = calcularEjecucionesDiarias(horaInicio, horaFin);
+  const ejecucionesDiarias = calcularEjecucionesDiarias(horaInicio, horaFin, intervaloMinutos);
 
   // Si no hay fecha límite o no hay pendientes
   if (!fechaLimite || totalPendientes <= 0) {

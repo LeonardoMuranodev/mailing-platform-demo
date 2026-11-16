@@ -5,6 +5,7 @@ import {
   actualizarCuentaSmtp,
   eliminarCuentaSmtp,
   toggleEstadoSmtp,
+  marcarCuentaComoPrincipal,
 } from '../services/smtpAccountService.js';
 import { sendSuccess, sendError } from '../utils/responseHandler.js';
 import type { CrearCuentaSmtpBody, ActualizarCuentaSmtpBody } from '../schemas/smtpSchema.js';
@@ -113,10 +114,27 @@ async function toggleEstado(req: Request, res: Response, next: NextFunction): Pr
   }
 }
 
+
+/**
+ * PATCH /api/smtp/:id/principal
+ */
+async function marcarPrincipal(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const id = req.params.id as string;
+    const cuenta = await marcarCuentaComoPrincipal(id);
+    await clearCacheByPrefix('/api/smtp');
+    await registrarAccion(req.user?.userId || null, 'ACTUALIZAR', 'SMTP', cuenta.id, { email: cuenta.email, accion: 'marcar_principal' });
+    sendSuccess(res, cuenta);
+  } catch (err) {
+    next(err);
+  }
+}
+
 export const smtpController = {
   crear,
   listar,
   actualizar,
   eliminar,
   toggleEstado,
+  marcarPrincipal,
 };

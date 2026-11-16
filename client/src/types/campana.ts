@@ -14,6 +14,8 @@ export interface CampanaFormData {
   prioridad: 'alta' | 'media' | 'baja';
   para_todos_rubros: boolean;
   rubros_seleccionados: string[];
+  tipo_audiencia: 'rubros' | 'manual';
+  destinatarios_manuales: string[];
 }
 
 export type EstadoCampana = 'borrador' | 'aprobada' | 'en_proceso' | 'pausada' | 'completada' | 'cancelada';
@@ -34,6 +36,9 @@ export interface CampanaResponse {
   prioridad: 'alta' | 'media' | 'baja';
   para_todos_rubros: boolean;
   rubros_seleccionados: string[];
+  tipo_audiencia?: 'rubros' | 'manual';
+  destinatarios_manuales?: string[] | null;
+  cuenta_emisor_id?: string | null;
   estado: EstadoCampana;
   creado_en: string;
   actualizado_en: string;
@@ -94,4 +99,6 @@ export const CAMPANA_FORM_INITIAL: CampanaFormData = {
   prioridad: 'alta',
   para_todos_rubros: true,
   rubros_seleccionados: [],
+  tipo_audiencia: 'rubros',
+  destinatarios_manuales: [],
 };

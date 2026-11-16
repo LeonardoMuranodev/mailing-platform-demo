@@ -271,6 +271,8 @@ export function buildFormData(form: CampanaFormData, flyer: File | null, adjunto
   fd.append('prioridad', form.prioridad);
   fd.append('para_todos_rubros', String(form.para_todos_rubros));
   fd.append('rubros_seleccionados', JSON.stringify(form.rubros_seleccionados));
+  fd.append('tipo_audiencia', form.tipo_audiencia || 'rubros');
+  fd.append('destinatarios_manuales', JSON.stringify(form.destinatarios_manuales || []));
 
   if (form.link_inscripcion) {
     fd.append('link_inscripcion', form.link_inscripcion);

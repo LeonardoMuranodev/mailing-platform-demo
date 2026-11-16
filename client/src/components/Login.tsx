@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-
 import ThemeToggle from './ThemeToggle';
 
 export default function Login() {
@@ -24,6 +23,7 @@ export default function Login() {
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email, password })
       });
 
@@ -65,15 +65,13 @@ export default function Login() {
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-sm">
-            <Mail size={32} />
-          </div>
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-sm"><Mail size={32} /></div>
         </div>
         <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-dark">
           Acceso al Sistema
         </h2>
         <p className="mt-2 text-center text-sm text-muted">
-          Plataforma de Mailing & Gestión de Campañas
+          GenMailer - Plataforma de Campañas
         </p>
       </div>
 

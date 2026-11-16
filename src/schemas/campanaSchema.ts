@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import DOMPurify from 'isomorphic-dompurify';
 import { config } from '../config/env.js';
+import { parsearDestinatariosManuales, parsearRubrosSeleccionados } from '../utils/campanaParsers.js';
 
 // ── Helpers de coerción para multipart/form-data ─────────
 
@@ -13,18 +14,16 @@ const booleanCoerce = z.preprocess((val) => {
 }, z.boolean());
 
 /** Parseo seguro: acepta JSON string o array nativo y lo normaliza a string[] */
-const rubrosCoerce = z.preprocess((val) => {
-  if (Array.isArray(val)) return val;
-  if (typeof val === 'string') {
-    try {
-      const parsed: unknown = JSON.parse(val);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }
-  return [];
-}, z.array(z.string({ message: 'Cada rubro debe ser texto' })));
+const rubrosCoerce = z.preprocess(
+  (val) => parsearRubrosSeleccionados(val),
+  z.array(z.string({ message: 'Cada rubro debe ser texto' }))
+);
+
+/** Parseo seguro para destinatarios manuales: acepta array o string (JSON, comas, líneas) y normaliza a string[] de emails limpios en minúsculas */
+const destinatariosManualesCoerce = z.preprocess(
+  (val) => parsearDestinatariosManuales(val),
+  z.array(z.string().email('Formato de correo inválido'))
+);
 
 // ── Schemas ──────────────────────────────────────────────
 
@@ -108,6 +107,12 @@ export const crearCampanaSchema = z.object({
   para_todos_rubros: booleanCoerce.default(true),
 
   rubros_seleccionados: rubrosCoerce.default([]),
+
+  tipo_audiencia: z.enum(['rubros', 'manual']).default('rubros'),
+
+  destinatarios_manuales: destinatariosManualesCoerce.default([]),
+
+  cuenta_emisor_id: z.string().uuid('El ID de cuenta emisor debe ser un UUID válido').optional().nullable(),
 });
 
 export const cambiarEstadoSchema = z.object({

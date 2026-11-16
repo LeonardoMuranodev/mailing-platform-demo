@@ -1,30 +1,17 @@
-import React, { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Send, AlertTriangle, CheckCircle2, Clock, Mail, Search, RefreshCw, BarChart2, Download, MousePointerClick, Pause, Play, Trash2, Edit3, ArrowUp, Zap, X } from 'lucide-react';
+import { ArrowLeft, Send, Eye, AlertTriangle, CheckCircle2, Clock, Mail, Search, RefreshCw, BarChart2, Download, MousePointerClick, Pause, Play, Trash2, Edit3, ArrowUp, Zap, UserCheck, Info, X } from 'lucide-react';
 import { obtenerCampanaDetalle, obtenerColaCampana, cambiarEstadoCampana, eliminarCampana, actualizarProgramacionCampana } from '../services/api';
 import type { CampanaConStats, ColaEnvioItem } from '../types/campana';
 import { formatDate } from '../utils/formatDate';
 import { RUBROS_LABELS } from '../data/rubros';
 import { usePermisos } from '../hooks/usePermisos';
-
-const ESTADO_BADGE_CLASSES: Record<string, string> = {
-  borrador: 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
-  aprobada: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800',
-  en_proceso: 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-700',
-  pausada: 'bg-orange-50 text-orange-700 border-orange-300 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-700',
-  completada: 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-700',
-  cancelada: 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-700',
-};
-
-const ESTADO_LABELS: Record<string, string> = {
-  borrador: 'Borrador',
-  aprobada: 'Aprobada',
-  en_proceso: 'En Proceso',
-  pausada: 'Pausada',
-  completada: 'Completada',
-  cancelada: 'Cancelada',
-};
+import { useNotificationStore } from '../stores/useNotificationStore';
+import Modal from './ui/Modal';
+import ConfirmModal from './ui/ConfirmModal';
+import CampanaBadge from './ui/CampanaBadge';
+import Spinner from './ui/Spinner';
+import CustomSelect from './ui/CustomSelect';
 
 const COLA_BADGE_CLASSES: Record<string, string> = {
   pendiente: 'bg-slate-100 text-slate-600',
@@ -60,6 +47,9 @@ export default function DetalleCampana() {
   const { id } = useParams<{ id: string }>();
 
   const { puedeEditar, puedeEliminar } = usePermisos();
+  const { agregarNotificacion } = useNotificationStore();
+  const [aprobando, setAprobando] = useState(false);
+  const [errorAprobar, setErrorAprobar] = useState<string | null>(null);
   const [campana, setCampana] = useState<CampanaConStats | null>(null);
   const [cola, setCola] = useState<ColaEnvioItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,6 +59,9 @@ export default function DetalleCampana() {
   // Filtros para la cola
   const [emailFiltro, setEmailFiltro] = useState('');
   const [estadoFiltro, setEstadoFiltro] = useState('');
+  const [fechaDesdeFiltro, setFechaDesdeFiltro] = useState('');
+  const [fechaHastaFiltro, setFechaHastaFiltro] = useState('');
+  const [fechaError, setFechaError] = useState('');
 
   // Bloquear scroll del fondo cuando hay modal abierto
   useEffect(() => {
@@ -101,16 +94,28 @@ export default function DetalleCampana() {
     });
   };
 
-  const fetchData = async (overrideEmail?: string, overrideEstado?: string) => {
+  const fetchData = async (
+    overrideEmail?: string,
+    overrideEstado?: string,
+    overrideDesde?: string,
+    overrideHasta?: string,
+  ) => {
     if (!id) return;
     setLoading(true);
     try {
       const emailToUse = overrideEmail !== undefined ? overrideEmail : emailFiltro;
       const estadoToUse = overrideEstado !== undefined ? overrideEstado : estadoFiltro;
+      const desdeToUse = overrideDesde !== undefined ? overrideDesde : fechaDesdeFiltro;
+      const hastaToUse = overrideHasta !== undefined ? overrideHasta : fechaHastaFiltro;
 
       const [campanaRes, colaRes] = await Promise.all([
         obtenerCampanaDetalle(id),
-        obtenerColaCampana(id, { email: emailToUse, estado: estadoToUse })
+        obtenerColaCampana(id, {
+          email: emailToUse,
+          estado: estadoToUse,
+          fecha_desde: desdeToUse || undefined,
+          fecha_hasta: hastaToUse || undefined,
+        })
       ]);
 
       if (campanaRes.success && campanaRes.data) {
@@ -132,6 +137,11 @@ export default function DetalleCampana() {
 
   const handleSearchCola = (e: React.FormEvent) => {
     e.preventDefault();
+    if (fechaDesdeFiltro && fechaHastaFiltro && fechaDesdeFiltro > fechaHastaFiltro) {
+      setFechaError('La fecha "Desde" no puede ser posterior a la fecha "Hasta".');
+      return;
+    }
+    setFechaError('');
     fetchData();
   };
 
@@ -226,9 +236,11 @@ export default function DetalleCampana() {
       item.respuesta_smtp || ''
     ]);
 
-    const rubrosStr = campana.para_todos_rubros
-      ? 'Todos los rubros'
-      : (campana.rubros_seleccionados || []).map((r: string) => r === '__sin_rubro__' ? 'Sin Rubro' : RUBROS_LABELS[r as keyof typeof RUBROS_LABELS] || r).join(' - ');
+    const rubrosStr = campana.tipo_audiencia === 'manual'
+      ? `Destinatarios Específicos (${(campana.destinatarios_manuales || []).length} manuales)`
+      : campana.para_todos_rubros
+        ? 'Todos los rubros'
+        : (campana.rubros_seleccionados || []).map((r: string) => r === '__sin_rubro__' ? 'Sin Rubro' : RUBROS_LABELS[r as keyof typeof RUBROS_LABELS] || r).join(' - ');
 
     const csvContent = [
       ['Asunto:', `"${campana.asunto}"`],
@@ -259,7 +271,7 @@ export default function DetalleCampana() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-pulse flex flex-col items-center text-muted">
-          <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-4"></div>
+          <Spinner size="lg" color="primary" className="mb-4" />
           Cargando detalles de la campaña...
         </div>
       </div>
@@ -278,8 +290,68 @@ export default function DetalleCampana() {
     );
   }
 
+  const handleAprobar = async () => {
+    if (!campana) return;
+    setErrorAprobar(null);
+    setAprobando(true);
+    try {
+      const res = await cambiarEstadoCampana(campana.id, 'aprobada');
+      if (res.success && res.data) {
+        setCampana((prev) => (prev ? { ...prev, estado: res.data!.estado } : prev));
+        agregarNotificacion({
+          tipo: 'campaign_approved',
+          titulo: 'Campaña Aprobada',
+          mensaje: `La campaña "${campana.asunto}" fue aprobada y quedó lista para su envío.`,
+          urlDestino: `/campanas/${campana.id}`,
+          timestamp: new Date().toISOString(),
+        });
+        fetchData();
+      } else {
+        const msg = res.error?.message || 'No se puede aprobar la campaña. Verificá que tenga todos los datos requeridos.';
+        setErrorAprobar(msg);
+        agregarNotificacion({
+          tipo: 'general',
+          titulo: 'No se puede aprobar la campaña',
+          mensaje: msg,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } catch (err: any) {
+      const msg = err.message || 'Error de conexión al intentar aprobar la campaña.';
+      setErrorAprobar(msg);
+      agregarNotificacion({
+        tipo: 'general',
+        titulo: 'Error al aprobar campaña',
+        mensaje: msg,
+        timestamp: new Date().toISOString(),
+      });
+    } finally {
+      setAprobando(false);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6">
+      {errorAprobar && (
+        <div className="mb-5 p-4 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-sm text-danger flex items-start justify-between gap-3 animate-fade-in shadow-xs">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-danger" />
+            <div>
+              <p className="font-semibold text-danger">No se puede aprobar la campaña</p>
+              <p className="mt-0.5 text-xs text-danger/90">{errorAprobar}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setErrorAprobar(null)}
+            className="p-1 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg text-danger/70 hover:text-danger transition-colors cursor-pointer"
+            title="Cerrar advertencia"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-6">
         <button
@@ -295,10 +367,7 @@ export default function DetalleCampana() {
           <div className="space-y-2">
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-2xl sm:text-3xl font-bold text-dark tracking-tight">{campana.asunto}</h1>
-              <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-full border shadow-xs tracking-wider uppercase ${ESTADO_BADGE_CLASSES[campana.estado] || 'bg-slate-100'}`}>
-                <span className="w-1.5 h-1.5 rounded-full bg-current opacity-80 animate-pulse"></span>
-                {ESTADO_LABELS[campana.estado] || campana.estado}
-              </span>
+              <CampanaBadge estado={campana.estado} size="md" className="uppercase font-bold tracking-wider" />
             </div>
 
             {/* Metadatos: Fechas, Prioridad y Modificar */}
@@ -340,9 +409,17 @@ export default function DetalleCampana() {
               </span>
             </div>
 
-            <p className="text-xs sm:text-sm text-dark/90">
-              <strong className="text-muted">Rubros:</strong> {campana.para_todos_rubros ? 'Todos los rubros' : (campana.rubros_seleccionados || []).map((r: string) => r === '__sin_rubro__' ? 'Sin Rubro' : RUBROS_LABELS[r as keyof typeof RUBROS_LABELS] || r).join(', ')}
-            </p>
+            <div className="text-xs sm:text-sm text-dark/90 flex flex-wrap items-center gap-2">
+              <strong className="text-muted">Audiencia:</strong>
+              {campana.tipo_audiencia === 'manual' ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                  <UserCheck size={13} />
+                  Destinatarios Específicos (Emisor Principal - {(campana.destinatarios_manuales || []).length} contactos)
+                </span>
+              ) : (
+                <span>{campana.para_todos_rubros ? 'Todos los rubros' : (campana.rubros_seleccionados || []).map((r: string) => r === '__sin_rubro__' ? 'Sin Rubro' : RUBROS_LABELS[r as keyof typeof RUBROS_LABELS] || r).join(', ')}</span>
+              )}
+            </div>
           </div>
 
           {/* Barra de Acciones Normalizada (Mobile: 2 columnas alineadas / Desktop: fila homogénea) */}
@@ -358,20 +435,17 @@ export default function DetalleCampana() {
                     <span>Editar</span>
                   </button>
                   <button
-                    onClick={async () => {
-                      try {
-                        const res = await cambiarEstadoCampana(campana.id, 'aprobada');
-                        if (res.success && res.data) {
-                          setCampana(prev => prev ? { ...prev, estado: res.data!.estado } : prev);
-                        }
-                      } catch (err) {
-                        console.error('Error al aprobar campaña:', err);
-                      }
-                    }}
-                    className="h-10 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-2 transition-all duration-200 whitespace-nowrap shadow-xs cursor-pointer bg-primary hover:bg-primary-dark text-white shadow-primary/20"
+                    type="button"
+                    onClick={handleAprobar}
+                    disabled={aprobando}
+                    className="h-10 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-2 transition-all duration-200 whitespace-nowrap shadow-xs cursor-pointer bg-primary hover:bg-primary-dark text-white shadow-primary/20 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    <CheckCircle2 size={16} className="shrink-0" />
-                    <span>Aprobar</span>
+                    {aprobando ? (
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0"></span>
+                    ) : (
+                      <CheckCircle2 size={16} className="shrink-0" />
+                    )}
+                    <span>{aprobando ? 'Aprobando...' : 'Aprobar'}</span>
                   </button>
                 </>
               )}
@@ -463,10 +537,11 @@ export default function DetalleCampana() {
       </div>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
         <StatCard title="Contactos" value={campana.stats.total} icon={<Mail className="text-slate-400" />} />
         <StatCard title="Enviados" value={campana.stats.enviados} icon={<CheckCircle2 className="text-green-500" />} />
-        <StatCard title="Interacciones" value={campana.stats.clicks} icon={<MousePointerClick className="text-purple-500" />} />
+        <StatCard title="Aperturas" value={campana.stats.abiertos} icon={<Eye className="text-blue-500" />} />
+        <StatCard title="Clics" value={campana.stats.clicks} icon={<MousePointerClick className="text-purple-500" />} />
         <StatCard title="Pendientes" value={campana.stats.pendientes} icon={<Clock className="text-amber-500" />} />
         <StatCard title="Fallidos" value={campana.stats.fallidos} icon={<AlertTriangle className="text-red-500" />} />
       </div>
@@ -496,40 +571,122 @@ export default function DetalleCampana() {
           {activeTab === 'cola' ? (
             <div className="animate-fade-in">
               {/* Filtros Cola */}
-              <form onSubmit={handleSearchCola} className="flex flex-col sm:flex-row gap-3 mb-6">
-                <div className="relative flex-grow">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={18} />
+              <form onSubmit={handleSearchCola} className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 mb-4 bg-background/50 p-3 rounded-xl border border-border">
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={17} />
                   <input
                     type="text"
                     value={emailFiltro}
                     onChange={(e) => setEmailFiltro(e.target.value)}
                     placeholder="Buscar por email destinatario..."
-                    className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                    className="w-full pl-9 pr-3 py-2 bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm h-[38px]"
                   />
                 </div>
-                <select
-                  value={estadoFiltro}
-                  onChange={(e) => setEstadoFiltro(e.target.value)}
-                  className="px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm sm:w-48"
-                >
-                  <option value="">Todos los estados</option>
-                  <option value="pendiente">Pendiente</option>
-                  <option value="procesando">Procesando</option>
-                  <option value="enviado">Enviado</option>
-                  <option value="fallido">Fallido</option>
-                </select>
-                <div className="flex gap-2">
-                  <button type="submit" className="flex-1 sm:flex-none bg-background text-muted border border-border hover:bg-border hover:text-dark px-4 py-2 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-colors">
-                    <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-                    Actualizar
+
+                <div className="w-full sm:w-48">
+                  <CustomSelect
+                    value={estadoFiltro}
+                    onChange={setEstadoFiltro}
+                    options={[
+                      { value: '', label: 'Todos los estados' },
+                      { value: 'pendiente', label: 'Pendiente' },
+                      { value: 'procesando', label: 'Procesando' },
+                      { value: 'enviado', label: 'Enviado' },
+                      { value: 'fallido', label: 'Fallido' },
+                    ]}
+                    size="sm"
+                  />
+                </div>
+
+                {/* Filtro por Rango de Fecha */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-muted select-none sm:hidden w-12">Desde:</span>
+                    <input
+                      type="date"
+                      value={fechaDesdeFiltro}
+                      max={fechaHastaFiltro || undefined}
+                      onChange={(e) => {
+                        setFechaDesdeFiltro(e.target.value);
+                        if (fechaError) setFechaError('');
+                      }}
+                      className="w-full sm:w-[150px] px-3 py-1.5 text-xs bg-surface border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors h-[38px] cursor-pointer"
+                      title="Fecha desde"
+                    />
+                  </div>
+
+                  <span className="hidden sm:inline text-muted text-xs font-semibold">-</span>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-muted select-none sm:hidden w-12">Hasta:</span>
+                    <input
+                      type="date"
+                      value={fechaHastaFiltro}
+                      min={fechaDesdeFiltro || undefined}
+                      onChange={(e) => {
+                        setFechaHastaFiltro(e.target.value);
+                        if (fechaError) setFechaError('');
+                      }}
+                      className="w-full sm:w-[150px] px-3 py-1.5 text-xs bg-surface border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors h-[38px] cursor-pointer"
+                      title="Fecha hasta"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="submit"
+                    className="flex-1 sm:flex-none bg-primary text-white hover:bg-primary-dark px-4 py-2 rounded-lg font-medium text-sm flex items-center justify-center gap-1.5 transition-colors h-[38px] shadow-sm"
+                    title="Aplicar filtros de búsqueda y fechas"
+                  >
+                    <Search size={15} />
+                    <span>Filtrar</span>
                   </button>
-                  {(emailFiltro || estadoFiltro) && (
-                    <button type="button" onClick={() => { setEmailFiltro(''); setEstadoFiltro(''); fetchData('', ''); }} className="flex-1 sm:flex-none bg-background text-danger border border-border hover:bg-red-50 hover:border-red-200 px-4 py-2 rounded-lg font-medium text-sm flex items-center justify-center transition-colors">
+
+                  <button
+                    type="button"
+                    onClick={() => fetchData()}
+                    disabled={loading}
+                    className="flex-1 sm:flex-none bg-surface text-dark border border-border hover:bg-background px-3.5 py-2 rounded-lg font-medium text-sm flex items-center justify-center gap-1.5 transition-colors h-[38px] shadow-xs disabled:opacity-60 cursor-pointer"
+                    title="Actualizar datos y estados de la cola"
+                  >
+                    <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+                    <span>Actualizar</span>
+                  </button>
+                  {(emailFiltro || estadoFiltro || fechaDesdeFiltro || fechaHastaFiltro) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmailFiltro('');
+                        setEstadoFiltro('');
+                        setFechaDesdeFiltro('');
+                        setFechaHastaFiltro('');
+                        setFechaError('');
+                        fetchData('', '', '', '');
+                      }}
+                      className="flex-1 sm:flex-none bg-surface text-danger border border-border hover:bg-red-50 dark:hover:bg-red-950/30 px-3 py-2 rounded-lg font-medium text-sm flex items-center justify-center transition-colors h-[38px]"
+                    >
                       Limpiar
                     </button>
                   )}
                 </div>
               </form>
+
+              {fechaError && (
+                <div className="mb-4 p-2.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg text-xs text-danger font-medium flex items-center gap-2 animate-fade-in">
+                  <AlertTriangle size={15} className="shrink-0" />
+                  <span>{fechaError}</span>
+                </div>
+              )}
+
+              {campana.estado === 'borrador' && (
+                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-lg text-xs text-blue-800 dark:text-blue-300 flex items-center gap-2">
+                  <Info size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                  <span>
+                    <strong>Vista preliminar de la cola:</strong> Estos contactos corresponden a la audiencia calculada para el borrador. Ningún correo se enviará hasta que la campaña sea aprobada.
+                  </span>
+                </div>
+              )}
 
               {/* Tabla Cola */}
               <div className="border border-border rounded-lg overflow-x-auto">
@@ -539,7 +696,7 @@ export default function DetalleCampana() {
                       <th className="px-4 py-3">Email Destinatario</th>
                       <th className="px-4 py-3">Estado</th>
                       <th className="px-4 py-3">Fecha Envío</th>
-                      <th className="px-4 py-3 text-center">Interacción</th>
+                      <th className="px-4 py-3 text-center" title="Apertura (Ojo) / Clic en enlace (Cursor)">Tracking</th>
                       <th className="px-4 py-3">Cuenta SMTP</th>
                       <th className="px-4 py-3">Respuesta</th>
                     </tr>
@@ -566,8 +723,17 @@ export default function DetalleCampana() {
                             {item.fecha_envio ? new Date(item.fecha_envio).toLocaleString('es-AR') : '-'}
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex justify-center gap-2">
-                              <span title={item.fecha_click ? `Interactuó: ${new Date(item.fecha_click).toLocaleString('es-AR')}` : 'Sin interacciones'} className={`p-1 rounded-full ${item.fecha_click ? 'text-purple-600 bg-purple-100' : 'text-slate-300 bg-slate-50'}`}>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <span
+                                title={item.fecha_apertura ? `Abierto: ${new Date(item.fecha_apertura).toLocaleString('es-AR')}` : 'Sin apertura registrada'}
+                                className={`p-1 rounded-full ${item.fecha_apertura ? 'text-blue-600 bg-blue-100 dark:bg-blue-950/60 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600 bg-slate-50 dark:bg-slate-800/40'}`}
+                              >
+                                <Eye size={14} />
+                              </span>
+                              <span
+                                title={item.fecha_click ? `Clic en enlace: ${new Date(item.fecha_click).toLocaleString('es-AR')}` : 'Sin clics en enlaces'}
+                                className={`p-1 rounded-full ${item.fecha_click ? 'text-purple-600 bg-purple-100 dark:bg-purple-950/60 dark:text-purple-400' : 'text-slate-300 dark:text-slate-600 bg-slate-50 dark:bg-slate-800/40'}`}
+                              >
                                 <MousePointerClick size={14} />
                               </span>
                             </div>
@@ -619,11 +785,35 @@ export default function DetalleCampana() {
 
                 <div>
                   <div className="flex justify-between text-sm font-medium mb-1">
-                    <span className="text-dark flex items-center gap-1"><MousePointerClick size={16} className="text-purple-500" /> Tasa de Interacción (Clics en enlaces)</span>
-                    <span className="text-purple-600 font-bold">{campana.stats.enviados > 0 ? ((campana.stats.clicks / campana.stats.enviados) * 100).toFixed(1) : 0}%</span>
+                    <span className="text-dark flex items-center gap-1">
+                      <Eye size={16} className="text-blue-500" /> Tasa de Apertura (Emails abiertos)
+                    </span>
+                    <span className="text-blue-600 font-bold">
+                      {campana.stats.enviados > 0 ? ((campana.stats.abiertos / campana.stats.enviados) * 100).toFixed(1) : 0}%
+                    </span>
                   </div>
                   <div className="w-full bg-surface border border-border rounded-full h-3 overflow-hidden">
-                    <div className="bg-purple-500 h-3 rounded-full transition-all duration-500" style={{ width: `${campana.stats.enviados > 0 ? (campana.stats.clicks / campana.stats.enviados) * 100 : 0}%` }}></div>
+                    <div
+                      className="bg-blue-500 h-3 rounded-full transition-all duration-500"
+                      style={{ width: `${campana.stats.enviados > 0 ? (campana.stats.abiertos / campana.stats.enviados) * 100 : 0}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-sm font-medium mb-1">
+                    <span className="text-dark flex items-center gap-1">
+                      <MousePointerClick size={16} className="text-purple-500" /> Tasa de Clics (Clicks en enlaces)
+                    </span>
+                    <span className="text-purple-600 font-bold">
+                      {campana.stats.enviados > 0 ? ((campana.stats.clicks / campana.stats.enviados) * 100).toFixed(1) : 0}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-surface border border-border rounded-full h-3 overflow-hidden">
+                    <div
+                      className="bg-purple-500 h-3 rounded-full transition-all duration-500"
+                      style={{ width: `${campana.stats.enviados > 0 ? (campana.stats.clicks / campana.stats.enviados) * 100 : 0}%` }}
+                    ></div>
                   </div>
                 </div>
 
@@ -719,193 +909,139 @@ export default function DetalleCampana() {
       </div>
 
       {/* Modal de Confirmación de Eliminación */}
-      {deleteConfirm && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-modal-pop border border-border">
-            <div className="p-6">
-              <div className="flex justify-center mb-4">
-                <div className="bg-red-100 dark:bg-red-950/40 p-3 rounded-full">
-                  <AlertTriangle size={32} className="text-red-600 dark:text-red-400" />
-                </div>
-              </div>
-              <h3 className="text-xl font-bold text-center text-dark mb-2">
-                ¿Eliminar campaña?
-              </h3>
-              <p className="text-center text-muted mb-6">
-                Estás a punto de eliminar la campaña <strong>{campana?.asunto}</strong>. Esta acción también eliminará todo su historial y métricas y no se puede deshacer.
-              </p>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setDeleteConfirm(false)}
-                  className="flex-1 py-2.5 px-4 bg-surface border border-border text-dark rounded-lg font-medium hover:bg-border transition-colors cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleDelete}
-                  className="flex-1 py-2.5 px-4 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors shadow-sm cursor-pointer"
-                >
-                  Sí, Eliminar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <ConfirmModal
+        isOpen={deleteConfirm}
+        onClose={() => setDeleteConfirm(false)}
+        onConfirm={handleDelete}
+        title="¿Eliminar campaña?"
+        description={
+          <span>
+            Estás a punto de eliminar la campaña <strong>{campana?.asunto}</strong>. Esta acción también eliminará todo su historial y métricas y no se puede deshacer.
+          </span>
+        }
+        confirmText="Sí, Eliminar"
+        variant="danger"
+        icon={<AlertTriangle size={32} className="text-red-600 dark:text-red-400" />}
+      />
 
       {/* Modal de Confirmación para Forzar Envío */}
-      {forzarConfirm && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-modal-pop border border-border">
-            <div className="p-6">
-              <div className="flex justify-center mb-4">
-                <div className="bg-indigo-100 dark:bg-indigo-950/40 p-3 rounded-full">
-                  <Send size={32} className="text-indigo-600 dark:text-indigo-400" />
-                </div>
-              </div>
-              <h3 className="text-xl font-bold text-center text-dark mb-2">
-                ¿Forzar Envío Ahora?
-              </h3>
-              <p className="text-center text-muted mb-6">
-                Esto ignorará el cronjob automático del servidor y disparará el intento de enviar mails pendientes de forma inmediata. También ignorará las restricciones de horarios y días feriados. Solo se ejecutará un intento global y se bloqueará el botón por 10 minutos.
-              </p>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setForzarConfirm(false)}
-                  className="flex-1 py-2.5 px-4 bg-surface border border-border text-dark rounded-lg font-medium hover:bg-border transition-colors cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleForzarEnvio}
-                  className="flex-1 py-2.5 px-4 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm cursor-pointer"
-                >
-                  Sí, Disparar Envíos
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <ConfirmModal
+        isOpen={forzarConfirm}
+        onClose={() => setForzarConfirm(false)}
+        onConfirm={handleForzarEnvio}
+        title="¿Forzar Envío Ahora?"
+        description="Esto ignorará el cronjob automático del servidor y disparará el intento de enviar mails pendientes de forma inmediata. También ignorará las restricciones de horarios y días feriados. Solo se ejecutará un intento global y se bloqueará el botón por 10 minutos."
+        confirmText="Sí, Disparar Envíos"
+        variant="indigo"
+        icon={<Send size={32} className="text-indigo-600 dark:text-indigo-400" />}
+      />
 
       {/* Modal para Modificar Fecha Límite / Ritmo */}
-      {showModalFecha && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-modal-pop border border-border">
-            <div className="p-6">
-              <div className="flex items-center justify-between pb-3 border-b border-border mb-4">
-                <h3 className="text-lg font-bold text-dark flex items-center gap-2">
-                  <Zap className="text-amber-500" size={20} />
-                  Modificar Ritmo y Fecha Límite
-                </h3>
-                <button
-                  onClick={() => {
-                    if (!guardandoFecha) {
-                      setShowModalFecha(false);
-                      setErrorModalFecha(null);
-                    }
-                  }}
-                  className="text-muted hover:text-dark p-1 rounded-md transition-colors cursor-pointer"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="space-y-4 text-sm text-dark">
-                {/* Explicación del funcionamiento dinámico */}
-                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2.5">
-                  <AlertTriangle size={16} className="shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
-                  <p>
-                    <strong>¿Cómo acelerar los envíos?</strong> Al adelantar la fecha límite a un día más cercano, el worker calcula automáticamente lotes más grandes por hora para enviar todos los correos a tiempo (respetando los límites seguros de las cuentas SMTP).
-                  </p>
-                </div>
-
-                {errorModalFecha && (
-                  <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-600 dark:text-red-400 flex items-center gap-2">
-                    <AlertTriangle size={15} className="shrink-0" />
-                    <span>{errorModalFecha}</span>
-                  </div>
-                )}
-
-                {exitoModalFecha && (
-                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
-                    <CheckCircle2 size={15} className="shrink-0" />
-                    <span>¡Fecha y ritmo actualizados con éxito!</span>
-                  </div>
-                )}
-
-                {/* Input Fecha Límite */}
-                <div>
-                  <label className="block text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">
-                    Nueva Fecha Límite de Envío <span className="text-danger">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={nuevaFecha}
-                    onChange={(e) => setNuevaFecha(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                    disabled={guardandoFecha}
-                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-dark disabled:opacity-50"
-                  />
-                  <p className="text-xs text-muted mt-1">
-                    Fecha actual: <strong>{formatDate(campana.fecha_limite_envio)}</strong>
-                  </p>
-                </div>
-
-                {/* Selector de Prioridad */}
-                <div>
-                  <label className="block text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">
-                    Prioridad de Despacho
-                  </label>
-                  <select
-                    value={nuevaPrioridad}
-                    onChange={(e) => setNuevaPrioridad(e.target.value as 'alta' | 'media' | 'baja')}
-                    disabled={guardandoFecha}
-                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-dark disabled:opacity-50"
-                  >
-                    <option value="alta">Alta</option>
-                    <option value="media">Media</option>
-                    <option value="baja">Baja</option>
-                  </select>
-                </div>
-
-                {/* Botones de acción */}
-                <div className="flex items-center justify-end gap-3 pt-3 border-t border-border mt-6">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowModalFecha(false);
-                      setErrorModalFecha(null);
-                    }}
-                    disabled={guardandoFecha}
-                    className="px-4 py-2 border border-border rounded-lg text-sm font-medium text-muted hover:text-dark hover:bg-background transition-colors cursor-pointer"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleGuardarProgramacion}
-                    disabled={guardandoFecha || !nuevaFecha}
-                    className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
-                  >
-                    {guardandoFecha ? (
-                      <RefreshCw size={16} className="animate-spin" />
-                    ) : (
-                      <CheckCircle2 size={16} />
-                    )}
-                    Guardar Cambios
-                  </button>
-                </div>
-              </div>
-            </div>
+      <Modal
+        isOpen={showModalFecha}
+        onClose={() => {
+          if (!guardandoFecha) {
+            setShowModalFecha(false);
+            setErrorModalFecha(null);
+          }
+        }}
+        showCloseButton={!guardandoFecha}
+        maxWidth="md"
+        title={
+          <span className="flex items-center gap-2">
+            <Zap className="text-amber-500" size={20} />
+            Modificar Ritmo y Fecha Límite
+          </span>
+        }
+      >
+        <div className="space-y-4 text-sm text-dark">
+          {/* Explicación del funcionamiento dinámico */}
+          <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2.5">
+            <AlertTriangle size={16} className="shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+            <p>
+              <strong>¿Cómo acelerar los envíos?</strong> Al adelantar la fecha límite a un día más cercano, el worker calcula automáticamente lotes más grandes por hora para enviar todos los correos a tiempo (respetando los límites seguros de las cuentas SMTP).
+            </p>
           </div>
-        </div>,
-        document.body
-      )}
+
+          {errorModalFecha && (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-600 dark:text-red-400 flex items-center gap-2">
+              <AlertTriangle size={15} className="shrink-0" />
+              <span>{errorModalFecha}</span>
+            </div>
+          )}
+
+          {exitoModalFecha && (
+            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
+              <CheckCircle2 size={15} className="shrink-0" />
+              <span>¡Fecha y ritmo actualizados con éxito!</span>
+            </div>
+          )}
+
+          {/* Input Fecha Límite */}
+          <div>
+            <label className="block text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">
+              Nueva Fecha Límite de Envío <span className="text-danger">*</span>
+            </label>
+            <input
+              type="date"
+              value={nuevaFecha}
+              onChange={(e) => setNuevaFecha(e.target.value)}
+              min={new Date().toISOString().split('T')[0]}
+              disabled={guardandoFecha}
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-dark disabled:opacity-50"
+            />
+            <p className="text-xs text-muted mt-1">
+              Fecha actual: <strong>{formatDate(campana.fecha_limite_envio)}</strong>
+            </p>
+          </div>
+
+          {/* Selector de Prioridad */}
+          <div>
+            <label className="block text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">
+              Prioridad de Despacho
+            </label>
+            <CustomSelect
+              value={nuevaPrioridad}
+              onChange={(val) => setNuevaPrioridad(val as 'alta' | 'media' | 'baja')}
+              disabled={guardandoFecha}
+              options={[
+                { value: 'alta', label: 'Alta' },
+                { value: 'media', label: 'Media' },
+                { value: 'baja', label: 'Baja' },
+              ]}
+              size="sm"
+            />
+          </div>
+
+          {/* Botones de acción */}
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-border mt-6">
+            <button
+              type="button"
+              onClick={() => {
+                setShowModalFecha(false);
+                setErrorModalFecha(null);
+              }}
+              disabled={guardandoFecha}
+              className="px-4 py-2 border border-border rounded-lg text-sm font-medium text-muted hover:text-dark hover:bg-background transition-colors cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleGuardarProgramacion}
+              disabled={guardandoFecha || !nuevaFecha}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
+            >
+              {guardandoFecha ? (
+                <RefreshCw size={16} className="animate-spin" />
+              ) : (
+                <CheckCircle2 size={16} />
+              )}
+              Guardar Cambios
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Botón flotante para volver arriba (a las estadísticas) */}
       {showScrollTop && (

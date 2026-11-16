@@ -1,4 +1,5 @@
 import { dbPool } from '../config/db.js';
+import { parsearDestinatariosManuales, parsearRubrosSeleccionados } from '../utils/campanaParsers.js';
 import type {
   Campana,
   CrearCampanaInput,
@@ -12,6 +13,46 @@ const ESTADOS_VALIDOS: ReadonlySet<EstadoCampana> = new Set([
   'completada',
   'cancelada',
 ]);
+
+/**
+ * Resuelve la exclusividad mutua de links (link_inscripcion vs link_nacion / link_provincia).
+ */
+export function resolverLinksExclusivos(
+  linkInscripcion?: string | null,
+  linkNacion?: string | null,
+  linkProvincia?: string | null
+): { link_inscripcion: string | null; link_nacion: string | null; link_provincia: string | null } {
+  if (linkNacion || linkProvincia) {
+    return {
+      link_inscripcion: null,
+      link_nacion: linkNacion || null,
+      link_provincia: linkProvincia || null,
+    };
+  }
+  return {
+    link_inscripcion: linkInscripcion || null,
+    link_nacion: null,
+    link_provincia: null,
+  };
+}
+
+/**
+ * Obtiene el ID de la cuenta emisora principal por defecto (o primera disponible).
+ */
+export async function resolverCuentaEmisorExclusiva(): Promise<string | null> {
+  const res = await dbPool.query<{ id: string }>(
+    `SELECT id FROM cuentas_smtp 
+     WHERE (es_principal = true OR es_exclusiva = true) AND estado = 'activo' 
+     ORDER BY es_principal DESC, es_exclusiva DESC 
+     LIMIT 1`
+  );
+  if (res.rows.length > 0) return res.rows[0].id;
+
+  const fallback = await dbPool.query<{ id: string }>(
+    `SELECT id FROM cuentas_smtp WHERE estado = 'activo' ORDER BY creado_en ASC LIMIT 1`
+  );
+  return fallback.rows[0]?.id || null;
+}
 
 /**
  * Inserta una nueva campaña con estado 'borrador'.
@@ -31,34 +72,33 @@ export async function crearCampana(data: CrearCampanaInput): Promise<Campana> {
     prioridad = 'alta',
     para_todos_rubros = true,
     rubros_seleccionados = [],
+    tipo_audiencia = 'rubros',
+    destinatarios_manuales = [],
+    cuenta_emisor_id = null,
   } = data;
+
+  // Si la campaña es de destinatarios manuales y no vino cuenta_emisor_id, asignar por defecto Cuenta Principal
+  let finalCuentaEmisorId = cuenta_emisor_id || null;
+  if (tipo_audiencia === 'manual' && !finalCuentaEmisorId) {
+    finalCuentaEmisorId = await resolverCuentaEmisorExclusiva();
+  }
 
   const query = `
     INSERT INTO campanas
       (asunto, cuerpo_html, link_inscripcion, link_nacion, link_provincia, flyer_url, adjunto_url, adjunto_nombre_original, adjuntos_extras,
-       fecha_limite_envio, prioridad, para_todos_rubros, rubros_seleccionados)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+       fecha_limite_envio, prioridad, para_todos_rubros, rubros_seleccionados, tipo_audiencia, destinatarios_manuales, cuenta_emisor_id)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
     RETURNING *;
   `;
 
-  // XOR Logic for links
-  let finalLinkInscripcion = link_inscripcion || null;
-  let finalLinkNacion = link_nacion || null;
-  let finalLinkProvincia = link_provincia || null;
+  const links = resolverLinksExclusivos(link_inscripcion, link_nacion, link_provincia);
 
-  if (finalLinkNacion || finalLinkProvincia) {
-    finalLinkInscripcion = null;
-  } else if (finalLinkInscripcion) {
-    finalLinkNacion = null;
-    finalLinkProvincia = null;
-  }
-
-  const values = [
+  const values: unknown[] = [
     asunto,
     cuerpo_html || null,
-    finalLinkInscripcion,
-    finalLinkNacion,
-    finalLinkProvincia,
+    links.link_inscripcion,
+    links.link_nacion,
+    links.link_provincia,
     flyer_url || null,
     adjunto_url || null,
     adjunto_nombre_original || null,
@@ -67,10 +107,23 @@ export async function crearCampana(data: CrearCampanaInput): Promise<Campana> {
     prioridad,
     para_todos_rubros,
     JSON.stringify(rubros_seleccionados),
+    tipo_audiencia,
+    JSON.stringify(destinatarios_manuales || []),
+    finalCuentaEmisorId,
   ];
 
   const result = await dbPool.query<Campana>(query, values);
-  return result.rows[0];
+  const campanaCreada = result.rows[0];
+
+  // Poblar cola preliminar para previsualizar destinatarios en el borrador
+  try {
+    const { poblarColaEnvios } = await import('./queueService.js');
+    await poblarColaEnvios(campanaCreada.id);
+  } catch (err) {
+    console.warn(`[Campana] No se pudo generar cola preliminar para borrador ${campanaCreada.id}:`, err);
+  }
+
+  return campanaCreada;
 }
 
 /**
@@ -80,7 +133,7 @@ export async function crearCampana(data: CrearCampanaInput): Promise<Campana> {
 export async function actualizarCampana(id: string, data: Partial<CrearCampanaInput>): Promise<Campana | null> {
   // Construimos el query dinámicamente según los campos que vengan
   const updates: string[] = [];
-  const values: any[] = [];
+  const values: unknown[] = [];
   let paramIdx = 1;
 
   if (data.asunto !== undefined) {
@@ -94,25 +147,13 @@ export async function actualizarCampana(id: string, data: Partial<CrearCampanaIn
   
   // Si envían algún link, procesamos la exclusividad (XOR)
   if (data.link_inscripcion !== undefined || data.link_nacion !== undefined || data.link_provincia !== undefined) {
-    const linkInscripcion = data.link_inscripcion !== undefined ? data.link_inscripcion : null;
-    const linkNacion = data.link_nacion !== undefined ? data.link_nacion : null;
-    const linkProvincia = data.link_provincia !== undefined ? data.link_provincia : null;
-
-    if (linkNacion || linkProvincia) {
-      updates.push(`link_inscripcion = $${paramIdx++}`);
-      values.push(null);
-      updates.push(`link_nacion = $${paramIdx++}`);
-      values.push(linkNacion || null);
-      updates.push(`link_provincia = $${paramIdx++}`);
-      values.push(linkProvincia || null);
-    } else {
-      updates.push(`link_inscripcion = $${paramIdx++}`);
-      values.push(linkInscripcion || null);
-      updates.push(`link_nacion = $${paramIdx++}`);
-      values.push(null);
-      updates.push(`link_provincia = $${paramIdx++}`);
-      values.push(null);
-    }
+    const links = resolverLinksExclusivos(data.link_inscripcion, data.link_nacion, data.link_provincia);
+    updates.push(`link_inscripcion = $${paramIdx++}`);
+    values.push(links.link_inscripcion);
+    updates.push(`link_nacion = $${paramIdx++}`);
+    values.push(links.link_nacion);
+    updates.push(`link_provincia = $${paramIdx++}`);
+    values.push(links.link_provincia);
   }
 
   if (data.flyer_url !== undefined) {
@@ -123,16 +164,12 @@ export async function actualizarCampana(id: string, data: Partial<CrearCampanaIn
     updates.push(`adjunto_url = $${paramIdx++}`);
     values.push(data.adjunto_url || null);
   }
-  // @ts-ignore
   if (data.adjunto_nombre_original !== undefined) {
     updates.push(`adjunto_nombre_original = $${paramIdx++}`);
-    // @ts-ignore
     values.push(data.adjunto_nombre_original || null);
   }
-  // @ts-ignore
   if (data.adjuntos_extras !== undefined) {
     updates.push(`adjuntos_extras = $${paramIdx++}`);
-    // @ts-ignore
     values.push(JSON.stringify(data.adjuntos_extras || []));
   }
   if (data.fecha_limite_envio !== undefined) {
@@ -151,6 +188,24 @@ export async function actualizarCampana(id: string, data: Partial<CrearCampanaIn
     updates.push(`rubros_seleccionados = $${paramIdx++}`);
     values.push(JSON.stringify(data.rubros_seleccionados));
   }
+  if (data.tipo_audiencia !== undefined) {
+    updates.push(`tipo_audiencia = $${paramIdx++}`);
+    values.push(data.tipo_audiencia);
+  }
+  if (data.destinatarios_manuales !== undefined) {
+    updates.push(`destinatarios_manuales = $${paramIdx++}`);
+    values.push(JSON.stringify(data.destinatarios_manuales || []));
+  }
+  if (data.cuenta_emisor_id !== undefined) {
+    updates.push(`cuenta_emisor_id = $${paramIdx++}`);
+    values.push(data.cuenta_emisor_id || null);
+  } else if (data.tipo_audiencia === 'manual') {
+    const exclusivId = await resolverCuentaEmisorExclusiva();
+    if (exclusivId) {
+      updates.push(`cuenta_emisor_id = $${paramIdx++}`);
+      values.push(exclusivId);
+    }
+  }
 
   if (updates.length === 0) {
     return obtenerCampanaPorId(id);
@@ -167,7 +222,24 @@ export async function actualizarCampana(id: string, data: Partial<CrearCampanaIn
   `;
 
   const result = await dbPool.query<Campana>(query, values);
-  return result.rows[0] ?? null;
+  const campanaActualizada = result.rows[0] ?? null;
+
+  if (campanaActualizada) {
+    // Si la campaña está en borrador, resincronizar la cola preliminar
+    // para reflejar altas/bajas de destinatarios manuales, cambios de rubros o paso a "toda la base".
+    try {
+      await dbPool.query(
+        "DELETE FROM cola_envios WHERE campana_id = $1 AND estado = 'pendiente'",
+        [id]
+      );
+      const { poblarColaEnvios } = await import('./queueService.js');
+      await poblarColaEnvios(id);
+    } catch (err) {
+      console.warn(`[Campana] No se pudo resincronizar cola preliminar para borrador ${id}:`, err);
+    }
+  }
+
+  return campanaActualizada;
 }
 
 /**
@@ -187,6 +259,12 @@ export async function cambiarEstadoCampana(
     if (!campanaActual.fecha_limite_envio) {
       throw new Error('No se puede aprobar una campaña sin fecha límite de envío.');
     }
+    if (campanaActual.tipo_audiencia === 'manual') {
+      const dests = parsearDestinatariosManuales(campanaActual.destinatarios_manuales);
+      if (dests.length === 0) {
+        throw new Error('No se puede aprobar una campaña manual sin destinatarios.');
+      }
+    }
   }
 
   const query = `
@@ -203,11 +281,25 @@ export async function cambiarEstadoCampana(
   if (campana && nuevoEstado === 'aprobada') {
     const { poblarColaEnvios } = await import('./queueService.js');
     try {
-      await poblarColaEnvios(id);
+      // Si la cola ya contiene los destinatarios (generados al guardar el borrador),
+      // no la volvemos a poblar para evitar duplicados.
+      const conteoRes = await dbPool.query<{ count: string }>(
+        'SELECT COUNT(*) FROM cola_envios WHERE campana_id = $1',
+        [id]
+      );
+      const cantidad = parseInt(conteoRes.rows[0]?.count || '0', 10);
+      if (cantidad === 0) {
+        await poblarColaEnvios(id);
+      }
     } catch (error) {
       console.error(`Error poblando cola para campaña ${id}:`, error);
-      // Si falla por falta de contactos u otra cosa, podemos decidir si dejarla aprobada o volverla a borrador.
-      // Actualmente poblarColaEnvios no tira error si hay 0, solo retorna 0.
+    }
+  } else if (campana && nuevoEstado === 'cancelada') {
+    // Si se cancela la campaña antes de enviar, limpiamos los envíos pendientes
+    try {
+      await dbPool.query("DELETE FROM cola_envios WHERE campana_id = $1 AND estado = 'pendiente'", [id]);
+    } catch (error) {
+      console.error(`Error limpiando cola de campaña cancelada ${id}:`, error);
     }
   }
 

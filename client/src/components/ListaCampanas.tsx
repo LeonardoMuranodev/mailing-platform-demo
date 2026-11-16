@@ -1,38 +1,24 @@
-import { useEffect, useState, useCallback } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Filter, RotateCcw, CalendarIcon, Trash2, AlertTriangle, Archive, Info, HelpCircle, X, Edit3, CheckCircle2, Play, Pause, RefreshCcw, Mail } from 'lucide-react';
+import { Plus, Search, Filter, RotateCcw, CalendarIcon, Trash2, Archive, HelpCircle, Edit3, CheckCircle2, Play, Pause, RefreshCcw, Mail } from 'lucide-react';
 import { listarCampanas, eliminarCampana, archivarCampana, desarchivarCampana, eliminarCampanasMasivo, cambiarEstadoCampana } from '../services/api';
 import type { CampanaResponse } from '../types/campana';
 import { usePermisos } from '../hooks/usePermisos';
+import { useNotificationStore } from '../stores/useNotificationStore';
 import { formatDate } from '../utils/formatDate';
 import { RUBROS_LABELS, RUBROS_LIST } from '../data/rubros';
-
 import { useCampanaStore } from '../stores/campanaStore';
-
-const ESTADO_BADGE_CLASSES: Record<string, string> = {
-  borrador: 'bg-slate-100 text-slate-600 border border-slate-200',
-  aprobada: 'bg-blue-50 text-blue-700 border border-blue-200',
-  en_proceso: 'bg-amber-50 text-amber-700 border border-amber-200',
-  pausada: 'bg-orange-50 text-orange-700 border border-orange-200',
-  completada: 'bg-green-50 text-green-700 border border-green-200',
-  cancelada: 'bg-red-50 text-red-700 border border-red-200',
-  archivada: 'bg-gray-100 text-gray-700 border border-gray-300',
-};
-
-const ESTADO_LABELS: Record<string, string> = {
-  borrador: 'Borrador',
-  aprobada: 'Aprobada',
-  en_proceso: 'En Proceso',
-  pausada: 'Pausada',
-  completada: 'Completada',
-  cancelada: 'Cancelada',
-  archivada: 'Archivada',
-};
+import Modal from './ui/Modal';
+import ConfirmModal from './ui/ConfirmModal';
+import TablePagination from './ui/TablePagination';
+import CampanaBadge, { CAMPANA_ESTADO_LABELS as ESTADO_LABELS } from './ui/CampanaBadge';
+import Spinner from './ui/Spinner';
+import CustomSelect from './ui/CustomSelect';
 
 export default function ListaCampanas() {
   const navigate = useNavigate();
   const { puedeCrear, puedeEditar, puedeEliminar } = usePermisos();
+  const { agregarNotificacion } = useNotificationStore();
   const [campanas, setCampanas] = useState<CampanaResponse[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -47,6 +33,17 @@ export default function ListaCampanas() {
   const [rubro, setRubro] = useState('');
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
+
+  const estadoOptions = useMemo(() => [
+    { value: '', label: 'Todos los estados' },
+    ...Object.entries(ESTADO_LABELS).map(([val, label]) => ({ value: val, label })),
+  ], []);
+
+  const rubroOptions = useMemo(() => [
+    { value: '', label: 'Todos los rubros' },
+    { value: '__sin_rubro__', label: 'Sin Rubro' },
+    ...RUBROS_LIST.map((r) => ({ value: r, label: RUBROS_LABELS[r] || r })),
+  ], []);
 
   // Confirm Delete / Archive
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -189,9 +186,19 @@ export default function ListaCampanas() {
       const res = await cambiarEstadoCampana(id, newStatus);
       if (res.success) {
         fetchCampanas();
+      } else {
+        const msg = res.error?.message || 'Error al cambiar el estado de la campaña';
+        agregarNotificacion({
+          tipo: 'general',
+          titulo: 'No se puede cambiar el estado',
+          mensaje: msg,
+          timestamp: new Date().toISOString(),
+        });
+        alert(msg);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al cambiar el estado de la campaña:', error);
+      alert(error.message || 'Error inesperado al cambiar estado');
     }
   };
 
@@ -205,12 +212,10 @@ export default function ListaCampanas() {
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 w-full">
         <div className="flex items-start gap-4">
-          <div className="w-11 h-11 overflow-hidden rounded-[14px] shadow-sm shrink-0 mt-0.5 bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
-              <Mail size={22} className="text-primary" />
-            </div>
+          <div className="w-11 h-11 overflow-hidden rounded-[14px] shadow-sm shrink-0 mt-0.5 bg-primary/10 flex items-center justify-center text-primary border border-primary/20"><Mail size={22} className="text-primary" /></div>
           <div>
             <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
-              GenMailer: Campañas de Correo
+              GenMailer: Plataforma de Campañas
             </h1>
             <p className="text-muted mt-1">
               Gestioná y monitoreá el estado de los envíos masivos.
@@ -264,30 +269,21 @@ export default function ListaCampanas() {
           </div>
           <div>
             <label className="block text-sm font-semibold text-muted mb-1.5">Estado</label>
-            <select
+            <CustomSelect
               value={estado}
-              onChange={(e) => setEstado(e.target.value)}
-              className="w-full pl-3.5 pr-6 py-2.5 text-sm bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors h-[42px]"
-            >
-              <option value="">Todos los estados</option>
-              {Object.entries(ESTADO_LABELS).map(([val, label]) => (
-                <option key={val} value={val}>{label}</option>
-              ))}
-            </select>
+              onChange={setEstado}
+              options={estadoOptions}
+              size="md"
+            />
           </div>
           <div>
             <label className="block text-sm font-semibold text-muted mb-1.5">Rubro</label>
-            <select
+            <CustomSelect
               value={rubro}
-              onChange={(e) => setRubro(e.target.value)}
-              className="w-full pl-3.5 pr-8 py-2.5 text-sm bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors h-[42px]"
-            >
-              <option value="">Todos los rubros</option>
-              <option value="__sin_rubro__">Sin Rubro</option>
-              {RUBROS_LIST.map((r) => (
-                <option key={r} value={r}>{RUBROS_LABELS[r] || r}</option>
-              ))}
-            </select>
+              onChange={setRubro}
+              options={rubroOptions}
+              size="md"
+            />
           </div>
           <div>
             <label className="block text-sm font-semibold text-muted mb-1.5">Desde</label>
@@ -346,7 +342,7 @@ export default function ListaCampanas() {
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center text-muted">
                     <div className="animate-pulse flex flex-col items-center">
-                      <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-3"></div>
+                      <Spinner size="md" color="primary" className="mb-3" />
                       Cargando campañas...
                     </div>
                   </td>
@@ -359,11 +355,13 @@ export default function ListaCampanas() {
                 </tr>
               ) : (
                 campanas.map((campana) => {
-                  const rubrosDisplay = campana.para_todos_rubros
-                    ? 'Todos los rubros'
-                    : Array.isArray(campana.rubros_seleccionados)
-                      ? (campana.rubros_seleccionados || []).map((r) => r === '__sin_rubro__' ? 'Sin Rubro' : RUBROS_LABELS[r] || r).join(', ')
-                      : 'Ninguno';
+                  const rubrosDisplay = campana.tipo_audiencia === 'manual'
+                    ? `Destinatarios específicos (${(campana.destinatarios_manuales || []).length})`
+                    : campana.para_todos_rubros
+                      ? 'Todos los rubros'
+                      : Array.isArray(campana.rubros_seleccionados)
+                        ? (campana.rubros_seleccionados || []).map((r) => r === '__sin_rubro__' ? 'Sin Rubro' : RUBROS_LABELS[r] || r).join(', ')
+                        : 'Ninguno';
 
                   return (
                     <tr
@@ -386,9 +384,13 @@ export default function ListaCampanas() {
                         {rubrosDisplay}
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${estado === 'archivada' ? ESTADO_BADGE_CLASSES['archivada'] : (ESTADO_BADGE_CLASSES[campana.estado] || 'bg-slate-100')}`}>
-                          {estado === 'archivada' ? `Archivada (${ESTADO_LABELS[campana.estado] || campana.estado})` : (ESTADO_LABELS[campana.estado] || campana.estado)}
-                        </span>
+                        {estado === 'archivada' ? (
+                          <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-700 border border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700">
+                            Archivada ({ESTADO_LABELS[campana.estado] || campana.estado})
+                          </span>
+                        ) : (
+                          <CampanaBadge estado={campana.estado} />
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-1.5">
@@ -491,217 +493,102 @@ export default function ListaCampanas() {
             </tbody>
           </table>
         </div>
-        {total > 0 && (
-          <div className="px-4 sm:px-6 py-4 border-t border-border flex flex-col sm:flex-row items-center justify-between bg-background gap-4">
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-center sm:text-left">
-              <span className="text-sm text-muted whitespace-nowrap">
-                Página <span className="font-medium text-dark">{page}</span> de <span className="font-medium text-dark">{totalPages}</span>
-              </span>
-              <div className="flex items-center gap-2">
-                <label htmlFor="limit" className="text-sm text-muted whitespace-nowrap">Mostrar:</label>
-                <select
-                  id="limit"
-                  value={limit}
-                  onChange={(e) => {
-                    setLimit(Number(e.target.value));
-                    setPage(1);
-                  }}
-                  className="px-2 py-1 bg-background border border-border rounded text-sm text-dark focus:outline-none focus:ring-2 focus:ring-primary/20"
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex justify-center gap-2 w-full sm:w-auto">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="flex-1 sm:flex-none px-3 py-1.5 border border-border rounded-md text-sm font-medium text-dark disabled:opacity-50 hover:bg-surface transition-colors text-center"
-              >
-                Anterior
-              </button>
-              <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="flex-1 sm:flex-none px-3 py-1.5 border border-border rounded-md text-sm font-medium text-dark disabled:opacity-50 hover:bg-surface transition-colors text-center"
-              >
-                Siguiente
-              </button>
-            </div>
-          </div>
-        )}
+        <TablePagination
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          limit={limit}
+          onPageChange={setPage}
+          onLimitChange={setLimit}
+        />
       </div>
 
       {/* Modal de Confirmación de Eliminación */}
-      {deleteConfirmId && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-modal-pop border border-border">
-            <div className="p-6">
-              <div className="flex justify-center mb-4">
-                <div className="bg-red-100 p-3 rounded-full">
-                  <AlertTriangle size={32} className="text-red-600" />
-                </div>
-              </div>
-              <h3 className="text-xl font-bold text-center text-dark mb-2">
-                ¿Eliminar campaña?
-              </h3>
-              <p className="text-center text-muted mb-6">
-                Estás a punto de eliminar esta campaña. Se borrará todo su historial y estadísticas. Esta acción no se puede deshacer.
-              </p>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setDeleteConfirmId(null)}
-                  className="flex-1 py-2.5 px-4 bg-surface border border-border text-dark rounded-lg font-medium hover:bg-border transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleDelete}
-                  className="flex-1 py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
-                >
-                  Sí, Eliminar Físicamente
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <ConfirmModal
+        isOpen={Boolean(deleteConfirmId)}
+        onClose={() => setDeleteConfirmId(null)}
+        onConfirm={handleDelete}
+        title="¿Eliminar campaña?"
+        description="Estás a punto de eliminar esta campaña. Se borrará todo su historial y estadísticas. Esta acción no se puede deshacer."
+        confirmText="Sí, Eliminar Físicamente"
+        variant="danger"
+      />
 
       {/* Modal de Confirmación de Archivar */}
-      {archiveConfirmId && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-modal-pop border border-border">
-            <div className="p-6">
-              <div className="flex justify-center mb-4">
-                <div className="bg-blue-100 p-3 rounded-full">
-                  <Info size={32} className="text-blue-600" />
-                </div>
-              </div>
-              <h3 className="text-xl font-bold text-center text-dark mb-2">
-                ¿Archivar campaña?
-              </h3>
-              <p className="text-center text-muted mb-6">
-                La campaña desaparecerá de esta lista, pero <strong>sus envíos seguirán sumando en las estadísticas globales</strong>. Esta acción no se puede deshacer.
-              </p>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setArchiveConfirmId(null)}
-                  className="flex-1 py-2.5 px-4 bg-surface border border-border text-dark rounded-lg font-medium hover:bg-border transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleArchive}
-                  className="flex-1 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-                >
-                  Sí, Archivar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <ConfirmModal
+        isOpen={Boolean(archiveConfirmId)}
+        onClose={() => setArchiveConfirmId(null)}
+        onConfirm={handleArchive}
+        title="¿Archivar campaña?"
+        description={
+          <span>
+            La campaña desaparecerá de esta lista, pero <strong>sus envíos seguirán sumando en las estadísticas globales</strong>. Esta acción no se puede deshacer.
+          </span>
+        }
+        confirmText="Sí, Archivar"
+        variant="info"
+      />
 
       {/* Modal de Confirmación de Eliminación Masiva */}
-      {showBulkDeleteConfirm && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-modal-pop border border-border">
-            <div className="p-6">
-              <div className="flex justify-center mb-4">
-                <div className="bg-red-100 p-3 rounded-full">
-                  <AlertTriangle size={32} className="text-red-600" />
-                </div>
-              </div>
-              <h3 className="text-xl font-bold text-center text-dark mb-2">
-                ¿Eliminar {selectedIds.size} campañas?
-              </h3>
-              <p className="text-center text-muted mb-6">
-                Estás a punto de eliminar {selectedIds.size} campañas seleccionadas. Se borrará todo su historial y estadísticas. Esta acción no se puede deshacer.
-              </p>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowBulkDeleteConfirm(false)}
-                  className="flex-1 py-2.5 px-4 bg-surface border border-border text-dark rounded-lg font-medium hover:bg-border transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleBulkDelete}
-                  className="flex-1 py-2.5 px-4 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors shadow-sm"
-                >
-                  Sí, Eliminar Todas
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <ConfirmModal
+        isOpen={showBulkDeleteConfirm}
+        onClose={() => setShowBulkDeleteConfirm(false)}
+        onConfirm={handleBulkDelete}
+        title={`¿Eliminar ${selectedIds.size} campañas?`}
+        description={`Estás a punto de eliminar ${selectedIds.size} campañas seleccionadas. Se borrará todo su historial y estadísticas. Esta acción no se puede deshacer.`}
+        confirmText="Sí, Eliminar Todas"
+        variant="danger"
+      />
 
       {/* Modal de Ayuda */}
-      {showHelp && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-surface rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-modal-pop border border-border">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-5">
-                <h3 className="text-lg font-bold text-dark flex items-center gap-2">
-                  <HelpCircle size={20} className="text-primary" />
-                  Guía de Gestión de Campañas
-                </h3>
-                <button onClick={() => setShowHelp(false)} className="text-muted hover:text-dark transition-colors p-1 rounded-md hover:bg-background">
-                  <X size={18} />
-                </button>
+      <Modal
+        isOpen={showHelp}
+        onClose={() => setShowHelp(false)}
+        maxWidth="lg"
+        title={
+          <span className="flex items-center gap-2">
+            <HelpCircle size={20} className="text-primary" />
+            Guía de Gestión de Campañas
+          </span>
+        }
+      >
+        <div className="space-y-4 text-sm">
+          <div className="bg-blue-50/50 border border-blue-200/60 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="bg-blue-100 p-1.5 rounded-md text-blue-700">
+                <Archive size={16} />
               </div>
-
-              <div className="space-y-4 text-sm">
-                <div className="bg-blue-50/50 border border-blue-200/60 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="bg-blue-100 p-1.5 rounded-md text-blue-700">
-                      <Archive size={16} />
-                    </div>
-                    <p className="font-semibold text-blue-800">¿Qué significa Archivar?</p>
-                  </div>
-                  <p className="text-blue-900/80 leading-relaxed ml-9">
-                    Utilizá esta opción cuando una campaña <strong>ya finalizó sus envíos</strong> y no necesitás verla más en esta lista.
-                    Al archivar, la campaña se oculta, pero <strong>sus métricas (envíos, rebotes, aperturas) se siguen sumando</strong> en los gráficos estadísticos del Dashboard.
-                  </p>
-                </div>
-
-                <div className="bg-red-50/50 border border-red-200/60 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="bg-red-100 p-1.5 rounded-md text-red-700">
-                      <Trash2 size={16} />
-                    </div>
-                    <p className="font-semibold text-red-800">¿Qué significa Eliminar?</p>
-                  </div>
-                  <p className="text-red-900/80 leading-relaxed ml-9">
-                    Utilizá esta opción <strong>solo si te equivocaste al crear la campaña</strong> (por ejemplo, le pifiaste al rubro o al asunto).
-                    Al eliminarla, <strong>se borra por completo y deja de contar en las estadísticas generales</strong>. ¡Esta acción no se puede deshacer!
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-6 flex justify-end">
-                <button
-                  onClick={() => setShowHelp(false)}
-                  className="py-2 px-5 bg-primary hover:bg-primary-dark text-white rounded-lg font-medium transition-colors"
-                >
-                  Entendido
-                </button>
-              </div>
+              <p className="font-semibold text-blue-800">¿Qué significa Archivar?</p>
             </div>
+            <p className="text-blue-900/80 leading-relaxed ml-9">
+              Utilizá esta opción cuando una campaña <strong>ya finalizó sus envíos</strong> y no necesitás verla más en esta lista.
+              Al archivar, la campaña se oculta, pero <strong>sus métricas (envíos, rebotes, aperturas) se siguen sumando</strong> en los gráficos estadísticos del Dashboard.
+            </p>
           </div>
-        </div>,
-        document.body
-      )}
+
+          <div className="bg-red-50/50 border border-red-200/60 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="bg-red-100 p-1.5 rounded-md text-red-700">
+                <Trash2 size={16} />
+              </div>
+              <p className="font-semibold text-red-800">¿Qué significa Eliminar?</p>
+            </div>
+            <p className="text-red-900/80 leading-relaxed ml-9">
+              Utilizá esta opción <strong>solo si te equivocaste al crear la campaña</strong> (por ejemplo, le pifiaste al rubro o al asunto).
+              Al eliminarla, <strong>se borra por completo y deja de contar en las estadísticas generales</strong>. ¡Esta acción no se puede deshacer!
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <button
+            onClick={() => setShowHelp(false)}
+            className="py-2 px-5 bg-primary hover:bg-primary-dark text-white rounded-lg font-medium transition-colors cursor-pointer"
+          >
+            Entendido
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

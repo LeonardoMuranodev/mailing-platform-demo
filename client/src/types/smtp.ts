@@ -15,6 +15,8 @@ export interface CuentaSmtp {
   historial_despachado?: number;
   ultimo_uso: string | null;
   es_oauth?: boolean;
+  es_exclusiva?: boolean;
+  es_principal?: boolean;
   creado_en: string;
   actualizado_en: string;
 }

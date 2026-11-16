@@ -7,6 +7,17 @@ export const authController = {
     try {
       const { email, password } = req.body;
       const { token, user } = await login(email, password);
+
+      // Emitir cookie HttpOnly segura para protección anti-XSS
+      const isProd = process.env.NODE_ENV === 'production';
+      res.cookie('auth_token', token, {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000,
+        path: '/',
+      });
+
       sendSuccess(res, { token, user });
     } catch (error) {
       if (error instanceof Error && error.message === 'Credenciales inválidas') {
@@ -15,6 +26,17 @@ export const authController = {
         next(error);
       }
     }
+  },
+
+  logout: async (_req: Request, res: Response): Promise<void> => {
+    const isProd = process.env.NODE_ENV === 'production';
+    res.clearCookie('auth_token', {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax',
+      path: '/',
+    });
+    sendSuccess(res, { message: 'Sesión cerrada exitosamente.' });
   },
 
   me: async (req: Request, res: Response, next: NextFunction): Promise<void> => {

@@ -1,4 +1,5 @@
 import { dbPool } from '../config/db.js';
+import { parsearDestinatariosManuales, parsearRubrosSeleccionados } from '../utils/campanaParsers.js';
 import type { CuentaSmtp } from '../types/smtp.js';
 import type { PoblarColaResult } from '../types/colaEnvios.js';
 import type { Campana } from '../types/campana.js';
@@ -7,8 +8,9 @@ import type { Campana } from '../types/campana.js';
  * Consulta la campaña, obtiene contactos según rubros y los inserta
  * masivamente en `cola_envios` con estado 'pendiente'.
  *
- * — Si `para_todos_rubros` es true → todos los contactos con estado 'funcional'.
- * — Si es false → filtra por rubros cuyo `nombre` coincida con `rubros_seleccionados`.
+ * — Si `para_todos_rubros` es true → todos los contactos de la base oficial con estado 'funcional' (es_contacto_base = true).
+ * — Si es false → filtra por rubros cuyo `nombre` coincida con `rubros_seleccionados` (es_contacto_base = true).
+ * — Si `tipo_audiencia` es 'manual' → inserta o usa exclusivamente los `destinatarios_manuales`.
  */
 export async function poblarColaEnvios(campanaId: string): Promise<PoblarColaResult> {
   // 1. Obtener la campaña
@@ -22,39 +24,89 @@ export async function poblarColaEnvios(campanaId: string): Promise<PoblarColaRes
     throw new Error(`Campaña con id "${campanaId}" no encontrada`);
   }
 
-  // 2. Verificar que la campaña esté en estado "aprobada"
-  if (campana.estado !== 'aprobada') {
+  // 2. Verificar que la campaña esté en estado "aprobada" o "borrador"
+  if (campana.estado !== 'aprobada' && campana.estado !== 'borrador') {
     throw new Error(
-      `La campaña debe estar en estado "aprobada" para poblar la cola. Estado actual: "${campana.estado}"`,
+      `La campaña debe estar en estado "aprobada" o "borrador" para poblar la cola. Estado actual: "${campana.estado}"`,
     );
   }
 
-  // 3. Parsear rubros_seleccionados (almacenados como JSON string en DB)
-  let rubrosSeleccionados: string[] = [];
-  if (typeof campana.rubros_seleccionados === 'string') {
-    rubrosSeleccionados = JSON.parse(campana.rubros_seleccionados) as string[];
-  } else if (Array.isArray(campana.rubros_seleccionados)) {
-    rubrosSeleccionados = campana.rubros_seleccionados;
+  // 3. Manejo según tipo_audiencia ('manual' vs 'rubros')
+  if (campana.tipo_audiencia === 'manual') {
+    const emailsUnicos = parsearDestinatariosManuales(campana.destinatarios_manuales);
+
+    if (emailsUnicos.length === 0) {
+      return {
+        campana_id: campanaId,
+        total_insertados: 0,
+        para_todos_rubros: false,
+        rubros_filtrados: [],
+      };
+    }
+
+    // Asegurar que existan en la tabla contactos para tener tracking y consistencia,
+    // pero marcados como es_contacto_base = false para no mezclarlos con la base oficial.
+    await dbPool.query(`
+      INSERT INTO contactos (email, empresa_nombre, estado, es_contacto_base)
+      SELECT unnest($1::text[]), 'Destinatario Manual', 'funcional', false
+      ON CONFLICT (email) DO UPDATE SET estado = CASE WHEN contactos.estado = 'inactivo' THEN 'funcional' ELSE contactos.estado END
+    `, [emailsUnicos]);
+
+    const contactosResult = await dbPool.query<{ id: string }>(
+      `SELECT id FROM contactos WHERE email = ANY($1::text[])`,
+      [emailsUnicos]
+    );
+
+    const contactoIds = contactosResult.rows.map((row) => row.id);
+
+    const insertQuery = `
+      INSERT INTO cola_envios (campana_id, contacto_id, estado)
+      SELECT $1, unnest($2::uuid[]), 'pendiente'
+      ON CONFLICT DO NOTHING
+    `;
+
+    const insertResult = await dbPool.query(insertQuery, [campanaId, contactoIds]);
+
+    return {
+      campana_id: campanaId,
+      total_insertados: insertResult.rowCount ?? contactoIds.length,
+      para_todos_rubros: false,
+      rubros_filtrados: [],
+    };
   }
 
-  // 4. Construir la query de contactos según filtro de rubros
+  // 4. Parsear rubros_seleccionados (almacenados como JSON string en DB)
+  const rubrosSeleccionados = parsearRubrosSeleccionados(campana.rubros_seleccionados);
+
+  // 5. Construir la query de contactos según filtro de rubros (filtrando estrictamente por la base oficial: es_contacto_base = true)
   let contactosQuery: string;
   let contactosParams: unknown[];
 
   if (campana.para_todos_rubros) {
-    // Todos los contactos funcionales
-    contactosQuery = `SELECT id FROM contactos WHERE estado = 'funcional'`;
+    // Todos los contactos funcionales de la base oficial (excluyendo destinatarios manuales)
+    contactosQuery = `SELECT id FROM contactos WHERE estado = 'funcional' AND es_contacto_base = true`;
     contactosParams = [];
   } else {
-    const isSinRubro = rubrosSeleccionados.includes('__sin_rubro__');
-    const validRubros = rubrosSeleccionados.filter(r => r !== '__sin_rubro__');
+    const isSinRubro = rubrosSeleccionados.includes('__sin_rubro__') || rubrosSeleccionados.some(r => r.toLowerCase() === 'sin rubro');
+    const validRubros = rubrosSeleccionados
+      .filter(r => r !== '__sin_rubro__' && r.toLowerCase() !== 'sin rubro')
+      .map(r => r.trim().toLowerCase());
+
+    const sinRubroCondition = `(c.rubro_id IS NULL OR c.rubro_id = '' OR LOWER(TRIM(c.rubro_id)) = 'sin rubro')`;
 
     if (isSinRubro && validRubros.length > 0) {
       contactosQuery = `
         SELECT c.id
         FROM contactos c
+        LEFT JOIN rubros r ON c.rubro_id::text = r.id::text
         WHERE c.estado = 'funcional'
-          AND (c.rubro_id = ANY($1) OR c.rubro_id IS NULL)
+          AND c.es_contacto_base = true
+          AND (
+            LOWER(TRIM(r.nombre)) = ANY($1::text[])
+            OR c.rubro_id = ANY($1)
+            OR c.rubro_id::text = ANY($1::text[])
+            OR ${sinRubroCondition}
+          )
       `;
       contactosParams = [validRubros];
     } else if (isSinRubro) {
@@ -62,15 +114,22 @@ export async function poblarColaEnvios(campanaId: string): Promise<PoblarColaRes
         SELECT c.id
         FROM contactos c
         WHERE c.estado = 'funcional'
-          AND c.rubro_id IS NULL
+          AND c.es_contacto_base = true
+          AND ${sinRubroCondition}
       `;
       contactosParams = [];
     } else {
       contactosQuery = `
         SELECT c.id
         FROM contactos c
+        LEFT JOIN rubros r ON c.rubro_id::text = r.id::text
         WHERE c.estado = 'funcional'
-          AND c.rubro_id = ANY($1)
+          AND c.es_contacto_base = true
+          AND (
+            LOWER(TRIM(r.nombre)) = ANY($1::text[])
+            OR c.rubro_id = ANY($1)
+            OR c.rubro_id::text = ANY($1::text[])
+          )
       `;
       contactosParams = [validRubros];
     }
@@ -87,7 +146,7 @@ export async function poblarColaEnvios(campanaId: string): Promise<PoblarColaRes
     };
   }
 
-  // 5. INSERT masivo en cola_envios usando unnest para eficiencia
+  // 6. INSERT masivo en cola_envios usando unnest para eficiencia
   const contactoIds = contactosResult.rows.map((row) => row.id);
 
   const insertQuery = `
@@ -97,8 +156,6 @@ export async function poblarColaEnvios(campanaId: string): Promise<PoblarColaRes
   `;
 
   const insertResult = await dbPool.query(insertQuery, [campanaId, contactoIds]);
-
-  // 6. La campaña queda en estado 'aprobada'. El worker la pasará a 'en_proceso' al enviar el primer mail.
 
   return {
     campana_id: campanaId,
@@ -111,6 +168,7 @@ export async function poblarColaEnvios(campanaId: string): Promise<PoblarColaRes
 /**
  * Selecciona la siguiente cuenta SMTP activa disponible (Round-Robin).
  * Criterio: estado='activo', enviados_hoy < limite_diario, ordenado por ultimo_uso ASC (NULLS FIRST).
+ * EXCLUYE cuentas exclusivas (es_exclusiva = true), preservándolas para envíos específicos/manuales.
  */
 export async function obtenerSiguienteSmtpDisponible(): Promise<CuentaSmtp | null> {
   const query = `
@@ -118,12 +176,45 @@ export async function obtenerSiguienteSmtpDisponible(): Promise<CuentaSmtp | nul
     FROM cuentas_smtp
     WHERE estado = 'activo'
       AND enviados_hoy < limite_diario
+      AND (es_exclusiva IS FALSE OR es_exclusiva IS NULL)
     ORDER BY ultimo_uso ASC NULLS FIRST
     LIMIT 1
   `;
 
   const result = await dbPool.query<CuentaSmtp>(query);
   return result.rows[0] ?? null;
+}
+
+/**
+ * Obtiene la cuenta SMTP específica fijada a una campaña (o la cuenta principal).
+ */
+export async function obtenerSmtpExclusivo(cuentaId?: string | null): Promise<CuentaSmtp | null> {
+  if (cuentaId) {
+    const query = `
+      SELECT *
+      FROM cuentas_smtp
+      WHERE id = $1
+        AND estado = 'activo'
+        AND enviados_hoy < limite_diario
+      LIMIT 1
+    `;
+    const res = await dbPool.query<CuentaSmtp>(query, [cuentaId]);
+    if (res.rows[0]) return res.rows[0];
+  }
+
+  const queryPrincipal = `
+    SELECT *
+    FROM cuentas_smtp
+    WHERE (es_principal = true OR es_exclusiva = true)
+      AND estado = 'activo'
+      AND enviados_hoy < limite_diario
+    ORDER BY es_principal DESC, es_exclusiva DESC
+    LIMIT 1
+  `;
+  const resPrincipal = await dbPool.query<CuentaSmtp>(queryPrincipal);
+  if (resPrincipal.rows[0]) return resPrincipal.rows[0];
+
+  return obtenerSiguienteSmtpDisponible();
 }
 
 /**
@@ -209,13 +300,13 @@ export async function obtenerColaPorCampana(
   }
 
   if (filtros.fecha_desde) {
-    conditions.push(`ce.fecha_envio >= $${paramIdx}`);
+    conditions.push(`COALESCE(ce.fecha_envio, ce.creado_en) >= $${paramIdx}::date`);
     values.push(filtros.fecha_desde);
     paramIdx++;
   }
 
   if (filtros.fecha_hasta) {
-    conditions.push(`ce.fecha_envio <= $${paramIdx}`);
+    conditions.push(`COALESCE(ce.fecha_envio, ce.creado_en) < ($${paramIdx}::date + interval '1 day')`);
     values.push(filtros.fecha_hasta);
     paramIdx++;
   }
@@ -242,4 +333,3 @@ export async function obtenerColaPorCampana(
   const result = await dbPool.query<ColaEnvioConDetalles>(query, values);
   return result.rows;
 }
-

@@ -20,9 +20,55 @@ import {
 import { enviarMailPrueba } from '../services/notificationService.js';
 import { sendSuccess, sendError } from '../utils/responseHandler.js';
 import type { CrearCampanaBody, CambiarEstadoBody, ActualizarCampanaBody, ActualizarProgramacionBody } from '../schemas/campanaSchema.js';
+import type { CrearCampanaInput } from '../types/campana.js';
 import { clearCacheByPrefix } from '../middlewares/cache.js';
 import { registrarAccion } from '../services/historialService.js';
 import { emitirAlertaRealtime } from '../services/realtimeService.js';
+
+interface AdjuntoExtra {
+  url: string;
+  nombre_original: string;
+}
+
+interface ProcesarArchivosResult {
+  flyer_url: string | null | undefined;
+  adjunto_url: string | null | undefined;
+  adjunto_nombre_original: string | null | undefined;
+  adjuntos_extras: AdjuntoExtra[];
+}
+
+/**
+ * Normaliza y extrae los archivos adjuntos y flyer subidos vía multipart/form-data.
+ * Reutilizada entre creación y actualización de campañas para evitar duplicación de lógica.
+ */
+function procesarArchivosSubidos(
+  files: { [fieldname: string]: Express.Multer.File[] } | undefined,
+  body: { flyer_url?: string | null; adjunto_url?: string | null; adjuntos_extras?: unknown },
+  esCreacion: boolean
+): ProcesarArchivosResult {
+  const flyerFile = files?.['flyer']?.[0];
+  const adjuntoFiles = files?.['adjuntos'] || [];
+
+  const flyer_url = flyerFile
+    ? `/uploads/${flyerFile.filename}`
+    : (esCreacion ? (body.flyer_url || null) : body.flyer_url);
+
+  const adjuntosNuevos: AdjuntoExtra[] = adjuntoFiles.map((f) => ({
+    url: `/uploads/${f.filename}`,
+    nombre_original: f.originalname,
+  }));
+
+  const adjunto_url = adjuntosNuevos[0]?.url !== undefined
+    ? adjuntosNuevos[0].url
+    : (esCreacion ? (body.adjunto_url || null) : body.adjunto_url);
+
+  const adjunto_nombre_original = adjuntosNuevos[0]?.nombre_original || (esCreacion ? null : undefined);
+
+  const adjuntosBody: AdjuntoExtra[] = Array.isArray(body.adjuntos_extras) ? body.adjuntos_extras : [];
+  const adjuntos_extras = adjuntosNuevos.length > 0 ? adjuntosNuevos : adjuntosBody;
+
+  return { flyer_url, adjunto_url, adjunto_nombre_original, adjuntos_extras };
+}
 
 /**
  * POST /api/campanas
@@ -32,8 +78,6 @@ async function crear(req: Request, res: Response, next: NextFunction): Promise<v
   try {
     const body = req.body as CrearCampanaBody;
     const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
-
-    const flyerFile = files?.['flyer']?.[0];
     const adjuntoFiles = files?.['adjuntos'] || [];
 
     if (adjuntoFiles.length > config.maxAdjuntos) {
@@ -41,30 +85,19 @@ async function crear(req: Request, res: Response, next: NextFunction): Promise<v
       return;
     }
 
-    const flyer_url = flyerFile
-      ? `/uploads/${flyerFile.filename}`
-      : (body.flyer_url || null);
-
-    // Construir adjuntos_extras desde los archivos subidos
-    const adjuntos_extras_nuevos = adjuntoFiles.map((f) => ({
-      url: `/uploads/${f.filename}`,
-      nombre_original: f.originalname,
-    }));
-
-    // Retrocompatibilidad: el primer adjunto también va en adjunto_url
-    const adjunto_url = adjuntos_extras_nuevos[0]?.url || (body.adjunto_url || null);
-    const adjunto_nombre_original = adjuntos_extras_nuevos[0]?.nombre_original || null;
-
-    // Combinar: archivos nuevos subidos + extras existentes del body (al editar)
-    const adjuntos_extras_body = (body as any).adjuntos_extras || [];
-    const adjuntos_extras = adjuntos_extras_nuevos.length > 0
-      ? adjuntos_extras_nuevos
-      : adjuntos_extras_body;
+    const { flyer_url, adjunto_url, adjunto_nombre_original, adjuntos_extras } =
+      procesarArchivosSubidos(files, body, true);
 
     const cuerpo_html = body.cuerpo_html ? DOMPurify.sanitize(body.cuerpo_html) : undefined;
     
-    const campanaData: any = { ...body, flyer_url, adjunto_url, adjunto_nombre_original, adjuntos_extras };
-    if (cuerpo_html) campanaData.cuerpo_html = cuerpo_html;
+    const campanaData: CrearCampanaInput = {
+      ...body,
+      flyer_url: flyer_url || undefined,
+      adjunto_url: adjunto_url || undefined,
+      adjunto_nombre_original,
+      adjuntos_extras,
+      ...(cuerpo_html ? { cuerpo_html } : {}),
+    };
 
     const campana = await crearCampana(campanaData);
     
@@ -329,6 +362,9 @@ async function enviarPrueba(req: Request, res: Response, next: NextFunction): Pr
       prioridad: 'media',
       para_todos_rubros: true,
       rubros_seleccionados: [],
+      tipo_audiencia: req.body.tipo_audiencia || 'rubros',
+      destinatarios_manuales: [],
+      cuenta_emisor_id: null,
       creado_en: '',
       actualizado_en: ''
     };
@@ -352,8 +388,6 @@ async function actualizar(req: Request, res: Response, next: NextFunction): Prom
     const id = req.params.id as string;
     const body = req.body as ActualizarCampanaBody;
     const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
-
-    const flyerFile = files?.['flyer']?.[0];
     const adjuntoFiles = files?.['adjuntos'] || [];
 
     if (adjuntoFiles.length > config.maxAdjuntos) {
@@ -361,36 +395,17 @@ async function actualizar(req: Request, res: Response, next: NextFunction): Prom
       return;
     }
 
-    const flyer_url = flyerFile
-      ? `/uploads/${flyerFile.filename}`
-      : body.flyer_url;
-
-    // Construir adjuntos_extras desde los archivos subidos
-    const adjuntos_extras_nuevos = adjuntoFiles.map((f) => ({
-      url: `/uploads/${f.filename}`,
-      nombre_original: f.originalname,
-    }));
-
-    // Retrocompatibilidad: el primer adjunto también va en adjunto_url
-    const adjunto_url = adjuntos_extras_nuevos[0]?.url !== undefined
-      ? adjuntos_extras_nuevos[0].url
-      : body.adjunto_url;
-    const adjunto_nombre_original = adjuntos_extras_nuevos[0]?.nombre_original || undefined;
-
-    // Combinar: archivos nuevos + extras existentes del body (al editar sin subir nuevos)
-    const adjuntos_extras_body = (body as any).adjuntos_extras || [];
-    const adjuntos_extras = adjuntos_extras_nuevos.length > 0
-      ? adjuntos_extras_nuevos
-      : adjuntos_extras_body;
+    const { flyer_url, adjunto_url, adjunto_nombre_original, adjuntos_extras } =
+      procesarArchivosSubidos(files, body, false);
 
     const cuerpo_html = body.cuerpo_html ? DOMPurify.sanitize(body.cuerpo_html) : undefined;
 
-    const campanaData: any = { ...body };
-    if (flyer_url !== undefined) campanaData.flyer_url = flyer_url || null;
-    if (adjunto_url !== undefined) campanaData.adjunto_url = adjunto_url || null;
-    if (adjunto_nombre_original) campanaData.adjunto_nombre_original = adjunto_nombre_original;
+    const campanaData: Partial<CrearCampanaInput> = { ...body };
+    if (flyer_url !== undefined) campanaData.flyer_url = flyer_url || undefined;
+    if (adjunto_url !== undefined) campanaData.adjunto_url = adjunto_url || undefined;
+    if (adjunto_nombre_original !== undefined) campanaData.adjunto_nombre_original = adjunto_nombre_original;
     campanaData.adjuntos_extras = adjuntos_extras;
-    if (cuerpo_html) campanaData.cuerpo_html = cuerpo_html;
+    if (cuerpo_html !== undefined) campanaData.cuerpo_html = cuerpo_html;
 
     const campana = await actualizarCampana(id, campanaData);
     

@@ -39,6 +39,10 @@ export const crearCampanaSchema = z.object({
   para_todos_rubros: z.boolean(),
 
   rubros_seleccionados: z.array(z.string()).default([]),
+
+  tipo_audiencia: z.enum(['rubros', 'manual']).default('rubros'),
+
+  destinatarios_manuales: z.array(z.string()).default([]),
 }).refine(data => {
   if (data.usa_links_multiples) {
     return data.link_nacion && data.link_nacion.length > 0 && data.link_provincia && data.link_provincia.length > 0;
@@ -47,6 +51,14 @@ export const crearCampanaSchema = z.object({
 }, {
   message: "Debes completar el/los links de inscripción requeridos",
   path: ["link_inscripcion"]
+}).refine(data => {
+  if (data.tipo_audiencia === 'manual') {
+    return data.destinatarios_manuales && data.destinatarios_manuales.length > 0;
+  }
+  return true;
+}, {
+  message: "Debes ingresar al menos un correo destinatario válido",
+  path: ["destinatarios_manuales"]
 });
 
 /** Schema LAXO para guardar borrador (solo exige asunto con al menos 1 caracter) */
@@ -86,10 +98,26 @@ export const borradorCampanaSchema = z.object({
   prioridad: z.enum(['alta', 'media', 'baja']).optional().default('alta'),
   para_todos_rubros: z.boolean().optional().default(true),
   rubros_seleccionados: z.array(z.string()).optional().default([]),
+  tipo_audiencia: z.enum(['rubros', 'manual']).optional().default('rubros'),
+  destinatarios_manuales: z.array(z.string()).optional().default([]),
 });
 
 /** Tipo inferido desde Zod */
 export type CampanaFormSchema = z.infer<typeof crearCampanaSchema>;
+
+/**
+ * Transforma una lista de issues de Zod en un diccionario de errores por campo.
+ */
+export function formatZodIssues(issues: z.ZodIssue[]): Record<string, string> {
+  const errors: Record<string, string> = {};
+  for (const issue of issues) {
+    const field = issue.path.join('.');
+    if (!errors[field]) {
+      errors[field] = issue.message;
+    }
+  }
+  return errors;
+}
 
 /**
  * Valida los datos del formulario con el schema ESTRICTO.
@@ -99,17 +127,7 @@ export function validarFormulario(
   data: unknown,
 ): Record<string, string> | null {
   const result = crearCampanaSchema.safeParse(data);
-
-  if (result.success) return null;
-
-  const errors: Record<string, string> = {};
-  for (const issue of result.error.issues) {
-    const field = issue.path.join('.');
-    if (!errors[field]) {
-      errors[field] = issue.message;
-    }
-  }
-  return errors;
+  return result.success ? null : formatZodIssues(result.error.issues);
 }
 
 /**
@@ -120,15 +138,5 @@ export function validarBorrador(
   data: unknown,
 ): Record<string, string> | null {
   const result = borradorCampanaSchema.safeParse(data);
-
-  if (result.success) return null;
-
-  const errors: Record<string, string> = {};
-  for (const issue of result.error.issues) {
-    const field = issue.path.join('.');
-    if (!errors[field]) {
-      errors[field] = issue.message;
-    }
-  }
-  return errors;
+  return result.success ? null : formatZodIssues(result.error.issues);
 }

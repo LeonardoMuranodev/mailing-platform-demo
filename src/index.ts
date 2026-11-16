@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'node:path';
+import cookieParser from 'cookie-parser';
 import { logger } from './utils/logger.js';
 import { config } from './config/env.js';
 import { testDbConnection, dbPool } from './config/db.js';
@@ -27,6 +28,7 @@ app.set('trust proxy', 1);
 // ── Security Middlewares ─────────────────────────────────
 app.use(securityHeaders);
 app.use(corsMiddleware);
+app.use(cookieParser());
 
 // ── Global Rate Limiter ──────────────────────────────────
 // Protección general para la aplicación (5000 peticiones por usuario/IP cada 15 min)
@@ -90,27 +92,59 @@ import { seedUsuarios } from './scripts/seedUsuarios.js';
 import fs from 'node:fs';
 
 async function runMigrations(): Promise<void> {
-  // En el contenedor las migraciones están en /app/src/migrations (source),
-  // en el build compilado en /app/dist/../src no existe, así que buscamos en dos lugares.
   const candidates = [
     path.resolve(process.cwd(), 'src/migrations'),
-    path.resolve(process.cwd(), 'dist/migrations'), // por si acaso el build copia SQLs
+    path.resolve(process.cwd(), 'dist/migrations'),
   ];
   const migrationsDir = candidates.find(d => fs.existsSync(d));
   if (!migrationsDir) {
     logger.warn('[Migration] No se encontró directorio de migraciones, saltando...');
     return;
   }
+
+  // Crear tabla de tracking si no existe
+  try {
+    await dbPool.query(`
+      CREATE TABLE IF NOT EXISTS _schema_migrations (
+        filename VARCHAR(255) PRIMARY KEY,
+        applied_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+  } catch (err: any) {
+    logger.error('Error al inicializar tabla _schema_migrations:', err.message);
+  }
+
+  let appliedSet = new Set<string>();
+  try {
+    const { rows: appliedRows } = await dbPool.query<{ filename: string }>(
+      'SELECT filename FROM _schema_migrations'
+    );
+    appliedSet = new Set(appliedRows.map(r => r.filename));
+  } catch (err: any) {
+    logger.warn('[Migration] No se pudo leer _schema_migrations, ejecutando con verificación inline:', err.message);
+  }
+
   const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
   for (const file of files) {
+    if (appliedSet.has(file)) {
+      continue;
+    }
+
     try {
       const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
       await dbPool.query(sql);
+      await dbPool.query(
+        'INSERT INTO _schema_migrations (filename) VALUES ($1) ON CONFLICT DO NOTHING',
+        [file]
+      );
       logger.info(`✅ [Migration] ${file} OK`);
     } catch (err: any) {
-      // Ignorar errores de objetos ya existentes (idempotente)
       if (err.code === '42701' || err.code === '42P07' || err.code === '42710') {
         logger.info(`⏭️ [Migration] ${file} ya aplicada (skip)`);
+        await dbPool.query(
+          'INSERT INTO _schema_migrations (filename) VALUES ($1) ON CONFLICT DO NOTHING',
+          [file]
+        ).catch(() => {});
       } else {
         logger.error(`❌ [Migration] ${file} falló:`, err.message);
       }
@@ -125,8 +159,8 @@ app.listen(config.port, async () => {
   await runMigrations();
   await seedUsuarios();
 
-  // Iniciar worker SMTP con Cron (Lunes a Viernes de 9 a 17 hs, o cada 1 min en TEST)
-  const cronSmtp = MODO_PRUEBA ? '* * * * *' : '0 9-17 * * 1-5';
+  // Iniciar worker SMTP con Cron (Lunes a Viernes de 9 a 17 hs cada 30 min, o cada 1 min en TEST)
+  const cronSmtp = MODO_PRUEBA ? '* * * * *' : '*/30 9-17 * * 1-5';
   logger.info(`🔄 Iniciando Worker SMTP (Cron: ${cronSmtp})...`);
   cron.schedule(cronSmtp, () => procesarCola(false), {
     timezone: 'America/Argentina/Buenos_Aires',

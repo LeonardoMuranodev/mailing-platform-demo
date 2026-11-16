@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { Search, RotateCcw, Plus, Edit2, Trash2, X, Users, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Search, RotateCcw, Plus, Edit2, Trash2, Users, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import {
   obtenerUsuarios,
   crearUsuario,
@@ -8,6 +7,10 @@ import {
   eliminarUsuario,
 } from '../services/api';
 import AlertMessage from './ui/AlertMessage';
+import Modal from './ui/Modal';
+import ConfirmModal from './ui/ConfirmModal';
+import Spinner from './ui/Spinner';
+import CustomSelect from './ui/CustomSelect';
 import type { AuthUser } from '../types/auth';
 
 export default function GestionUsuarios() {
@@ -235,16 +238,17 @@ export default function GestionUsuarios() {
           </div>
           <div className="w-full lg:w-[200px]">
             <label className="block text-sm font-semibold text-muted mb-1.5">Rol</label>
-            <select
+            <CustomSelect
               value={filtroRol}
-              onChange={(e) => setFiltroRol(e.target.value)}
-              className="w-full pl-3 pr-10 py-2.5 text-sm bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors h-[42px]"
-            >
-              <option value="">Todos los roles</option>
-              <option value="desarrollador">Desarrollador</option>
-              <option value="encargada">Encargada</option>
-              <option value="invitado">Invitado</option>
-            </select>
+              onChange={setFiltroRol}
+              options={[
+                { value: '', label: 'Todos los roles' },
+                { value: 'desarrollador', label: 'Desarrollador' },
+                { value: 'encargada', label: 'Encargada' },
+                { value: 'invitado', label: 'Invitado' },
+              ]}
+              size="md"
+            />
           </div>
           <div className="flex flex-row gap-3 w-full lg:w-auto">
             <button onClick={handleResetFilters} type="button" className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-background border border-border text-dark hover:bg-surface font-medium rounded-lg transition-colors shadow-sm text-sm h-[42px] whitespace-nowrap">
@@ -271,7 +275,7 @@ export default function GestionUsuarios() {
                 <tr>
                   <td colSpan={4} className="px-6 py-12 text-center text-muted">
                     <div className="animate-pulse flex flex-col items-center">
-                      <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-3"></div>
+                      <Spinner size="md" color="primary" className="mb-3" />
                       Cargando usuarios...
                     </div>
                   </td>
@@ -329,142 +333,126 @@ export default function GestionUsuarios() {
         </div>
       </div>
 
-      {isModalOpen && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto animate-fade-in">
-          <div className="bg-surface w-full max-w-lg rounded-xl border border-border shadow-2xl overflow-hidden my-auto animate-fade-in">
-            <div className="px-6 py-4 border-b border-border flex justify-between items-center">
-              <h2 className="text-lg font-bold text-dark">{editingId ? 'Editar Usuario' : 'Nuevo Usuario'}</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-muted hover:text-dark">
-                <X size={20} />
-              </button>
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        maxWidth="lg"
+        title={editingId ? 'Editar Usuario' : 'Nuevo Usuario'}
+        bodyClassName="p-0"
+      >
+        <form onSubmit={handleGuardar} className="p-6 space-y-4" noValidate>
+          <AlertMessage type="error" message={errorMsg} />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-dark mb-1">Nombre Completo <span className="text-danger">*</span></label>
+              <input 
+                type="text" 
+                value={form.nombre}
+                onChange={e => setForm({...form, nombre: e.target.value})}
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 h-[42px]"
+                placeholder="Juan Pérez"
+                required
+              />
             </div>
             
-            <form onSubmit={handleGuardar} className="p-6 space-y-4" noValidate>
-              <AlertMessage type="error" message={errorMsg} />
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-dark mb-1">Email <span className="text-danger">*</span></label>
+              <input 
+                type="email" 
+                value={form.email}
+                onChange={e => setForm({...form, email: e.target.value})}
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 h-[42px]"
+                placeholder="ejemplo@organizacion.com"
+                required
+              />
+            </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-dark mb-1">Nombre Completo <span className="text-danger">*</span></label>
-                  <input 
-                    type="text" 
-                    value={form.nombre}
-                    onChange={e => setForm({...form, nombre: e.target.value})}
-                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 h-[42px]"
-                    placeholder="Juan Pérez"
-                    required
-                  />
-                </div>
-                
-                <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-dark mb-1">Email <span className="text-danger">*</span></label>
-                  <input 
-                    type="email" 
-                    value={form.email}
-                    onChange={e => setForm({...form, email: e.target.value})}
-                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 h-[42px]"
-                    placeholder="ejemplo@organizacion.com"
-                    required
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-dark mb-1">
-                    Contraseña {editingId ? '(Dejar en blanco para no cambiar)' : <span className="text-danger">*</span>}
-                  </label>
-                  <div className="relative">
-                    <input 
-                      type={showPassword ? "text" : "password"} 
-                      value={form.password}
-                      onChange={e => setForm({...form, password: e.target.value})}
-                      className="w-full pl-3 pr-10 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 h-[42px]"
-                      placeholder="••••••••"
-                      required={!editingId}
-                      minLength={6}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-dark transition-colors"
-                    >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-dark mb-1">Rol</label>
-                  <select
-                    value={form.rol}
-                    onChange={e => setForm({...form, rol: e.target.value as any})}
-                    className="w-full pl-3 pr-10 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 h-[42px]"
-                  >
-                    <option value="desarrollador">Desarrollador</option>
-                    <option value="encargada">Encargada</option>
-                    <option value="invitado">Invitado</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="pt-4 flex justify-end gap-3">
-                <button 
-                  type="button" 
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-border bg-background text-dark rounded-lg hover:bg-surface font-medium transition-colors"
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-dark mb-1">
+                Contraseña {editingId ? '(Dejar en blanco para no cambiar)' : <span className="text-danger">*</span>}
+              </label>
+              <div className="relative">
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  value={form.password}
+                  onChange={e => setForm({...form, password: e.target.value})}
+                  className="w-full pl-3 pr-10 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50 h-[42px]"
+                  placeholder="••••••••"
+                  required={!editingId}
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-dark transition-colors cursor-pointer"
                 >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit" 
-                  disabled={saving}
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark font-medium transition-colors disabled:opacity-70 flex items-center gap-2"
-                >
-                  {saving && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
-                  {editingId ? 'Guardar Cambios' : 'Crear Usuario'}
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-            </form>
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-dark mb-1">Rol</label>
+              <CustomSelect
+                value={form.rol}
+                onChange={(val) => setForm({ ...form, rol: val as any })}
+                options={[
+                  { value: 'desarrollador', label: 'Desarrollador' },
+                  { value: 'encargada', label: 'Encargada' },
+                  { value: 'invitado', label: 'Invitado' },
+                ]}
+                size="md"
+              />
+            </div>
           </div>
-        </div>,
-        document.body
-      )}
+
+          <div className="pt-4 flex justify-end gap-3">
+            <button 
+              type="button" 
+              onClick={() => setIsModalOpen(false)}
+              className="px-4 py-2 border border-border bg-background text-dark rounded-lg hover:bg-surface font-medium transition-colors cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button 
+              type="submit" 
+              disabled={saving}
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark font-medium transition-colors disabled:opacity-70 flex items-center gap-2 cursor-pointer"
+            >
+              {saving && <Spinner size="sm" color="white" />}
+              {editingId ? 'Guardar Cambios' : 'Crear Usuario'}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Modal de Confirmación de Eliminación */}
-      {deleteConfirmId && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4 overflow-y-auto">
-          <div className="bg-surface rounded-xl shadow-xl w-full max-w-sm p-6 animate-fade-in border border-border text-center my-auto">
-            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-danger/10 mb-4">
-              <AlertCircle className="h-6 w-6 text-danger" />
-            </div>
-            <h3 className="text-lg font-semibold text-dark mb-2">¿Eliminar usuario?</h3>
-            <p className="text-sm text-muted mb-6">
+      <ConfirmModal
+        isOpen={Boolean(deleteConfirmId)}
+        onClose={() => {
+          setDeleteConfirmId(null);
+          setDeleteErrorMsg('');
+        }}
+        onConfirm={confirmEliminar}
+        title="¿Eliminar usuario?"
+        description={
+          <div>
+            <p className="text-sm text-muted mb-4">
               Esta acción no se puede deshacer. El usuario perderá acceso al sistema permanentemente.
             </p>
             {deleteErrorMsg && (
-              <div className="mb-4 bg-red-50 text-red-600 text-sm p-3 rounded-lg border border-red-200">
+              <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg border border-red-200">
                 {deleteErrorMsg}
               </div>
             )}
-            <div className="flex justify-center gap-3">
-              <button
-                onClick={() => {
-                  setDeleteConfirmId(null);
-                  setDeleteErrorMsg('');
-                }}
-                className="px-4 py-2 text-sm font-medium text-dark bg-background border border-border rounded-lg hover:bg-surface transition-colors w-full"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmEliminar}
-                className="px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg hover:bg-danger-dark transition-colors w-full"
-              >
-                Sí, Eliminar
-              </button>
-            </div>
           </div>
-        </div>,
-        document.body
-      )}
+        }
+        confirmText="Sí, Eliminar"
+        variant="danger"
+        maxWidth="sm"
+        icon={<AlertCircle className="h-6 w-6 text-danger" />}
+      />
     </div>
   );
 }

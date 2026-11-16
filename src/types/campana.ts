@@ -26,6 +26,9 @@ export interface Campana {
   prioridad: PrioridadCampana;
   para_todos_rubros: boolean;
   rubros_seleccionados: string[];      // UUID[] de rubros
+  tipo_audiencia?: 'rubros' | 'manual';
+  destinatarios_manuales?: string[] | null;
+  cuenta_emisor_id?: string | null;
   estado: EstadoCampana;
   creado_en: string;                   // TIMESTAMPTZ
   actualizado_en: string;             // TIMESTAMPTZ
@@ -46,6 +49,9 @@ export interface CrearCampanaInput {
   prioridad?: PrioridadCampana;
   para_todos_rubros?: boolean;
   rubros_seleccionados?: string[];
+  tipo_audiencia?: 'rubros' | 'manual';
+  destinatarios_manuales?: string[];
+  cuenta_emisor_id?: string | null;
 }
 
 /** Payload para cambiar el estado de una campaña */

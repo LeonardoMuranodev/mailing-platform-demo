@@ -17,6 +17,7 @@ const loginLimiter = rateLimit({
 export const authRouter = Router();
 
 authRouter.post('/login', loginLimiter, validateSchema(loginSchema), authController.login);
+authRouter.post('/logout', authController.logout);
 authRouter.post('/forgot-password', loginLimiter, validateSchema(forgotPasswordSchema), authController.forgotPassword);
 authRouter.post('/reset-password', validateSchema(resetPasswordSchema), authController.resetPassword);
 authRouter.post('/change-password', requireAuth, validateSchema(changePasswordSchema), authController.changePassword);
