@@ -10,6 +10,7 @@ const HEADER_URL = 'https://via.placeholder.com/600x150/f0f4f8/333333?text=Banne
 
 /** Iconos de contacto (Flaticon) */
 const WHATSAPP_ICON = 'https://cdn-icons-png.flaticon.com/512/733/733585.png';
+const WHATSAPP_NUMBER = import.meta.env.VITE_CONTACT_WHATSAPP || '5491100000000';
 const MAIL_ICON = 'https://cdn-icons-png.flaticon.com/512/732/732200.png';
 
 export default function VistaPrevia() {
@@ -139,7 +140,7 @@ export default function VistaPrevia() {
           </div>
           <div className="email-footer-icons">
             <a
-              href="https://wa.me/5491140659649"
+              href={`https://wa.me/${WHATSAPP_NUMBER}`}
               target="_blank"
               rel="noopener noreferrer"
               title="WhatsApp"

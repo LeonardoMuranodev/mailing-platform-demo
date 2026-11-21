@@ -281,11 +281,11 @@ export default function CuentasSmtp() {
             <button
               onClick={handleResetDiario}
               disabled={resetting}
-              className="btn btn-secondary flex items-center gap-2 text-sm border border-border hover:bg-surface-hover transition-colors"
-              title="Simular llegada de las 00:00 hs (desbloquear cuentas temporales y resetear cuotas a cero)"
+              className="flex items-center justify-center gap-2 bg-slate-800 text-white dark:bg-slate-700 hover:bg-slate-900 border border-slate-700 px-3.5 py-2 rounded-lg transition-colors font-medium shadow-sm text-sm w-full sm:w-auto"
+              title="Simular las 00:00 hs: resetea enviados_hoy a 0 y reactiva cuentas agotadas o bloqueadas"
             >
-              <Moon size={16} className="text-primary" />
-              Simular Medianoche (Reset)
+              <Moon size={16} className="text-amber-400" />
+              <span>{resetting ? 'Reseteando...' : 'Simular Medianoche (Reset)'}</span>
             </button>
           )}
           {puedeCrear && (
@@ -650,18 +650,6 @@ export default function CuentasSmtp() {
       </Modal>
 
       {/* Modal de Confirmación de Eliminación */}
-      {/* Modal de Confirmación de Simulación de Reset Diario */}
-      <ConfirmModal
-        isOpen={showResetConfirm}
-        onClose={() => setShowResetConfirm(false)}
-        onConfirm={confirmResetDiario}
-        title="¿Simular Medianoche (Reset)?"
-        description="Esta acción simula la llegada de las 00:00 hs: reiniciará los correos enviados hoy a 0 y reactivará automáticamente las cuentas agotadas o bloqueadas temporalmente. Las cuentas desactivadas manualmente permanecerán inactivas."
-        confirmText="Simular Reset"
-        variant="warning"
-        isLoading={resetting}
-      />
-
       {/* Modal de Confirmación de Simulación de Reset Diario */}
       <ConfirmModal
         isOpen={showResetConfirm}

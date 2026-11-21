@@ -131,7 +131,8 @@ async function runMigrations(): Promise<void> {
     }
 
     try {
-      const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+      const rawSql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+      const sql = rawSql.replace(/^\uFEFF/, '').trim();
       await dbPool.query(sql);
       await dbPool.query(
         'INSERT INTO _schema_migrations (filename) VALUES ($1) ON CONFLICT DO NOTHING',

@@ -169,7 +169,7 @@ export async function notificarCampanaTerminada(campanaId: string, asunto: strin
 
       const destinatario = getDestinatarioAvisos();
       const mailOptions: any = {
-        from: `"Sistema de Correos — 3F" <${smtpUser}>`,
+        from: `"Sistema de Campañas — GenMailer" <${smtpUser}>`,
         to: destinatario,
         subject: `Campaña Finalizada: ${asunto}`,
         html: htmlMsg
@@ -286,7 +286,7 @@ export async function notificarCuotaGlobalAgotada() {
                 </tbody>
               </table>
 
-              <!-- Caja de Gestión Operativa (Naranja 3F) -->
+              <!-- Caja de Gestión Operativa -->
               <div style="background-color: #fffaf0; border-left: 4px solid #E87722; padding: 16px 18px; border-radius: 4px; margin-top: 25px;">
                 <span style="font-size: 12px; font-weight: 700; color: #E87722; text-transform: uppercase; letter-spacing: 0.5px;">Gestión de Cola Pendiente</span>
                 <p style="margin: 4px 0 0 0; font-size: 14px; color: #744210; line-height: 1.5;">
@@ -317,7 +317,7 @@ export async function notificarCuotaGlobalAgotada() {
 
       const destinatario = getDestinatarioAvisos();
       const mailOptions: any = {
-        from: `"Alerta Sistema — 3F" <${smtpUser}>`,
+        from: `"Alerta del Sistema — GenMailer" <${smtpUser}>`,
         to: destinatario,
         subject: `⚠️ Límite de Cuota Diaria Alcanzado`,
         html: htmlMsg

@@ -209,8 +209,8 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                       isSelected
                         ? 'bg-primary/10 text-primary font-medium'
                         : isHighlighted
-                        ? 'bg-primary/5 text-dark dark:bg-slate-800'
-                        : 'text-dark hover:bg-background/80'
+                        ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light'
+                        : 'text-dark hover:bg-surface-hover'
                     }`}
                   >
                     <span className="flex items-center gap-2 truncate">

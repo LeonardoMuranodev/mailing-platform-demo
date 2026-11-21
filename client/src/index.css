@@ -3,6 +3,8 @@
 
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ── Design Tokens (Tailwind v4 @theme) ───────────────── */
 @theme {
   --color-primary: #005CA9;          /* Azul Institucional */

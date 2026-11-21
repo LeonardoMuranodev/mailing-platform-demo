@@ -4,7 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    container_name: mails-backend
+    container_name: gen-mails-backend
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -43,7 +43,7 @@ services:
       context: ./client
       dockerfile: Dockerfile.frontend
       target: development
-    container_name: mails-frontend
+    container_name: gen-mails-frontend
     restart: unless-stopped
     ports:
       - "5173:5173"
@@ -63,7 +63,7 @@ services:
   # ─── 3. REDIS (Cola de Trabajos — Envío Masivo) ────────────
   redis:
     image: redis:7-alpine
-    container_name: mails-redis
+    container_name: gen-mails-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
@@ -106,7 +106,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backup
-    container_name: mails-db-backup
+    container_name: gen-mails-db-backup
     restart: unless-stopped
     env_file:
       - .env

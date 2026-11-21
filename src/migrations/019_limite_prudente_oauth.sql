@@ -1,4 +1,4 @@
-﻿-- 019_limite_prudente_oauth.sql
+-- 019_limite_prudente_oauth.sql
 -- Actualiza las cuentas OAuth 2.0 a limites prudentes (maximo 40-50 diarios)
 
 UPDATE cuentas_smtp
