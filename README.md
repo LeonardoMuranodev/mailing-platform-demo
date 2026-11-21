@@ -36,12 +36,15 @@ El envío masivo de correos suele enfrentar obstáculos críticos cuando las org
 ## ⚡ Características Principales
 
 - **Gestor Inteligente de Colas SMTP & OAuth 2.0:** Rotación automática (Round Robin) y balanceo de carga entre cuentas SMTP tradicionales y autenticación oficial mediante **Gmail API (OAuth 2.0)** sin depender de contraseñas de aplicación.
+- **Cuenta Principal Configurable (`es_principal`):** Posibilidad de designar una cuenta de envío principal para comunicaciones directas, notificaciones del sistema y envíos de alta prioridad sin depender de cuentas predeterminadas hardcodeadas.
+- **Circuit Breaker con Umbral Configurable y Bloqueo Temporal (24hs):** Pausa automática preventiva por cuenta ante acumulación de errores o rebotes (configurable por el usuario, 30 por defecto), con reactivación automática diaria a las 00:00 hs.
+- **Simulación de Medianoche para Desarrolladores:** Botón en la interfaz protegido por permisos y modal de confirmación para ejecutar instantáneamente el reseteo de cuotas y desbloqueo de cuentas en entornos de desarrollo/staging.
 - **Webhooks de Resend con Verificación Criptográfica Svix:** Integración nativa securizada para procesar telemetría de eventos en tiempo real y persistencia inmediata en PostgreSQL.
 - **Centro de Notificaciones en Tiempo Real (SSE):** Arquitectura reactiva basada en Server-Sent Events que informa inmediatamente al usuario sobre el progreso de los envíos, pausas, finalización o alertas de servidor sin recargar la página.
-- **Cadencia Humana Anti-Spam & Dosificador Operativo:** Envíos modulados con delays inteligentes, cuotas diarias dinámicas por cuenta y control de franjas horarias operativas.
+- **Cadencia Humana Anti-Spam & Dosificador Operativo:** Envíos modulados con delays inteligentes (jitter entre 4s y 9s), cuotas diarias dinámicas por cuenta y control de franjas horarias operativas.
 - **Procesamiento Asíncrono (Workers & Redis):** Tareas en segundo plano (Cron Jobs) que manejan el despacho progresivo de correos y la sincronización automática de bandejas para detectar rebotes.
 - **Dashboard Estadístico y Exportación Ejecutiva:** Gráficos interactivos de altas y bajas, tasas de entrega y efectividad por rubro, con generación de reportes ejecutivos listos para exportar en PDF o imprimir.
-- **Autenticación y Permisos (RBAC):** Acceso asegurado mediante **JWT (JSON Web Tokens)** con control de acceso basado en roles (`desarrollador`, `encargado`, `invitado`).
+- **Autenticación Segura con Cookies HttpOnly y Permisos (RBAC):** Tokens JWT transmitidos en cookies `HttpOnly` y `SameSite=Lax` para mitigar ataques XSS, con control de acceso basado en roles (`desarrollador`, `encargado`, `invitado`).
 - **Gestor de Contactos, Rubros y Adjuntos Múltiples:** Importación/Exportación masiva de bases de datos mediante CSV o Excel, soporte de hasta 6 archivos adjuntos validados y filtrado automático de correos en lista negra.
 - **Seguridad y Trazabilidad:** Las credenciales SMTP se cifran nativamente con **AES-256-GCM**. Todo el sistema cuenta con **Logs estructurados** (Winston con rotación diaria) y scripts de **Backups** automatizados.
 - **Sistema Integrado de Soporte:** Módulo de ticketing donde los usuarios regulares pueden reportar incidencias o sugerencias directamente al equipo técnico.
@@ -104,8 +107,6 @@ El proyecto está 100% dockerizado para que su ejecución sea inmediata en cualq
    - **Backend API:** [http://localhost:3000](http://localhost:3000)
    - La base de datos ejecutará automáticamente las migraciones SQL y el script de **Seeding** con datos iniciales de prueba (campañas, contactos, usuarios).
    - Credenciales de prueba: `admin@genmailer.com` / `Admin1234!`
-
----
 
 ---
 
