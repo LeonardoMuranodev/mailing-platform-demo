@@ -107,6 +107,19 @@ El proyecto está 100% dockerizado para que su ejecución sea inmediata en cualq
 
 ---
 
+---
+
+## 📚 Documentación Técnica de Arquitectura
+
+Para una explicación exhaustiva de patrones de diseño, flujos asíncronos y modelo relacional, consulta:
+* 📖 **[Manual Técnico y de Arquitectura (docs/MANUAL_TECNICO_Y_ARQUITECTURA.md)](docs/MANUAL_TECNICO_Y_ARQUITECTURA.md)**:
+  - Motor de envíos y algoritmo dosificador con jitter antispam.
+  - Rotación Round-Robin, Circuit Breaker y gestión de Cuenta Principal (`es_principal`).
+  - Ciclo de auto-reactivación a medianoche y simulación para desarrolladores.
+  - Aislamiento de audiencias (`es_contacto_base = true/false`).
+  - Detección de rebotes vía IMAP y Webhooks con verificación criptográfica Svix.
+  - Esquema de seguridad con JWT HttpOnly y cifrado AES-256-GCM.
+
 ## 📸 Galería de Vistas
 
 | Dashboard y Estadísticas | Creación de Campañas |
