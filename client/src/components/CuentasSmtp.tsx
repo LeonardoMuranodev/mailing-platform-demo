@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Mail, Settings, Plus, Edit2, Trash2, Eye, EyeOff, Server, ToggleLeft, ToggleRight, HelpCircle, Info, ShieldCheck, CheckCircle2, Star } from 'lucide-react';
+import { Mail, Settings, Plus, Edit2, Trash2, Eye, EyeOff, Server, ToggleLeft, ToggleRight, HelpCircle, Info, ShieldCheck, CheckCircle2, Star, Moon } from 'lucide-react';
 import {
   obtenerCuentasSmtp,
   crearCuentaSmtp,
@@ -8,6 +8,7 @@ import {
   toggleEstadoSmtp,
   obtenerSmtpLogs,
   marcarCuentaSmtpPrincipal,
+  forzarResetDiarioSmtp,
 } from '../services/api';
 import type { CuentaSmtp } from '../types/smtp';
 import AlertMessage from './ui/AlertMessage';
@@ -15,6 +16,7 @@ import Modal from './ui/Modal';
 import ConfirmModal from './ui/ConfirmModal';
 import Spinner from './ui/Spinner';
 import { usePermisos } from '../hooks/usePermisos';
+import { useNotificationStore } from '../stores/useNotificationStore';
 
 
 const esCuentaOAuthUI = (email: string, listaCuentas: CuentaSmtp[] = []) => {
@@ -25,7 +27,10 @@ const esCuentaOAuthUI = (email: string, listaCuentas: CuentaSmtp[] = []) => {
 export default function CuentasSmtp() {
   const [cuentas, setCuentas] = useState<CuentaSmtp[]>([]);
   const [loading, setLoading] = useState(true);
-  const { puedeCrear, puedeEditar, puedeEliminar } = usePermisos();
+  const [resetting, setResetting] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const { esDesarrollador, puedeCrear, puedeEditar, puedeEliminar } = usePermisos();
+  const { agregarNotificacion } = useNotificationStore();
 
   // Modal de Crear/Editar
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -37,6 +42,7 @@ export default function CuentasSmtp() {
     limite_diario: 400,
     minimo_por_ejecucion: 5,
     maximo_por_ejecucion: 25,
+    umbral_errores: 30,
   });
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -46,7 +52,7 @@ export default function CuentasSmtp() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Bloqueo de scroll en el body mientras cualquier modal esté abierto
-  const isAnyModalOpen = isModalOpen || showHelp || !!deleteConfirmId;
+  const isAnyModalOpen = isModalOpen || showHelp || Boolean(deleteConfirmId) || showResetConfirm;
   useEffect(() => {
     if (isAnyModalOpen) {
       const originalOverflow = document.body.style.overflow;
@@ -103,12 +109,50 @@ export default function CuentasSmtp() {
   };
 
   const handleToggleEstado = async (id: string, estadoActual: string) => {
-    const nuevoEstado = estadoActual === 'activo' ? 'inactivo' : 'activo';
+    const isOperativa = estadoActual === 'activo' || estadoActual === 'agotado';
+    const nuevoEstado = isOperativa ? 'inactivo' : 'activo';
     setCuentas(prev => prev.map(c => c.id === id ? { ...c, estado: nuevoEstado as any } : c));
     const res = await toggleEstadoSmtp(id, nuevoEstado);
     if (!res.success) {
       setCuentas(prev => prev.map(c => c.id === id ? { ...c, estado: estadoActual as any } : c));
       alert('Error al cambiar el estado de la cuenta');
+    }
+  };
+
+    const handleResetDiario = () => {
+    setShowResetConfirm(true);
+  };
+
+  const confirmResetDiario = async () => {
+    setResetting(true);
+    try {
+      const res = await forzarResetDiarioSmtp();
+      if (res.success) {
+        await fetchCuentas();
+        agregarNotificacion({
+          tipo: 'general',
+          titulo: 'Reset Diario Ejecutado',
+          mensaje: res.data?.message || 'Reset diario ejecutado correctamente. Cuentas desbloqueadas y cuotas reiniciadas.',
+          timestamp: new Date().toISOString(),
+        });
+        setShowResetConfirm(false);
+      } else {
+        agregarNotificacion({
+          tipo: 'general',
+          titulo: 'Error en Reset Diario',
+          mensaje: res.error?.message || 'Error al ejecutar reset diario',
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } catch {
+      agregarNotificacion({
+        tipo: 'general',
+        titulo: 'Error de Conexión',
+        mensaje: 'Error de red al ejecutar reset diario',
+        timestamp: new Date().toISOString(),
+      });
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -125,7 +169,7 @@ export default function CuentasSmtp() {
 
   const openCrearModal = () => {
     setEditingId(null);
-    setForm({ email: '', password_encrypted: '', limite_diario: 400, minimo_por_ejecucion: 5, maximo_por_ejecucion: 25 });
+    setForm({ email: '', password_encrypted: '', limite_diario: 400, minimo_por_ejecucion: 5, maximo_por_ejecucion: 25, umbral_errores: 30 });
     setErrorMsg('');
     setShowPassword(false);
     setIsModalOpen(true);
@@ -140,6 +184,7 @@ export default function CuentasSmtp() {
       limite_diario: es3f ? 100 : cuenta.limite_diario,
       minimo_por_ejecucion: cuenta.minimo_por_ejecucion || 5,
       maximo_por_ejecucion: cuenta.maximo_por_ejecucion || 25,
+      umbral_errores: cuenta.umbral_errores || 30,
     });
     setErrorMsg('');
     setShowPassword(false);
@@ -167,6 +212,7 @@ export default function CuentasSmtp() {
           limite_diario: es3f ? 100 : form.limite_diario,
           minimo_por_ejecucion: form.minimo_por_ejecucion,
           maximo_por_ejecucion: form.maximo_por_ejecucion,
+          umbral_errores: form.umbral_errores,
         };
         if (form.password_encrypted && !es3f) {
           payload.password_encrypted = form.password_encrypted;
@@ -186,6 +232,7 @@ export default function CuentasSmtp() {
           limite_diario: form.limite_diario,
           minimo_por_ejecucion: form.minimo_por_ejecucion,
           maximo_por_ejecucion: form.maximo_por_ejecucion,
+          umbral_errores: form.umbral_errores,
         });
         if (res.success && res.data) {
           setCuentas([res.data, ...cuentas]);
@@ -230,6 +277,17 @@ export default function CuentasSmtp() {
           >
             <HelpCircle size={20} className="text-primary" />
           </button>
+          {esDesarrollador && (
+            <button
+              onClick={handleResetDiario}
+              disabled={resetting}
+              className="btn btn-secondary flex items-center gap-2 text-sm border border-border hover:bg-surface-hover transition-colors"
+              title="Simular llegada de las 00:00 hs (desbloquear cuentas temporales y resetear cuotas a cero)"
+            >
+              <Moon size={16} className="text-primary" />
+              Simular Medianoche (Reset)
+            </button>
+          )}
           {puedeCrear && (
           <button
             onClick={openCrearModal}
@@ -469,7 +527,7 @@ export default function CuentasSmtp() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         maxWidth="md"
-        title={editingId ? 'Editar Cuenta SMTP' : 'Conectar Cuenta Gmail'}
+        title={editingId ? 'Editar Cuenta de Envío' : 'Conectar Cuenta de Envío'}
         bodyClassName="p-0"
       >
         <form onSubmit={handleGuardar} className="p-6 space-y-4" noValidate>
@@ -507,7 +565,7 @@ export default function CuentasSmtp() {
                   value={form.password_encrypted}
                   onChange={e => setForm({...form, password_encrypted: e.target.value})}
                   className="w-full px-3 py-2 pr-10 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  placeholder={editingId ? "••••••••" : "Contraseña de 16 caracteres"}
+                  placeholder={editingId ? "" : "Contraseña de 16 caracteres"}
                   required={!editingId}
                 />
                 <button 
@@ -557,6 +615,20 @@ export default function CuentasSmtp() {
             </div>
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-dark mb-1">Umbral de Errores para Bloqueo Preventivo</label>
+            <input 
+              type="number" 
+              min={1} 
+              max={500}
+              value={form.umbral_errores}
+              onChange={e => setForm({...form, umbral_errores: parseInt(e.target.value) || 30})}
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary/50"
+              placeholder="30"
+            />
+            <p className="text-xs text-muted mt-1.5">Cantidad de rebotes o fallos acumulados en 24hs antes de pausar la cuenta preventivamente hasta las 00:00 hs (recomendado: 30).</p>
+          </div>
+
           <div className="pt-4 flex justify-end gap-3">
             <button 
               type="button" 
@@ -578,6 +650,30 @@ export default function CuentasSmtp() {
       </Modal>
 
       {/* Modal de Confirmación de Eliminación */}
+      {/* Modal de Confirmación de Simulación de Reset Diario */}
+      <ConfirmModal
+        isOpen={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        onConfirm={confirmResetDiario}
+        title="¿Simular Medianoche (Reset)?"
+        description="Esta acción simula la llegada de las 00:00 hs: reiniciará los correos enviados hoy a 0 y reactivará automáticamente las cuentas agotadas o bloqueadas temporalmente. Las cuentas desactivadas manualmente permanecerán inactivas."
+        confirmText="Simular Reset"
+        variant="warning"
+        isLoading={resetting}
+      />
+
+      {/* Modal de Confirmación de Simulación de Reset Diario */}
+      <ConfirmModal
+        isOpen={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        onConfirm={confirmResetDiario}
+        title="¿Simular Medianoche (Reset)?"
+        description="Esta acción simula la llegada de las 00:00 hs: reiniciará los correos enviados hoy a 0 y reactivará automáticamente las cuentas agotadas o bloqueadas temporalmente. Las cuentas desactivadas manualmente permanecerán inactivas."
+        confirmText="Simular Reset"
+        variant="warning"
+        isLoading={resetting}
+      />
+
       <ConfirmModal
         isOpen={Boolean(deleteConfirmId)}
         onClose={() => setDeleteConfirmId(null)}

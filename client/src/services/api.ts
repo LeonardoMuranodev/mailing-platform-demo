@@ -515,6 +515,13 @@ export async function cerrarSesionApi(): Promise<ApiResponse<{ message: string }
 }
 
 
+
+export async function forzarResetDiarioSmtp(): Promise<ApiResponse<{ message: string }>> {
+  return fetchApi<{ message: string }>(`${API_BASE}/api/smtp/reset-diario`, {
+    method: 'POST',
+  });
+}
+
 export async function marcarCuentaSmtpPrincipal(id: string): Promise<ApiResponse<CuentaSmtp>> {
   return fetchApi<CuentaSmtp>(`${API_BASE}/api/smtp/${id}/principal`, {
     method: 'PATCH',

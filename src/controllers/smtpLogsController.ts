@@ -1,18 +1,23 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { dbPool } from '../config/db.js';
+import { sendSuccess } from '../utils/responseHandler.js';
 
-export const getSmtpLogs = async (req: Request, res: Response) => {
+export const getSmtpLogs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const rawDias = req.query.dias as string;
+    const dias = rawDias ? Math.max(1, Math.min(90, parseInt(rawDias, 10) || 7)) : 7;
+
     const result = await dbPool.query(`
       SELECT l.*, c.email as cuenta_email
       FROM smtp_logs l
       LEFT JOIN cuentas_smtp c ON l.cuenta_smtp_id = c.id
+      WHERE l.creado_en >= NOW() - ($1 || ' days')::interval
       ORDER BY l.creado_en DESC
       LIMIT 100
-    `);
-    res.json({ success: true, data: result.rows });
+    `, [dias]);
+
+    sendSuccess(res, result.rows, 200, { dias_consultados: dias });
   } catch (error) {
-    console.error('Error fetching smtp logs:', error);
-    res.status(500).json({ success: false, error: 'Internal server error' });
+    next(error);
   }
 };

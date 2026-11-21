@@ -5,6 +5,7 @@ import {
   actualizarCuentaSmtp,
   eliminarCuentaSmtp,
   toggleEstadoSmtp,
+  resetearContadoresSmtp,
   marcarCuentaComoPrincipal,
 } from '../services/smtpAccountService.js';
 import { sendSuccess, sendError } from '../utils/responseHandler.js';
@@ -94,8 +95,8 @@ async function toggleEstado(req: Request, res: Response, next: NextFunction): Pr
     const id = req.params.id as string;
     const { estado } = req.body as { estado: string };
 
-    if (!estado || !['activo', 'inactivo'].includes(estado)) {
-      sendError(res, 'BAD_REQUEST', 'Estado inválido. Debe ser activo o inactivo', 400);
+    if (!estado || !['activo', 'inactivo', 'bloqueado'].includes(estado)) {
+      sendError(res, 'BAD_REQUEST', 'Estado inválido. Debe ser activo, inactivo o bloqueado', 400);
       return;
     }
 
@@ -130,11 +131,28 @@ async function marcarPrincipal(req: Request, res: Response, next: NextFunction):
   }
 }
 
+
+/**
+ * POST /api/smtp/reset-diario
+ * Fuerza el reset de medianoche (00:00 hs): limpia contadores y reactiva cuentas agotadas o bloqueadas.
+ */
+async function resetDiario(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    await resetearContadoresSmtp();
+    await clearCacheByPrefix('/api/smtp');
+    await registrarAccion(req.user?.userId || null, 'ACTUALIZAR', 'SMTP', undefined, { accion: 'reset_diario_manual' });
+    sendSuccess(res, { message: 'Reset diario ejecutado correctamente. Cuentas desbloqueadas y cuotas a cero.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export const smtpController = {
   crear,
   listar,
   actualizar,
   eliminar,
   toggleEstado,
+  resetDiario,
   marcarPrincipal,
 };

@@ -14,6 +14,8 @@ export interface CuentaSmtp {
   maximo_por_ejecucion: number;
   historial_despachado?: number;
   ultimo_uso: string | null;
+  bloqueada_hasta?: string | null;
+  umbral_errores?: number;
   es_oauth?: boolean;
   es_exclusiva?: boolean;
   es_principal?: boolean;
@@ -30,6 +32,7 @@ export interface CrearCuentaSmtpInput {
   limite_diario?: number;
   minimo_por_ejecucion?: number;
   maximo_por_ejecucion?: number;
+  umbral_errores?: number;
 }
 
 export interface ActualizarCuentaSmtpInput {
@@ -42,4 +45,5 @@ export interface ActualizarCuentaSmtpInput {
   limite_diario?: number;
   minimo_por_ejecucion?: number;
   maximo_por_ejecucion?: number;
+  umbral_errores?: number;
 }

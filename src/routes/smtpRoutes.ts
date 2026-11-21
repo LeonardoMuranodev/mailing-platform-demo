@@ -38,3 +38,6 @@ smtpRouter.patch('/:id/toggle', requireRole(['desarrollador', 'encargada']), smt
 
 // PATCH /api/smtp/:id/principal — Marcar cuenta como principal
 smtpRouter.patch('/:id/principal', requireRole(['desarrollador', 'encargada']), smtpController.marcarPrincipal);
+
+// POST /api/smtp/reset-diario — Simular o forzar reset de medianoche (desbloqueo y cuotas)
+smtpRouter.post('/reset-diario', requireRole(['desarrollador']), smtpController.resetDiario);

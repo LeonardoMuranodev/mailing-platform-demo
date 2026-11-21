@@ -21,11 +21,51 @@ function omitPassword(cuenta: CuentaSmtp): CuentaSmtp {
  * Resetea los contadores diarios (enviados_hoy) de todas las cuentas SMTP a 0.
  * Si una cuenta estaba 'agotado', la vuelve a pasar a 'activo'.
  */
+
+/**
+ * Reactiva automáticamente las cuentas que estaban en estado 'bloqueado'
+ * cuya fecha de bloqueo temporal ya haya expirado (bloqueada_hasta <= NOW()),
+ * o que lleven más de 12 horas bloqueadas si no tienen fecha explícita.
+ */
+export async function desbloquearCuentasExpiradas(): Promise<number> {
+  const query = `
+    UPDATE cuentas_smtp
+    SET estado = 'activo',
+        bloqueada_hasta = NULL,
+        actualizado_en = CURRENT_TIMESTAMP
+    WHERE estado = 'bloqueado'
+      AND (
+        (bloqueada_hasta IS NOT NULL AND bloqueada_hasta <= CURRENT_TIMESTAMP)
+        OR (bloqueada_hasta IS NULL AND actualizado_en <= CURRENT_TIMESTAMP - INTERVAL '12 hours')
+      )
+    RETURNING id, email
+  `;
+  try {
+    const result = await dbPool.query(query);
+    if (result.rows && result.rows.length > 0) {
+      for (const row of result.rows) {
+        await dbPool.query(
+          `INSERT INTO smtp_logs (cuenta_smtp_id, tipo, mensaje) VALUES ($1, 'info', $2)`,
+          [row.id, 'Cuenta reactivada automáticamente para la nueva jornada laboral.']
+        );
+      }
+    }
+    return result.rowCount ?? 0;
+  } catch (err: any) {
+    console.error('Error al desbloquear cuentas SMTP expiradas:', err?.message || err);
+    return 0;
+  }
+}
+
 export async function resetearContadoresSmtp(): Promise<void> {
+  await desbloquearCuentasExpiradas();
   const query = `
     UPDATE cuentas_smtp
     SET enviados_hoy = 0,
-        estado = CASE WHEN estado = 'agotado' THEN 'activo' ELSE estado END
+        estado = CASE WHEN estado IN ('agotado', 'bloqueado') THEN 'activo' ELSE estado END,
+        bloqueada_hasta = NULL,
+        actualizado_en = CURRENT_TIMESTAMP
+    WHERE estado IN ('agotado', 'bloqueado') OR enviados_hoy > 0
   `;
   await dbPool.query(query);
 }
@@ -70,6 +110,7 @@ export async function crearCuentaSmtp(data: CrearCuentaSmtpInput): Promise<Cuent
     limite_diario = 400,
     minimo_por_ejecucion = 5,
     maximo_por_ejecucion = 25,
+    umbral_errores = 30,
   } = data;
 
   const authUser = usuario || email;
@@ -80,8 +121,8 @@ export async function crearCuentaSmtp(data: CrearCuentaSmtpInput): Promise<Cuent
   const encryptedPassword = encrypt(password_encrypted || 'oauth-token');
 
   const query = `
-    INSERT INTO cuentas_smtp (email, host, puerto, usuario, password_encrypted, limite_diario, minimo_por_ejecucion, maximo_por_ejecucion)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    INSERT INTO cuentas_smtp (email, host, puerto, usuario, password_encrypted, limite_diario, minimo_por_ejecucion, maximo_por_ejecucion, umbral_errores)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     RETURNING *
   `;
 
@@ -94,6 +135,7 @@ export async function crearCuentaSmtp(data: CrearCuentaSmtpInput): Promise<Cuent
     limite_diario,
     minimo_por_ejecucion,
     maximo_por_ejecucion,
+    umbral_errores,
   ]);
 
   return omitPassword(result.rows[0]);
@@ -179,6 +221,14 @@ export async function actualizarCuentaSmtp(
     throw new Error('No se proporcionaron campos para actualizar');
   }
 
+  
+  // Si se modifica el estado, ajustar bloqueada_hasta coherentemente
+  if (data.estado === 'activo') {
+    fields.push(`bloqueada_hasta = NULL`);
+  } else if (data.estado === 'bloqueado') {
+    fields.push(`bloqueada_hasta = (CURRENT_DATE + INTERVAL '1 day')::timestamptz`);
+  }
+
   // Siempre actualizar timestamp
   fields.push(`actualizado_en = CURRENT_TIMESTAMP`);
 
@@ -211,14 +261,39 @@ export async function eliminarCuentaSmtp(id: string): Promise<CuentaSmtp | null>
  * Activa o desactiva (toggle) el estado de una cuenta SMTP.
  */
 export async function toggleEstadoSmtp(id: string, nuevoEstado: string): Promise<CuentaSmtp | null> {
-  const query = `
-    UPDATE cuentas_smtp
-    SET estado = $1, actualizado_en = CURRENT_TIMESTAMP
-    WHERE id = $2
-    RETURNING *
-  `;
-  const result = await dbPool.query<CuentaSmtp>(query, [nuevoEstado, id]);
-  return result.rows[0] ? omitPassword(result.rows[0]) : null;
+  if (nuevoEstado === 'activo') {
+    const query = `
+      UPDATE cuentas_smtp
+      SET estado = 'activo', 
+          bloqueada_hasta = NULL,
+          actualizado_en = CURRENT_TIMESTAMP
+      WHERE id = $1
+      RETURNING *
+    `;
+    const result = await dbPool.query<CuentaSmtp>(query, [id]);
+    return result.rows[0] ? omitPassword(result.rows[0]) : null;
+  } else if (nuevoEstado === 'bloqueado') {
+    const query = `
+      UPDATE cuentas_smtp
+      SET estado = 'bloqueado', 
+          bloqueada_hasta = (CURRENT_DATE + INTERVAL '1 day')::timestamptz,
+          actualizado_en = CURRENT_TIMESTAMP
+      WHERE id = $1
+      RETURNING *
+    `;
+    const result = await dbPool.query<CuentaSmtp>(query, [id]);
+    return result.rows[0] ? omitPassword(result.rows[0]) : null;
+  } else {
+    const query = `
+      UPDATE cuentas_smtp
+      SET estado = $1, 
+          actualizado_en = CURRENT_TIMESTAMP
+      WHERE id = $2
+      RETURNING *
+    `;
+    const result = await dbPool.query<CuentaSmtp>(query, [nuevoEstado, id]);
+    return result.rows[0] ? omitPassword(result.rows[0]) : null;
+  }
 }
 
 

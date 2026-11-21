@@ -44,6 +44,7 @@ export const crearCuentaSmtpSchema = z.object({
     .int()
     .positive()
     .default(25),
+  umbral_errores: z.number().int().positive('El umbral de errores debe ser positivo').default(30),
 });
 
 // ── Schema: Actualizar cuenta SMTP (parcial) ─────────────────
@@ -67,6 +68,7 @@ export const actualizarCuentaSmtpSchema = z.object({
   limite_diario: z.number().int().positive().max(500, 'El límite diario no puede superar los 500 correos por seguridad de Gmail').optional(),
   minimo_por_ejecucion: z.number().int().positive().optional(),
   maximo_por_ejecucion: z.number().int().positive().optional(),
+  umbral_errores: z.number().int().positive('El umbral de errores debe ser positivo').optional(),
 });
 
 // ── Tipos inferidos ──────────────────────────────────────────

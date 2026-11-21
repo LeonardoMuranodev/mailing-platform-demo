@@ -14,7 +14,9 @@ export interface CuentaSmtp {
   limite_diario: number;
   minimo_por_ejecucion: number;
   maximo_por_ejecucion: number;
-  ultimo_uso: string | null;          // TIMESTAMPTZ serializado como ISO string
+  ultimo_uso: string | null;
+  bloqueada_hasta?: string | null;
+  umbral_errores?: number;          // TIMESTAMPTZ serializado como ISO string
   es_oauth?: boolean;
   es_exclusiva?: boolean;
   es_principal?: boolean;
@@ -32,6 +34,7 @@ export interface CrearCuentaSmtpInput {
   limite_diario?: number;
   minimo_por_ejecucion?: number;
   maximo_por_ejecucion?: number;
+  umbral_errores?: number;
   es_exclusiva?: boolean;
   es_principal?: boolean;
 }
@@ -47,6 +50,7 @@ export interface ActualizarCuentaSmtpInput {
   limite_diario?: number;
   minimo_por_ejecucion?: number;
   maximo_por_ejecucion?: number;
+  umbral_errores?: number;
   es_exclusiva?: boolean;
   es_principal?: boolean;
 }

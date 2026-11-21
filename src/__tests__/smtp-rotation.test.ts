@@ -38,7 +38,10 @@ import {
   obtenerSiguienteSmtpDisponible,
   incrementarCuotaSmtp,
 } from '../services/queueService.js';
-import { resetearContadoresSmtp, marcarCuentaComoPrincipal, actualizarCuentaSmtp, eliminarCuentaSmtp } from '../services/smtpAccountService.js';
+import { 
+  resetearContadoresSmtp, 
+  desbloquearCuentasExpiradas, 
+  toggleEstadoSmtp, marcarCuentaComoPrincipal, actualizarCuentaSmtp, eliminarCuentaSmtp } from '../services/smtpAccountService.js';
 
 describe('SMTP Rotation — Round-Robin', () => {
   beforeEach(() => {
@@ -225,20 +228,90 @@ describe('SMTP Rotation — Round-Robin', () => {
   });
 });
 
-describe('resetearContadoresSmtp', () => {
+describe('resetearContadoresSmtp y desbloquearCuentasExpiradas', () => {
   beforeEach(() => {
     resetAllMocks();
   });
 
-  it('debería ejecutar el UPDATE para resetear contadores y cambiar estado agotado', async () => {
-    mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [] });
+  it('desbloquearCuentasExpiradas debería reactivar cuentas bloqueadas tras 24hs e insertar log', async () => {
+    mockQuery.mockResolvedValueOnce({ 
+      rowCount: 1, 
+      rows: [{ id: 'smtp-bloq-1', email: 'bloqueada@gmail.com' }] 
+    });
+    mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [] }); // insert into smtp_logs
+
+    const desbloqueadas = await desbloquearCuentasExpiradas();
+    expect(desbloqueadas).toBe(1);
+
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+    const queryUpdate = mockQuery.mock.calls[0][0] as string;
+    expect(queryUpdate).toContain('UPDATE cuentas_smtp');
+    expect(queryUpdate).toContain("estado = 'activo'");
+    expect(queryUpdate).toContain('bloqueada_hasta = NULL');
+    expect(queryUpdate).toContain("WHERE estado = 'bloqueado'");
+
+    const queryLog = mockQuery.mock.calls[1][0] as string;
+    expect(queryLog).toContain('INSERT INTO smtp_logs');
+  });
+
+  it('debería ejecutar el reset diario de contadores y desbloquear cuentas', async () => {
+    mockQuery.mockResolvedValueOnce({ rowCount: 0, rows: [] }); // desbloquearCuentasExpiradas
+    mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [] }); // reset diario
+
     await resetearContadoresSmtp();
     
-    expect(mockQuery).toHaveBeenCalledTimes(1);
-    const queryText = mockQuery.mock.calls[0][0] as string;
-    expect(queryText).toContain('UPDATE cuentas_smtp');
-    expect(queryText).toContain('enviados_hoy = 0');
-    expect(queryText).toContain("estado = CASE WHEN estado = 'agotado' THEN 'activo' ELSE estado END");
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+    const queryReset = mockQuery.mock.calls[1][0] as string;
+    expect(queryReset).toContain('UPDATE cuentas_smtp');
+    expect(queryReset).toContain('enviados_hoy = 0');
+    expect(queryReset).toContain("estado = CASE WHEN estado IN ('agotado', 'bloqueado') THEN 'activo' ELSE estado END");
+  });
+});
+
+describe('toggleEstadoSmtp', () => {
+  beforeEach(() => {
+    resetAllMocks();
+  });
+
+  it('debería cambiar a activo y limpiar bloqueada_hasta', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ id: 'smtp-1', email: 'test@gmail.com', estado: 'activo' }],
+    });
+
+    const res = await toggleEstadoSmtp('smtp-1', 'activo');
+    expect(res?.estado).toBe('activo');
+
+    const query = mockQuery.mock.calls[0][0] as string;
+    expect(query).toContain("SET estado = 'activo'");
+    expect(query).toContain('bloqueada_hasta = NULL');
+  });
+
+  it('debería cambiar a bloqueado y fijar bloqueada_hasta para el día siguiente', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ id: 'smtp-1', email: 'test@gmail.com', estado: 'bloqueado' }],
+    });
+
+    const res = await toggleEstadoSmtp('smtp-1', 'bloqueado');
+    expect(res?.estado).toBe('bloqueado');
+
+    const query = mockQuery.mock.calls[0][0] as string;
+    expect(query).toContain("SET estado = 'bloqueado'");
+    expect(query).toContain("bloqueada_hasta = (CURRENT_DATE + INTERVAL '1 day')::timestamptz");
+  });
+
+  it('debería cambiar a inactivo sin ambigüedad de parámetros en SQL', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ id: 'smtp-1', email: 'test@gmail.com', estado: 'inactivo' }],
+    });
+
+    const res = await toggleEstadoSmtp('smtp-1', 'inactivo');
+    expect(res?.estado).toBe('inactivo');
+
+    const query = mockQuery.mock.calls[0][0] as string;
+    expect(query).toContain('SET estado = $1');
   });
 });
 
@@ -272,5 +345,51 @@ describe('Gestión de Cuenta Principal GenMailer', () => {
     expect(mockClient.query).toHaveBeenCalledWith('BEGIN');
     expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
     expect(mockClient.release).toHaveBeenCalled();
+  });
+
+  it('actualizarCuentaSmtp permite actualizar el umbral_errores de una cuenta', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        id: 'smtp-2',
+        email: 'cuenta2@gmail.com',
+        host: 'smtp.gmail.com',
+        puerto: 465,
+        password_encrypted: 'clave_cifrada',
+        limite_diario: 400,
+        estado: 'activo',
+        umbral_errores: 30,
+      }],
+      rowCount: 1,
+    });
+
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        id: 'smtp-2',
+        email: 'cuenta2@gmail.com',
+        umbral_errores: 50,
+      }],
+      rowCount: 1,
+    });
+
+    const { actualizarCuentaSmtp } = await import('../services/smtpAccountService.js');
+    const res = await actualizarCuentaSmtp('smtp-2', { umbral_errores: 50 });
+    expect(res?.umbral_errores).toBe(50);
+
+    const query = mockQuery.mock.calls[1][0] as string;
+    const values = mockQuery.mock.calls[1][1] as unknown[];
+    expect(query).toContain('umbral_errores = $1');
+    expect(values).toContain(50);
+  });
+
+  it('resetearContadoresSmtp NO reactiva cuentas en estado inactivo', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 2 });
+
+    await resetearContadoresSmtp();
+
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+    const updateQuery = mockQuery.mock.calls[1][0] as string;
+    expect(updateQuery).toContain("estado = CASE WHEN estado IN ('agotado', 'bloqueado') THEN 'activo' ELSE estado END");
+    expect(updateQuery).toContain("WHERE estado IN ('agotado', 'bloqueado') OR enviados_hoy > 0");
   });
 });

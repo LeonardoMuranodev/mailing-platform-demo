@@ -1,4 +1,4 @@
-import type { ReactNode, ComponentType } from 'react';
+import { useRef, type ReactNode, type ComponentType } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, Trash2, Info, CheckCircle2 } from 'lucide-react';
 import Spinner from './Spinner';
@@ -80,6 +80,8 @@ export default function ConfirmModal({
   isLoading = false,
   maxWidth = 'md',
 }: ConfirmModalProps) {
+  const isMouseDownOnBackdrop = useRef(false);
+
   if (!isOpen) return null;
 
   const config = VARIANT_CONFIG[variant] || VARIANT_CONFIG.danger;
@@ -88,10 +90,14 @@ export default function ConfirmModal({
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in overflow-y-auto"
+      onMouseDown={(e) => {
+        isMouseDownOnBackdrop.current = (e.target === e.currentTarget);
+      }}
       onClick={(e) => {
-        if (!isLoading && e.target === e.currentTarget) {
+        if (!isLoading && e.target === e.currentTarget && isMouseDownOnBackdrop.current) {
           onClose();
         }
+        isMouseDownOnBackdrop.current = false;
       }}
       role="alertdialog"
       aria-modal="true"

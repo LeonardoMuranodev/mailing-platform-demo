@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
@@ -37,6 +37,8 @@ export default function Modal({
   className = '',
   bodyClassName = 'p-6',
 }: ModalProps) {
+  const isMouseDownOnBackdrop = useRef(false);
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -55,10 +57,14 @@ export default function Modal({
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in overflow-y-auto"
+      onMouseDown={(e) => {
+        isMouseDownOnBackdrop.current = (e.target === e.currentTarget);
+      }}
       onClick={(e) => {
-        if (closeOnBackdrop && e.target === e.currentTarget) {
+        if (closeOnBackdrop && e.target === e.currentTarget && isMouseDownOnBackdrop.current) {
           onClose();
         }
+        isMouseDownOnBackdrop.current = false;
       }}
       role="dialog"
       aria-modal="true"

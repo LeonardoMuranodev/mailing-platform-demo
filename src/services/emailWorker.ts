@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { dbPool } from '../config/db.js';
 import { obtenerSiguienteSmtpDisponible, incrementarCuotaSmtp, obtenerSmtpExclusivo } from './queueService.js';
+import { desbloquearCuentasExpiradas } from './smtpAccountService.js';
 import { notificarCampanaTerminada, notificarCuotaGlobalAgotada } from './notificationService.js';
 import { emitirAlertaRealtime } from './realtimeService.js';
 import { generarHtmlDesdeCampana } from './emailTemplate.js';
@@ -97,13 +98,15 @@ export async function procesarCola(esForzado: boolean = false): Promise<void> {
   isWorkerRunning = true;
 
   try {
+    // 0. Desbloquear automáticamente cuentas cuyo tiempo de bloqueo expiró
+    await desbloquearCuentasExpiradas();
     // 1. Obtener cantidad de cuentas activas y límites globales
     const { rows: cuentasActivas } = await dbPool.query(`
       SELECT 
         count(*) as count, 
         sum(minimo_por_ejecucion) as min_total, 
         sum(maximo_por_ejecucion) as max_total 
-      FROM cuentas_smtp WHERE estado = 'activo'
+      FROM cuentas_smtp WHERE estado IN ('activo', 'agotado')
     `);
     const cantidadCuentas = Number(cuentasActivas[0].count) || 1;
     const minGlobalPorHora = Number(cuentasActivas[0].min_total) || 5;
